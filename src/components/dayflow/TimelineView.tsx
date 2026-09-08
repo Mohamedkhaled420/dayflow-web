@@ -195,7 +195,7 @@ export function TimelineView() {
             ))}
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="df-timeline-actions flex items-center gap-1.5">
             <button
               onClick={quickWater}
               disabled={dayOffset !== 0}
@@ -482,7 +482,7 @@ function DayTimeline({
 
   return (
     <>
-      <div className="df-mobile-event-list df-scroll flex-1 overflow-y-auto px-4 pb-24" role="list" aria-label="Day timeline">
+      <div className="df-mobile-event-list df-scroll flex-1 overflow-y-auto px-4 pb-32" role="list" aria-label="Day timeline">
         {events.length === 0 ? (
           <div className="df-card mt-3 p-5 text-center">
             <p className="text-[13px] font-semibold" style={{ color: "var(--df-text-primary)" }}>Nothing tracked yet</p>

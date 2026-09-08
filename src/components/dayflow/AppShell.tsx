@@ -73,7 +73,7 @@ export function AppShell() {
   return (
     <div className="df-window w-full min-h-[100dvh] overflow-x-hidden sm:p-[15px]">
       {/* mobile header */}
-      <header className="lg:hidden sticky top-0 z-40 flex items-center justify-between px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 df-mobile-header">
+      <header className="lg:hidden sticky top-0 z-40 flex items-center justify-between px-4 pt-[max(0.65rem,env(safe-area-inset-top))] pb-2.5 df-mobile-header">
         <div className="flex items-center gap-2.5">
           <LogoBadge size={30} />
           <div>
@@ -138,7 +138,7 @@ export function AppShell() {
         </div>
       </div>
 
-      <nav aria-label="Mobile primary" className="lg:hidden fixed inset-x-0 bottom-0 z-50 flex items-center justify-around border-t border-white/60 bg-[color:var(--df-mobile-nav-fill)] px-1 pb-[max(0.35rem,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur-xl">
+      <nav aria-label="Mobile primary" className="df-mobile-dock lg:hidden fixed inset-x-3 bottom-2 z-50 flex items-center justify-around rounded-[1.35rem] border border-white/70 bg-[color:var(--df-mobile-nav-fill)] px-1.5 pb-[max(0.35rem,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur-xl">
         {TABS.filter((item) => item.id !== "settings").map((t) => (
           <button
             key={t.id}
