@@ -72,28 +72,27 @@ export function AppShell() {
 
   return (
     <div className="df-window w-full min-h-[100dvh] overflow-x-hidden sm:p-[15px]">
-      {/* mobile top bar */}
-      <div className="lg:hidden sticky top-0 z-40 flex items-center gap-1 overflow-x-auto px-2 pt-[max(0.5rem,env(safe-area-inset-top))] pb-2 backdrop-blur-xl border-b border-white/20 dark:border-white/10 df-mobile-nav">
-        <LogoBadge size={30} className="mr-1" />
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => select(t.id)}
-            aria-label={t.label}
-            aria-current={tab === t.id}
-            className={`df-press min-w-[48px] shrink-0 flex flex-col items-center gap-0.5 py-1.5 rounded-lg text-[10px] font-medium ${
-              tab === t.id
-                ? "text-[var(--df-text-primary)] bg-white/60 dark:bg-white/10"
-                : "text-[var(--df-text-muted)]"
-            }`}
-          >
-            <t.icon className="h-[18px] w-[18px]" strokeWidth={1.8} />
-            {t.label}
-          </button>
-        ))}
-      </div>
+      {/* mobile header */}
+      <header className="lg:hidden sticky top-0 z-40 flex items-center justify-between px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 df-mobile-header">
+        <div className="flex items-center gap-2.5">
+          <LogoBadge size={30} />
+          <div>
+            <p className="text-[13px] font-semibold leading-none" style={{ color: "var(--df-text-primary)" }}>Dayflow</p>
+            <p className="mt-1 text-[10px] leading-none" style={{ color: "var(--df-text-muted)" }}>Plan your day</p>
+          </div>
+        </div>
+        <button
+          onClick={() => select("settings")}
+          aria-label="Settings"
+          aria-current={tab === "settings"}
+          className="df-press grid size-9 place-items-center rounded-full border border-white/50 bg-white/45"
+          style={{ color: "var(--df-text-secondary)" }}
+        >
+          <SettingsIcon className="size-[17px]" strokeWidth={1.8} />
+        </button>
+      </header>
 
-      <div className="flex items-stretch max-w-[1440px] mx-auto">
+      <div className="flex items-stretch max-w-[1440px] mx-auto pb-16 lg:pb-0">
         {/* left gutter: logo + vertical sidebar */}
         <aside className="hidden lg:flex w-[80px] shrink-0 flex-col items-center justify-between py-2">
           <div className="df-rise" style={{ animationDelay: "0ms" }}>
@@ -138,6 +137,23 @@ export function AppShell() {
           </div>
         </div>
       </div>
+
+      <nav aria-label="Mobile primary" className="lg:hidden fixed inset-x-0 bottom-0 z-50 flex items-center justify-around border-t border-white/60 bg-[color:var(--df-mobile-nav-fill)] px-1 pb-[max(0.35rem,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur-xl">
+        {TABS.filter((item) => item.id !== "settings").map((t) => (
+          <button
+            key={t.id}
+            onClick={() => select(t.id)}
+            aria-label={t.label}
+            aria-current={tab === t.id}
+            className={`df-press flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl py-1.5 text-[9px] font-medium ${tab === t.id ? "text-[var(--df-text-primary)]" : "text-[var(--df-text-muted)]"}`}
+          >
+            <span className={`grid size-7 place-items-center rounded-lg ${tab === t.id ? "bg-[var(--df-control-fill)]" : ""}`}>
+              <t.icon className="size-[17px]" strokeWidth={1.8} />
+            </span>
+            {t.label}
+          </button>
+        ))}
+      </nav>
     </div>
   );
 }

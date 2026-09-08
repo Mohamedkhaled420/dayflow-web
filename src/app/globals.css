@@ -155,6 +155,7 @@
   --df-chat-soft-border: rgba(249, 110, 0, 0.25);
   --df-chat-code: #faf7f2;
   --df-empty-cell: rgba(152, 152, 152, 0.1);
+  --df-mobile-nav-fill: rgba(251, 246, 244, 0.92);
 }
 
 .dark {
@@ -463,6 +464,8 @@ select {
   .df-scroll {
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
+    scroll-padding-top: 0.75rem;
+    scroll-padding-bottom: 5rem;
   }
 
   .df-mobile-nav {
