@@ -528,6 +528,33 @@ select {
 }
 
 @media (max-width: 639px) {
+  .df-panel,
+  .df-panel > div,
+  .df-panel > div > div,
+  .df-scroll {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .df-scroll {
+    scroll-behavior: smooth;
+    overscroll-behavior-y: contain;
+    overscroll-behavior-x: none;
+    scrollbar-width: thin;
+  }
+
+  .df-daily-view,
+  .df-daily-view > *,
+  .df-daily-view section,
+  .df-daily-view .grid,
+  .df-weekly-view,
+  .df-weekly-view > *,
+  .df-weekly-view section,
+  .df-weekly-view .grid {
+    min-width: 0;
+    max-width: 100%;
+  }
+
   .df-desktop-timeline {
     display: none;
   }
