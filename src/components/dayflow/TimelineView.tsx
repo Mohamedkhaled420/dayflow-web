@@ -41,6 +41,8 @@ import {
 } from "@/lib/compute";
 import type { TrackEvent } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
+import { hapticSelect, hapticSuccess, hapticWarn } from "@/lib/haptics";
+import { springSoft } from "@/lib/motion";
 
 const PX_PER_MIN = 1.1;
 const MIN_CARD_H = 24;
@@ -86,18 +88,35 @@ export function TimelineView() {
     [dayEvents, selectedId]
   );
 
-  // auto-scroll to a sensible anchor (now on today, wake time otherwise)
+  // auto-scroll to a sensible anchor (now on today, wake time otherwise).
+  // On phones the timeline is page-flow (fully expanded), so scroll the
+  // window instead of the container.
   useEffect(() => {
     const el = scrollRef.current;
     if (!el || mode !== "day") return;
     const anchor = dayOffset === 0 ? nowMinutes() - 120 : 5 * 60 + 30;
-    el.scrollTop = Math.max(0, anchor * PX_PER_MIN - 60);
+    if (el.scrollHeight > el.clientHeight + 8) {
+      el.scrollTop = Math.max(0, anchor * PX_PER_MIN - 60);
+    } else {
+      const rect = el.getBoundingClientRect();
+      window.scrollTo(0, Math.max(0, window.scrollY + rect.top + anchor * PX_PER_MIN - 120));
+    }
   }, [dayOffset, mode, dateKey]);
 
   const go = (delta: number) => {
     setDayOffset((o) => Math.max(-13, Math.min(0, o + delta)));
     setSelectedId(null);
   };
+
+  // Escape closes the calendar popover (wayfinding — never trap).
+  useEffect(() => {
+    if (!showCalendar) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowCalendar(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [showCalendar]);
 
   const copyTimeline = async () => {
     try {
@@ -111,6 +130,7 @@ export function TimelineView() {
   };
 
   const quickWater = () => {
+    hapticSuccess();
     const d = new Date();
     addWater({
       dateKey,
@@ -171,20 +191,32 @@ export function TimelineView() {
                 key={m}
                 role="tab"
                 aria-selected={mode === m}
-                onClick={() => setMode(m)}
+                onClick={() => {
+                  if (mode !== m) hapticSelect();
+                  setMode(m);
+                }}
                 className="df-press relative px-3.5 h-[26px] rounded-[5px] text-[12px] font-semibold capitalize"
-                style={
-                  mode === m
-                    ? {
-                        background: "var(--df-control-fill)",
-                        border: "0.5px solid var(--df-control-border)",
-                        boxShadow: "inset 0 0 0 2px var(--df-control-glow)",
-                        color: "var(--df-text-primary)",
-                      }
-                    : { color: "var(--df-segment-inactive)" }
-                }
+                style={{
+                  color:
+                    mode === m
+                      ? "var(--df-text-primary)"
+                      : "var(--df-segment-inactive)",
+                }}
               >
-                {m}
+                {mode === m && (
+                  <motion.span
+                    layoutId="timeline-mode-thumb"
+                    transition={springSoft}
+                    className="absolute inset-0 rounded-[5px]"
+                    style={{
+                      background: "var(--df-control-fill)",
+                      border: "0.5px solid var(--df-control-border)",
+                      boxShadow: "inset 0 0 0 2px var(--df-control-glow)",
+                    }}
+                    aria-hidden="true"
+                  />
+                )}
+                <span className="relative z-10">{m}</span>
               </button>
             ))}
           </div>
@@ -240,19 +272,37 @@ export function TimelineView() {
           </div>
         )}
 
-        {/* calendar popover */}
+        {/* calendar popover — anchored to its trigger, springs in,
+            dismisses on outside click or Escape */}
         <AnimatePresence>
           {showCalendar && (
             <motion.div
-              initial={{ opacity: 0, y: -6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.18 }}
-              className="mx-4 sm:mx-5 mb-3 rounded-lg p-3 backdrop-blur-xl w-[266px]"
+              key="cal-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="fixed inset-0 z-30"
+              onClick={() => setShowCalendar(false)}
+              aria-hidden="true"
+            />
+          )}
+        </AnimatePresence>
+        <AnimatePresence>
+          {showCalendar && (
+            <motion.div
+              key="cal-popover"
+              initial={{ opacity: 0, y: -6, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -6, scale: 0.98 }}
+              transition={springSoft}
               style={{
+                transformOrigin: "top left",
                 background: "color-mix(in srgb, var(--df-card-fill) 92%, transparent)",
                 border: "0.5px solid var(--df-card-border)",
+                boxShadow: "var(--df-material-shadow)",
               }}
+              className="relative z-40 mx-4 sm:mx-5 mb-3 rounded-lg p-3 backdrop-blur-xl saturate-180 w-[266px]"
             >
               <div className="grid grid-cols-7 gap-1.5">
                 {buildCalendarDays().map((d) => (
@@ -295,7 +345,10 @@ export function TimelineView() {
             glassMl={profile.waterGlassMl}
             isToday={dayOffset === 0}
             selectedId={selectedId}
-            onSelect={(id) => setSelectedId((cur) => (cur === id ? null : id))}
+            onSelect={(id) => {
+              hapticSelect();
+              setSelectedId((cur) => (cur === id ? null : id));
+            }}
             scrollRef={scrollRef}
           />
         ) : (
@@ -315,6 +368,7 @@ export function TimelineView() {
           event={selected}
           onEdit={() => setDialog({ open: true, event: selected })}
           onDelete={() => {
+            hapticWarn();
             useDayflow.getState().deleteEvent(selected.id);
             setSelectedId(null);
             toast({ title: "Block deleted", description: selected.title });
@@ -477,7 +531,7 @@ function DayTimeline({
   return (
     <div
       ref={scrollRef}
-      className="df-scroll flex-1 overflow-y-auto px-4 sm:px-5 pb-8"
+      className="df-scroll df-edge-fade flex-1 overflow-y-auto px-4 sm:px-5 pb-8"
       role="list"
       aria-label="Day timeline"
     >
@@ -560,8 +614,7 @@ function DayTimeline({
             animate={{ opacity: 1, x: 0 }}
             transition={{
               delay: Math.min(i * 0.03, 0.25),
-              duration: 0.28,
-              ease: [0.22, 1, 0.36, 1],
+              ...springSoft,
             }}
             className="absolute left-[46px] right-0"
             style={{ top, height }}
@@ -620,7 +673,7 @@ function ActivityCard({
   return (
     <button
       onClick={onClick}
-      className={`df-card w-full h-full text-left flex flex-col overflow-hidden df-press relative ${
+      className={`df-card df-lift w-full h-full text-left flex flex-col overflow-hidden df-press relative ${
         compact ? "py-[3px] px-3" : "py-2 px-3.5"
       }`}
       style={{
@@ -782,6 +835,7 @@ function DaySummaryPanel({ dateKey, className }: { dateKey: string; className?: 
   const isToday = dateKey === keyForOffset(0);
 
   const logWater = () => {
+    hapticSuccess();
     const d = new Date();
     const time = isToday
       ? `${pad2(d.getHours())}:${pad2(d.getMinutes())}`

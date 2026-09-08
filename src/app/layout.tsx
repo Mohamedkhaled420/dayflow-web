@@ -30,6 +30,12 @@ export const metadata: Metadata = {
     "weekly review",
   ],
   authors: [{ name: "Dayflow" }],
+  appleWebApp: {
+    capable: true,
+    title: "Dayflow",
+    statusBarStyle: "default",
+  },
+  formatDetection: { telephone: false },
   openGraph: {
     title: "Dayflow — Your personal life tracker",
     description:
@@ -40,6 +46,9 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
+  // viewportFit=cover lets the app paint under the notch/home indicator;
+  // the tab dock respects env(safe-area-inset-bottom).
+  viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#FFE6E0" },
     { media: "(prefers-color-scheme: dark)", color: "#313348" },
