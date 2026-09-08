@@ -473,6 +473,7 @@ select {
   .df-scroll {
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
     scroll-padding-top: 0.75rem;
     scroll-padding-bottom: 5rem;
   }

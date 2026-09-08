@@ -89,7 +89,7 @@ export function WeeklyView() {
   }, [days, workouts, avgSleep, waterAvg, data.goals]);
 
   return (
-    <div className="df-scroll h-full overflow-y-auto px-4 sm:px-6 py-5">
+    <div className="df-scroll h-full min-w-0 max-w-full overflow-x-hidden overflow-y-auto px-4 sm:px-6 py-5">
       {/* header */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
@@ -232,7 +232,7 @@ export function WeeklyView() {
 
         {/* weekly distribution donut */}
         <Card title="Weekly distribution" sub="Where the week went">
-          <div className="mt-3 flex items-center gap-5 flex-wrap">
+          <div className="mt-3 flex min-w-0 items-center gap-4 flex-wrap">
             <DonutChart
               slices={donutSlices}
               centerTitle="tracked"
