@@ -1,16 +1,40 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+// ChatView — journal chat grounded in the user's tracker data.
+// The client computes a compact context from the local store and
+// posts it with the conversation; the API answers deterministically
+// from that context, or through a live LLM when a key is saved.
+
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowUp, Calendar, Clock, List, Sparkles, Sun } from "lucide-react";
-import { chatSuggestions } from "@/lib/demo-data";
+import { ArrowUp, BedDouble, Calendar, Droplet, Dumbbell, Sparkles } from "lucide-react";
 import { getApiKey } from "@/lib/api-key-store";
+import { useDayflowData } from "@/lib/store";
+import { keyForOffset, keyToDate } from "@/lib/seed";
+import {
+  eventDuration,
+  eventsForDay,
+  fmtDuration,
+  fmtRange,
+  goalsForDay,
+  aggregateWeek,
+  weekOf,
+  weekWorkoutSessions,
+  workoutsForDay,
+} from "@/lib/compute";
 
 interface Msg {
   id: number;
   role: "user" | "assistant";
   content: string;
 }
+
+const SUGGESTIONS = [
+  { icon: "bed", label: "How did I sleep this week?" },
+  { icon: "drop", label: "How much water did I drink today?" },
+  { icon: "dumbbell", label: "Am I hitting my fitness goals?" },
+  { icon: "calendar", label: "Summarize my week" },
+];
 
 const SUGGESTION_ICONS: Record<
   string,
@@ -19,24 +43,27 @@ const SUGGESTION_ICONS: Record<
     style?: React.CSSProperties;
   }>
 > = {
-  sun: Sun,
-  list: List,
-  clock: Clock,
+  bed: BedDouble,
+  drop: Droplet,
+  dumbbell: Dumbbell,
   calendar: Calendar,
 };
 
-const WELCOME: Msg = {
-  id: 0,
-  role: "assistant",
-  content:
-    "Hi! I'm grounded in your work journal — ask me about your timeline, focus patterns, categories, or how the week went.\n\nThis demo answers from the sample day. In the native app, I'd answer from everything Dayflow captured on your Mac.",
-};
-
 export function ChatView() {
-  const [messages, setMessages] = useState<Msg[]>([WELCOME]);
+  const data = useDayflowData();
+  const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const welcome = useMemo<Msg>(
+    () => ({
+      id: 0,
+      role: "assistant",
+      content: `Hi ${data.profile.name.split(" ")[0]}! I'm grounded in your tracker — ask me about your sleep, workouts, water, meals, work time, or how the week is going.\n\nRight now I answer from your local data. Add an API key in Settings for a live LLM with the same grounding.`,
+    }),
+    [data.profile.name]
+  );
 
   useEffect(() => {
     scrollRef.current?.scrollTo({
@@ -44,6 +71,59 @@ export function ChatView() {
       behavior: "smooth",
     });
   }, [messages, busy]);
+
+  // compact tracker context computed from the store, sent with every ask
+  const buildContext = () => {
+    const todayKey = keyForOffset(0);
+    const today = eventsForDay(data.events, todayKey);
+    const week = weekOf(todayKey);
+    const days = aggregateWeek(data, week);
+    return {
+      today: {
+        dateLabel: keyToDate(todayKey).toLocaleDateString("en-US", {
+          weekday: "long",
+          month: "long",
+          day: "numeric",
+        }),
+        events: today.map((e) => ({
+          title: e.title,
+          category:
+            data.categories.find((c) => c.id === e.categoryId)?.name ?? "Uncategorized",
+          range: fmtRange(e),
+          minutes: eventDuration(e),
+          notes: e.notes,
+        })),
+        goals: goalsForDay(data, todayKey).map((g) => ({
+          label: g.label,
+          done: Math.round(g.done * 10) / 10,
+          target: g.target,
+          unit: g.unit,
+          met: g.met,
+        })),
+      },
+      week: {
+        days: days.map((d) => ({
+          label: d.label,
+          dateLabel: d.dateLabel,
+          minutesByCategory: d.minutesByCategory,
+          waterGlasses: d.waterGlasses,
+          sleepMinutes: d.sleepMinutes,
+          totalTracked: d.totalTracked,
+        })),
+        workouts: (() => {
+          const w = weekWorkoutSessions(data, week);
+          return { count: w.count, minutes: w.minutes, titles: w.titles };
+        })(),
+        goals: {
+          workMinutesPerDay: data.goals.workMinutes,
+          sleepMinutesPerNight: data.goals.sleepMinutes,
+          waterGlassesPerDay: data.goals.waterGlasses,
+          fitnessSessionsPerWeek: data.goals.fitnessSessionsPerWeek,
+        },
+      },
+      workoutsToday: workoutsForDay(data.events, todayKey).map((e) => e.title),
+    };
+  };
 
   const send = async (text: string) => {
     const q = text.trim();
@@ -58,17 +138,18 @@ export function ChatView() {
         body: JSON.stringify({
           messages: [...messages.filter((m) => m.id !== 0), { role: "user", content: q }],
           apiKey: getApiKey() || undefined,
+          context: buildContext(),
         }),
       });
-      const data = (await res.json()) as { reply?: string; error?: string };
+      const data2 = (await res.json()) as { reply?: string; error?: string };
       setMessages((m) => [
         ...m,
         {
           id: Date.now() + 1,
           role: "assistant",
           content:
-            data.reply ??
-            data.error ??
+            data2.reply ??
+            data2.error ??
             "Something went wrong answering that. Try again?",
         },
       ]);
@@ -85,6 +166,8 @@ export function ChatView() {
       setBusy(false);
     }
   };
+
+  const allMessages = messages.length > 0 ? [welcome, ...messages] : [welcome];
 
   return (
     <div className="flex flex-col h-full">
@@ -104,13 +187,10 @@ export function ChatView() {
             className="text-[15.5px] font-bold leading-tight"
             style={{ color: "var(--df-text-primary)" }}
           >
-            Chat with your work journal
+            Chat with your tracker
           </h1>
-          <p
-            className="text-[11.5px]"
-            style={{ color: "var(--df-text-muted)" }}
-          >
-            Answers grounded in your timeline
+          <p className="text-[11.5px]" style={{ color: "var(--df-text-muted)" }}>
+            Answers grounded in your logs — no data leaves your browser without a key
           </p>
         </div>
       </header>
@@ -122,7 +202,7 @@ export function ChatView() {
         role="log"
         aria-label="Chat messages"
       >
-        {messages.map((m) => (
+        {allMessages.map((m) => (
           <Bubble key={m.id} role={m.role}>
             {m.content}
           </Bubble>
@@ -146,14 +226,14 @@ export function ChatView() {
 
       {/* suggestions */}
       <AnimatePresence>
-        {messages.length <= 1 && !busy && (
+        {messages.length === 0 && !busy && (
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 8 }}
             className="px-4 sm:px-6 pb-2 flex flex-wrap gap-2"
           >
-            {chatSuggestions.map((s) => {
+            {SUGGESTIONS.map((s) => {
               const Icon = SUGGESTION_ICONS[s.icon] ?? Sparkles;
               return (
                 <button
@@ -196,7 +276,7 @@ export function ChatView() {
             }}
             rows={1}
             placeholder="Ask about your day…"
-            aria-label="Ask a question about your work journal"
+            aria-label="Ask a question about your tracker"
             className="flex-1 bg-transparent outline-none resize-none text-[13px] leading-relaxed placeholder:text-[var(--df-text-muted)] max-h-32"
             style={{ color: "var(--df-text-primary)" }}
           />
@@ -209,12 +289,8 @@ export function ChatView() {
             <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
           </button>
         </div>
-        <p
-          className="text-[10px] mt-1.5 text-center"
-          style={{ color: "var(--df-text-muted)" }}
-        >
-          Chat answers from your local journal data. Add an API key in Settings
-          for a live LLM.
+        <p className="text-[10px] mt-1.5 text-center" style={{ color: "var(--df-text-muted)" }}>
+          Chat answers from your local tracker data. Add an API key in Settings for a live LLM.
         </p>
       </form>
     </div>

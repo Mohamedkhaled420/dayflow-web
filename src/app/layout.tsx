@@ -16,22 +16,24 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Dayflow — A private, automatic work journal",
+  title: "Dayflow — Your personal life tracker",
   description:
-    "Dayflow turns your day into a clear timeline: daily standup prep, weekly review, and a chat interface grounded in your work journal. Open source, local-first, privacy-focused.",
+    "Dayflow tracks what matters to you — workouts, work time, personal projects, sleep, water, and meals — as a clear daily timeline with habit streaks, weekly reviews, and a grounded chat. Local-first and privacy-focused.",
   keywords: [
     "Dayflow",
-    "work journal",
-    "timeline",
+    "habit tracker",
+    "life tracker",
+    "fitness log",
+    "sleep tracker",
+    "water intake",
     "time tracking",
-    "daily standup",
     "weekly review",
   ],
   authors: [{ name: "Dayflow" }],
   openGraph: {
-    title: "Dayflow — A private, automatic work journal",
+    title: "Dayflow — Your personal life tracker",
     description:
-      "Your day as a clear timeline. Daily standup, weekly review, and chat with your work journal.",
+      "Workouts, work, sleep, water, and meals on one timeline. Habit streaks, weekly reviews, and chat with your data.",
     siteName: "Dayflow",
     type: "website",
   },

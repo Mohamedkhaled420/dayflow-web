@@ -1,49 +1,96 @@
 "use client";
 
+// DailyView — the day at a glance: per-category activity grid
+// (when you worked, trained, ate, slept) plus an auto-written
+// daily recap you can copy anywhere. Ported from the native
+// "Daily" view; the standup card becomes a personal recap.
+
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { CheckCircle2, Copy, Sparkles, TriangleAlert } from "lucide-react";
+import { useDayflowData, useSortedCategories } from "@/lib/store";
+import { keyForOffset, keyToDate } from "@/lib/seed";
 import {
-  dailyGrid,
-  standup,
-  computeDaySummary,
-  activitiesForDay,
   fmtDuration,
-} from "@/lib/demo-data";
+  goalsForDay,
+  minutesForCategory,
+  recapForDay,
+  toMinutes,
+  waterTotal,
+  eventsForDay,
+} from "@/lib/compute";
 import { useToast } from "@/hooks/use-toast";
 
+const GRID_START = 5 * 60; // 5 AM
+const GRID_END = 23 * 60 + 30; // 11:30 PM
+const SLOT = 30;
+const SLOTS = (GRID_END - GRID_START) / SLOT; // 37
+
 export function DailyView() {
-  const summary = useMemo(
-    () => computeDaySummary(activitiesForDay(0)),
-    []
-  );
+  const data = useDayflowData();
+  const categories = useSortedCategories();
   const { toast } = useToast();
+  const [dayOffset, setDayOffset] = useState(0);
   const [checked, setChecked] = useState<Record<number, boolean>>({});
 
-  const standupText = useMemo(() => {
-    const done = standup.priorities.filter((_, i) => checked[i]);
-    const pending = standup.priorities.filter((_, i) => !checked[i]);
+  const dateKey = keyForOffset(dayOffset);
+  const date = keyToDate(dateKey);
+  const dateLabel = date.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
+
+  const goals = useMemo(() => goalsForDay(data, dateKey), [data, dateKey]);
+  const recap = useMemo(() => recapForDay(data, dateKey), [data, dateKey]);
+
+  // category rows → set of active 30-min slots
+  const rows = useMemo(() => {
+    const timeCats = categories.filter((c) => c.kind === "time");
+    return timeCats.map((c) => {
+      const acts = eventsForDay(data.events, dateKey).filter((e) => e.categoryId === c.id);
+      const slots = new Set<number>();
+      for (const e of acts) {
+        let s = toMinutes(e.start);
+        let t = toMinutes(e.end);
+        if (t <= s) {
+          // overnight (sleep): morning part 0–end and evening part start–24h
+          slots.add(0);
+          s = GRID_START;
+        }
+        const from = Math.max(s, GRID_START);
+        const to = Math.min(t, GRID_END);
+        for (let m = Math.ceil(from / SLOT) * SLOT; m < to; m += SLOT) slots.add(m);
+      }
+      return { category: c, slots };
+    });
+  }, [categories, data.events, dateKey]);
+
+  const waterMl = waterTotal(data.water, dateKey);
+  const waterGoal = goals.find((g) => g.key === "water")!;
+
+  const recapText = useMemo(() => {
+    const done = recap.focus.filter((_, i) => checked[i]);
+    const pending = recap.focus.filter((_, i) => !checked[i]);
     return [
-      `Standup — ${standup.dateLabel}`,
+      `Dayflow recap — ${dateLabel}`,
       "",
-      "Yesterday:",
-      ...standup.highlights.map((h) => `- ${h}`),
+      "Highlights:",
+      ...recap.highlights.map((h) => `- ${h}`),
       "",
-      "Today:",
+      "Next up:",
       ...pending.map((p) => `- [ ] ${p}`),
       ...done.map((p) => `- [x] ${p}`),
       "",
-      "Blockers:",
-      ...(standup.blockers.length
-        ? standup.blockers.map((b) => `- ${b}`)
-        : ["- None"]),
+      "Watch-outs:",
+      ...(recap.watchouts.length ? recap.watchouts.map((w) => `- ${w}`) : ["- None"]),
     ].join("\n");
-  }, [checked]);
+  }, [recap, checked, dateLabel]);
 
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(standupText);
-      toast({ title: "Standup update copied" });
+      await navigator.clipboard.writeText(recapText);
+      toast({ title: "Daily recap copied" });
     } catch {
       toast({ title: "Copy failed", description: "Clipboard was denied." });
     }
@@ -51,19 +98,39 @@ export function DailyView() {
 
   return (
     <div className="df-scroll h-full overflow-y-auto px-4 sm:px-6 py-5">
+      {/* header */}
       <div className="flex items-end justify-between flex-wrap gap-2">
         <div>
-          <h1
-            className="text-[21px] font-bold tracking-tight"
-            style={{ color: "var(--df-text-primary)" }}
-          >
-            Daily
-          </h1>
-          <p
-            className="text-[12.5px] mt-0.5"
-            style={{ color: "var(--df-text-secondary)" }}
-          >
-            Your day at a glance, and the standup update already written.
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setDayOffset((o) => Math.max(-13, o - 1))}
+              disabled={dayOffset <= -13}
+              aria-label="Previous day"
+              className="df-press w-7 h-7 rounded-full grid place-items-center disabled:opacity-35"
+              style={{ color: "var(--df-text-primary)" }}
+            >
+              ←
+            </button>
+            <h1
+              className="text-[21px] font-bold tracking-tight"
+              style={{ color: "var(--df-text-primary)" }}
+            >
+              {dateLabel}
+            </h1>
+            <button
+              onClick={() => setDayOffset((o) => Math.min(0, o + 1))}
+              disabled={dayOffset >= 0}
+              aria-label="Next day"
+              className="df-press w-7 h-7 rounded-full grid place-items-center disabled:opacity-35"
+              style={{ color: "var(--df-text-primary)" }}
+            >
+              →
+            </button>
+          </div>
+          <p className="text-[12.5px] mt-0.5" style={{ color: "var(--df-text-secondary)" }}>
+            {dayOffset === 0
+              ? "Today so far — come back tonight for the full picture."
+              : "A full day, broken down by category."}
           </p>
         </div>
         <button
@@ -71,134 +138,133 @@ export function DailyView() {
           className="df-press df-btn-secondary h-8 px-3 text-[12px] font-semibold flex items-center gap-1.5"
         >
           <Copy className="h-3.5 w-3.5" />
-          Copy standup
+          Copy recap
         </button>
       </div>
 
       {/* stat strip */}
-      <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2">
+      <div className="mt-4 grid grid-cols-2 sm:grid-cols-5 gap-2">
+        <StatTile label="Sleep" value={fmtDuration(goals.find((g) => g.key === "sleep")!.done)} />
+        <StatTile label="Work" value={fmtDuration(minutesForCategory(data.events, dateKey, "work"))} />
         <StatTile
-          label="Focus today"
-          value={fmtDuration(summary.totalFocus)}
-          tone="focus"
+          label="Personal"
+          value={fmtDuration(minutesForCategory(data.events, dateKey, "personal"))}
         />
+        <StatTile label="Fitness" value={fmtDuration(goals.find((g) => g.key === "fitness")!.done)} />
         <StatTile
-          label="Captured"
-          value={fmtDuration(summary.totalCaptured)}
-        />
-        <StatTile
-          label="Distractions"
-          value={fmtDuration(summary.totalDistracted)}
-          tone="warn"
-        />
-        <StatTile
-          label="Longest block"
-          value={
-            summary.longestFocus ? fmtDuration(summary.longestFocus.minutes) : "—"
-          }
+          label="Water"
+          value={`${waterMl ? Math.round((waterMl / (data.profile.waterGlassMl || 250)) * 10) / 10 : 0} gl`}
+          sub={`${waterMl} ml`}
         />
       </div>
 
       <div className="mt-5 grid xl:grid-cols-[1fr_360px] gap-4">
-        {/* activity grid — GitHub style */}
+        {/* category activity grid */}
         <section
           className="rounded-lg p-4"
           style={{
             background: "var(--df-daily-grid-fill)",
             border: "0.5px solid var(--df-daily-grid-border)",
           }}
-          aria-label="Activity grid"
+          aria-label="Category activity grid"
         >
-          <h2
-            className="text-[13px] font-bold"
-            style={{ color: "var(--df-text-primary)" }}
-          >
-            Activity grid
+          <h2 className="text-[13px] font-bold" style={{ color: "var(--df-text-primary)" }}>
+            Your day by category
           </h2>
-          <p
-            className="text-[11.5px] mt-0.5"
-            style={{ color: "var(--df-text-muted)" }}
-          >
-            Focused 30-minute blocks, 9 AM – 7 PM
+          <p className="text-[11.5px] mt-0.5" style={{ color: "var(--df-text-muted)" }}>
+            30-minute slots, 5 AM – 11:30 PM
           </p>
           <div className="mt-3 overflow-x-auto df-scroll">
-            <div className="min-w-[420px]">
-              {/* hour header */}
+            <div className="min-w-[480px]">
+              {/* hour header: label every 2 hours = 4 slots */}
               <div
-                className="grid mb-1.5 text-[10px] font-semibold"
-                style={{
-                  gridTemplateColumns: "repeat(20, 16px)",
-                  color: "var(--df-text-muted)",
-                }}
+                className="grid mb-1.5 pl-[110px] text-[10px] font-semibold"
+                style={{ gridTemplateColumns: `repeat(${SLOTS}, 16px)`, gap: "3px" }}
               >
-                <span />
-                {Array.from({ length: 10 }, (_, i) => (
-                  <span
-                    key={i}
-                    className="text-center col-span-2"
-                    style={{ color: "var(--df-hour-label)" }}
-                  >
-                    {i + 9 > 12 ? `${i + 9 - 12}p` : `${i + 9}a`}
-                  </span>
-                ))}
-              </div>
-              <div
-                className="grid gap-[3px]"
-                style={{ gridTemplateColumns: "repeat(20, 16px)" }}
-              >
-                {dailyGrid.map((cell, i) => {
-                  const value = cell.focus
-                    ? Math.min(
-                        4,
-                        1 + Math.floor((i % 7) / 2) + (cell.half ? 1 : 0)
-                      )
-                    : 0;
+                {Array.from({ length: Math.ceil(SLOTS / 4) }, (_, i) => {
+                  const h = GRID_START / 60 + i * 2;
+                  const span = Math.min(4, SLOTS - i * 4);
                   return (
-                    <motion.div
+                    <span
                       key={i}
-                      initial={{ opacity: 0, scale: 0.6 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: i * 0.008, duration: 0.2 }}
-                      className="h-4 w-4 rounded-[3px]"
                       style={{
-                        background:
-                          value === 0
-                            ? "var(--df-daily-empty)"
-                            : `rgba(243, 133, 75, ${0.28 + value * 0.17})`,
-                        border:
-                          value === 0
-                            ? "0.5px solid color-mix(in srgb, var(--df-text-muted) 25%, transparent)"
-                            : "0.5px solid rgba(243, 133, 75, 0.4)",
+                        gridColumn: `span ${span}`,
+                        textAlign: "center",
+                        color: "var(--df-hour-label)",
                       }}
-                      title={`${cell.hour}:${cell.half ? "30" : "00"} — ${
-                        cell.focus ? "focused" : "untracked"
-                      }`}
-                    />
+                    >
+                      {h >= 24 ? "" : h > 12 ? `${h - 12}p` : `${h}a`}
+                    </span>
                   );
                 })}
               </div>
-              <div className="mt-3 flex items-center gap-1.5 text-[10px]"
-                style={{ color: "var(--df-text-muted)" }}>
-                less
-                {[0, 1, 2, 3, 4].map((v) => (
-                  <span
-                    key={v}
-                    className="h-3 w-3 rounded-[2px]"
-                    style={{
-                      background:
-                        v === 0
-                          ? "var(--df-daily-empty)"
-                          : `rgba(243, 133, 75, ${0.28 + v * 0.17})`,
-                    }}
-                  />
+              <div className="flex flex-col gap-[3px]">
+                {rows.map((row) => (
+                  <div key={row.category.id} className="flex items-center gap-2">
+                    <span
+                      className="w-[110px] shrink-0 text-right text-[11px] font-medium truncate pr-1"
+                      style={{ color: "var(--df-text-secondary)" }}
+                      title={row.category.name}
+                    >
+                      {row.category.name}
+                    </span>
+                    <div
+                      className="grid gap-[3px]"
+                      style={{ gridTemplateColumns: `repeat(${SLOTS}, 16px)` }}
+                    >
+                      {Array.from({ length: SLOTS }, (_, i) => {
+                        const slotMin = GRID_START + i * SLOT;
+                        const active = row.slots.has(slotMin);
+                        return (
+                          <motion.div
+                            key={i}
+                            initial={{ opacity: 0, scale: 0.6 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ delay: i * 0.006, duration: 0.18 }}
+                            className="h-4 w-4 rounded-[3px]"
+                            style={{
+                              background: active
+                                ? row.category.colorHex
+                                : "var(--df-daily-empty)",
+                              border: active
+                                ? `0.5px solid color-mix(in srgb, ${row.category.colorHex} 55%, transparent)`
+                                : "0.5px solid color-mix(in srgb, var(--df-text-muted) 25%, transparent)",
+                            }}
+                            title={`${row.category.name} · ${
+                              Math.floor(slotMin / 60) > 12
+                                ? `${Math.floor(slotMin / 60) - 12}`
+                                : `${Math.floor(slotMin / 60)}`
+                            }:${slotMin % 60 === 0 ? "00" : "30"} ${
+                              slotMin >= 720 ? "PM" : "AM"
+                            }`}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
                 ))}
-                more
+              </div>
+              <div
+                className="mt-3 flex items-center gap-1.5 text-[10px]"
+                style={{ color: "var(--df-text-muted)" }}
+              >
+                <span className="ml-[110px]">water</span>
+                <span
+                  className="h-3 w-3 rounded-[2px]"
+                  style={{
+                    background:
+                      waterGoal.met ? "#56CFEE" : "color-mix(in srgb, #56CFEE 35%, transparent)",
+                  }}
+                />
+                <span>
+                  {waterGoal.done.toFixed(0)}/{waterGoal.target} glasses {waterGoal.met ? "· goal met" : ""}
+                </span>
               </div>
             </div>
           </div>
         </section>
 
-        {/* standup card */}
+        {/* daily recap card */}
         <section
           className="rounded-lg p-4 relative overflow-hidden"
           style={{
@@ -206,29 +272,23 @@ export function DailyView() {
             background:
               "linear-gradient(90deg, transparent, color-mix(in srgb, var(--df-summary-card-fill) 75%, transparent), transparent)",
           }}
-          aria-label="Daily standup"
+          aria-label="Daily recap"
         >
           <div className="flex items-center gap-2">
-            <Sparkles
-              className="h-4 w-4"
-              style={{ color: "var(--df-accent)" }}
-            />
-            <h2
-              className="text-[13px] font-bold"
-              style={{ color: "var(--df-text-primary)" }}
-            >
-              Standup — {standup.dateLabel}
+            <Sparkles className="h-4 w-4" style={{ color: "var(--df-accent)" }} />
+            <h2 className="text-[13px] font-bold" style={{ color: "var(--df-text-primary)" }}>
+              Recap — {dayOffset === 0 ? "today" : dateLabel.split(", ")[0]}
             </h2>
           </div>
 
-          <StandupSection title="Yesterday's highlights">
-            {standup.highlights.map((h, i) => (
+          <RecapSection title="Highlights">
+            {recap.highlights.map((h, i) => (
               <Bullet key={i} text={h} />
             ))}
-          </StandupSection>
+          </RecapSection>
 
-          <StandupSection title="Today's priorities">
-            {standup.priorities.map((p, i) => (
+          <RecapSection title="Next up">
+            {recap.focus.map((p, i) => (
               <button
                 key={i}
                 onClick={() => setChecked((c) => ({ ...c, [i]: !c[i] }))}
@@ -238,17 +298,13 @@ export function DailyView() {
                 <CheckCircle2
                   className="h-[15px] w-[15px] mt-[1.5px] shrink-0"
                   style={{
-                    color: checked[i]
-                      ? "var(--df-accent)"
-                      : "var(--df-text-muted)",
+                    color: checked[i] ? "var(--df-accent)" : "var(--df-text-muted)",
                   }}
                 />
                 <span
                   className="text-[12px] leading-snug"
                   style={{
-                    color: checked[i]
-                      ? "var(--df-text-muted)"
-                      : "var(--df-text-secondary)",
+                    color: checked[i] ? "var(--df-text-muted)" : "var(--df-text-secondary)",
                     textDecoration: checked[i] ? "line-through" : "none",
                   }}
                 >
@@ -256,17 +312,16 @@ export function DailyView() {
                 </span>
               </button>
             ))}
-          </StandupSection>
+          </RecapSection>
 
-          <StandupSection title="Blockers">
-            {standup.blockers.length ? (
-              standup.blockers.map((b, i) => (
+          <RecapSection title="Watch-outs">
+            {recap.watchouts.length ? (
+              recap.watchouts.map((w, i) => (
                 <div
                   key={i}
                   className="flex items-start gap-2 rounded-md px-2 py-1.5"
                   style={{
-                    background:
-                      "color-mix(in srgb, #FA8282 12%, transparent)",
+                    background: "color-mix(in srgb, #FA8282 12%, transparent)",
                     border: "0.5px solid color-mix(in srgb, #FA8282 30%, transparent)",
                   }}
                 >
@@ -278,21 +333,21 @@ export function DailyView() {
                     className="text-[12px] leading-snug"
                     style={{ color: "var(--df-text-secondary)" }}
                   >
-                    {b}
+                    {w}
                   </span>
                 </div>
               ))
             ) : (
-              <Bullet text="None" muted />
+              <Bullet text="None — every goal within reach." muted />
             )}
-          </StandupSection>
+          </RecapSection>
         </section>
       </div>
     </div>
   );
 }
 
-function StandupSection({
+function RecapSection({
   title,
   children,
 }: {
@@ -334,22 +389,17 @@ function Bullet({ text, muted }: { text: string; muted?: boolean }) {
 function StatTile({
   label,
   value,
-  tone,
+  sub,
 }: {
   label: string;
   value: string;
-  tone?: "focus" | "warn";
+  sub?: string;
 }) {
   return (
     <div className="df-summary-card px-3 py-2.5">
       <div
         className="text-[17px] font-bold leading-none"
-        style={{
-          color:
-            tone === "warn"
-              ? "color-mix(in srgb, #FA8282 85%, var(--df-summary-value))"
-              : "var(--df-summary-value)",
-        }}
+        style={{ color: "var(--df-summary-value)" }}
       >
         {value}
       </div>
@@ -359,6 +409,11 @@ function StatTile({
       >
         {label}
       </div>
+      {sub && (
+        <div className="text-[9.5px] mt-0.5 tabular-nums" style={{ color: "var(--df-text-muted)" }}>
+          {sub}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,30 +1,25 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   CalendarDays,
   CalendarRange,
   Clock3,
+  Flame,
   MessageCircle,
   Settings as SettingsIcon,
-  Sparkles,
 } from "lucide-react";
 import { LogoBadge } from "@/components/dayflow/LogoBadge";
 import { TimelineView } from "@/components/dayflow/TimelineView";
 import { DailyView } from "@/components/dayflow/DailyView";
 import { WeeklyView } from "@/components/dayflow/WeeklyView";
+import { HabitsView } from "@/components/dayflow/HabitsView";
 import { ChatView } from "@/components/dayflow/ChatView";
-import { AgentsView } from "@/components/dayflow/AgentsView";
 import { SettingsView } from "@/components/dayflow/SettingsView";
+import { rehydrateDayflow } from "@/lib/store";
 
-export type TabId =
-  | "timeline"
-  | "daily"
-  | "weekly"
-  | "chat"
-  | "agents"
-  | "settings";
+export type TabId = "timeline" | "daily" | "weekly" | "habits" | "chat" | "settings";
 
 const TABS: {
   id: TabId;
@@ -34,17 +29,31 @@ const TABS: {
   { id: "timeline", label: "Timeline", icon: Clock3 },
   { id: "daily", label: "Daily", icon: CalendarDays },
   { id: "weekly", label: "Weekly", icon: CalendarRange },
+  { id: "habits", label: "Habits", icon: Flame },
   { id: "chat", label: "Chat", icon: MessageCircle },
-  { id: "agents", label: "Agents", icon: Sparkles },
   { id: "settings", label: "Settings", icon: SettingsIcon },
 ];
 
 export function AppShell() {
   const [tab, setTab] = useState<TabId>("timeline");
+  const [ready, setReady] = useState(false);
+
+  // Rehydrate the persisted store after mount: the first render uses the
+  // deterministic seed so server HTML and the hydration pass match exactly.
+  useEffect(() => {
+    let cancelled = false;
+    rehydrateDayflow().finally(() => {
+      if (!cancelled) setReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const select = useCallback((t: TabId) => setTab(t), []);
 
   const content = useMemo(() => {
+    if (!ready) return <BootSkeleton />;
     switch (tab) {
       case "timeline":
         return <TimelineView />;
@@ -52,14 +61,14 @@ export function AppShell() {
         return <DailyView />;
       case "weekly":
         return <WeeklyView />;
+      case "habits":
+        return <HabitsView />;
       case "chat":
         return <ChatView />;
-      case "agents":
-        return <AgentsView />;
       case "settings":
         return <SettingsView onNavigate={select} />;
     }
-  }, [tab, select]);
+  }, [tab, ready, select]);
 
   return (
     <div className="df-window w-full min-h-screen sm:p-[15px]">
@@ -101,9 +110,7 @@ export function AppShell() {
                 label={t.label}
                 active={tab === t.id}
                 onClick={() => select(t.id)}
-                icon={
-                  <t.icon className="h-[17px] w-[17px]" strokeWidth={1.8} />
-                }
+                icon={<t.icon className="h-[17px] w-[17px]" strokeWidth={1.8} />}
               />
             ))}
           </nav>
@@ -131,6 +138,23 @@ export function AppShell() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Soft loading state shown while the local data store rehydrates. */
+function BootSkeleton() {
+  return (
+    <div className="h-full flex flex-col items-center justify-center gap-4 p-8" aria-label="Loading your data">
+      <div
+        className="w-10 h-10 rounded-[10px] animate-pulse"
+        style={{ background: "var(--df-control-fill)" }}
+      />
+      <div className="w-48 h-3 rounded-full animate-pulse" style={{ background: "var(--df-chip-fill)" }} />
+      <div className="w-64 h-3 rounded-full animate-pulse" style={{ background: "var(--df-chip-fill)", animationDelay: "120ms" }} />
+      <p className="text-[11px]" style={{ color: "var(--df-text-muted)" }}>
+        Loading your local data…
+      </p>
     </div>
   );
 }
