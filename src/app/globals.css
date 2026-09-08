@@ -429,6 +429,79 @@ body {
   animation: df-shimmer 1.6s linear infinite;
 }
 
+/* Mobile-first layout primitives */
+html {
+  overflow-x: hidden;
+  background: var(--background);
+}
+
+body {
+  min-width: 300px;
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+button,
+a,
+input,
+textarea,
+select {
+  touch-action: manipulation;
+}
+
+@media (max-width: 1023px) {
+  .df-window {
+    min-height: 100dvh;
+  }
+
+  .df-panel {
+    min-height: calc(100dvh - 54px);
+    border-left: 0;
+    border-right: 0;
+  }
+
+  .df-scroll {
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .df-mobile-nav {
+    scrollbar-width: none;
+    padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
+  }
+
+  .df-mobile-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  [class*="grid-cols-"] {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 639px) {
+  .df-card,
+  .df-summary-card {
+    border-radius: 0.75rem;
+  }
+
+  .df-window .df-panel > div {
+    max-width: 100%;
+  }
+
+  .df-btn-primary,
+  .df-btn-secondary,
+  .df-glass-control {
+    min-height: 2.25rem;
+  }
+
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .df-rise,
   .df-generating {

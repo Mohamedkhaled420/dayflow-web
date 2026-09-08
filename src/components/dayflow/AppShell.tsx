@@ -71,9 +71,9 @@ export function AppShell() {
   }, [tab, ready, select]);
 
   return (
-    <div className="df-window w-full min-h-screen sm:p-[15px]">
+    <div className="df-window w-full min-h-[100dvh] overflow-x-hidden sm:p-[15px]">
       {/* mobile top bar */}
-      <div className="lg:hidden sticky top-0 z-40 flex items-center gap-1 px-3 py-2 backdrop-blur-xl border-b border-white/20 dark:border-white/10">
+      <div className="lg:hidden sticky top-0 z-40 flex items-center gap-1 overflow-x-auto px-2 pt-[max(0.5rem,env(safe-area-inset-top))] pb-2 backdrop-blur-xl border-b border-white/20 dark:border-white/10 df-mobile-nav">
         <LogoBadge size={30} className="mr-1" />
         {TABS.map((t) => (
           <button
@@ -81,7 +81,7 @@ export function AppShell() {
             onClick={() => select(t.id)}
             aria-label={t.label}
             aria-current={tab === t.id}
-            className={`df-press flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-lg text-[10px] font-medium ${
+            className={`df-press min-w-[48px] shrink-0 flex flex-col items-center gap-0.5 py-1.5 rounded-lg text-[10px] font-medium ${
               tab === t.id
                 ? "text-[var(--df-text-primary)] bg-white/60 dark:bg-white/10"
                 : "text-[var(--df-text-muted)]"
@@ -122,7 +122,7 @@ export function AppShell() {
           className="flex-1 min-w-0 df-rise"
           style={{ animationDelay: "100ms" }}
         >
-          <div className="df-panel h-full min-h-[calc(100vh-30px)] lg:min-h-[calc(100vh-30px)] overflow-hidden">
+          <div className="df-panel h-full min-h-[calc(100dvh-54px)] lg:min-h-[calc(100vh-30px)] overflow-hidden rounded-none sm:rounded-lg">
             <AnimatePresence mode="wait">
               <motion.div
                 key={tab}
