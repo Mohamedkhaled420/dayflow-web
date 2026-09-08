@@ -90,8 +90,14 @@ export function TimelineView() {
   useEffect(() => {
     const el = scrollRef.current;
     if (!el || mode !== "day") return;
-    const anchor = dayOffset === 0 ? nowMinutes() - 120 : 5 * 60 + 30;
-    el.scrollTop = Math.max(0, anchor * PX_PER_MIN - 60);
+    const isMobile = window.matchMedia("(max-width: 639px)").matches;
+    const anchor = isMobile ? 5 * 60 + 30 : dayOffset === 0 ? nowMinutes() - 120 : 5 * 60 + 30;
+    const scrollTop = Math.max(0, anchor * PX_PER_MIN - (isMobile ? 12 : 60));
+    el.scrollTop = scrollTop;
+    const timer = window.setTimeout(() => {
+      if (scrollRef.current) scrollRef.current.scrollTop = scrollTop;
+    }, 80);
+    return () => window.clearTimeout(timer);
   }, [dayOffset, mode, dateKey]);
 
   const go = (delta: number) => {
@@ -127,7 +133,7 @@ export function TimelineView() {
     <div className="flex flex-col lg:flex-row h-full">
       {/* ------- timeline column ------- */}
       <div className="flex-1 min-w-0 flex flex-col">
-        <header className="px-4 sm:px-5 pt-4 pb-2.5 flex flex-wrap items-center gap-x-2 gap-y-2">
+        <header className="df-timeline-header px-4 sm:px-5 pt-4 pb-2.5 flex flex-wrap items-center gap-x-2 gap-y-2">
           <div className="flex items-center gap-1.5">
             <NavArrow dir="prev" disabled={dayOffset <= -13} onClick={() => go(-1)} />
             <button
@@ -220,7 +226,7 @@ export function TimelineView() {
 
         {/* category filter chips */}
         {mode === "day" && (
-          <div className="px-4 sm:px-5 pb-2.5 flex flex-wrap gap-1.5" role="group" aria-label="Filter by category">
+          <div className="df-timeline-filters px-4 sm:px-5 pb-2.5 flex flex-wrap gap-1.5" role="group" aria-label="Filter by category">
             <FilterChip
               label="All"
               colorHex={null}
@@ -475,12 +481,44 @@ function DayTimeline({
   const nowMin = nowMinutes();
 
   return (
-    <div
-      ref={scrollRef}
-      className="df-scroll flex-1 overflow-y-auto px-4 sm:px-5 pb-8"
-      role="list"
-      aria-label="Day timeline"
-    >
+    <>
+      <div className="df-mobile-event-list df-scroll flex-1 overflow-y-auto px-4 pb-24" role="list" aria-label="Day timeline">
+        {events.length === 0 ? (
+          <div className="df-card mt-3 p-5 text-center">
+            <p className="text-[13px] font-semibold" style={{ color: "var(--df-text-primary)" }}>Nothing tracked yet</p>
+            <p className="mt-1 text-[11.5px]" style={{ color: "var(--df-text-secondary)" }}>Tap Log above to add your first block.</p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2 pt-1">
+            {events.map((event) => {
+              const cat = categoryById(useDayflow.getState().categories, event.categoryId);
+              return (
+                <button
+                  key={event.id}
+                  onClick={() => onSelect(event.id)}
+                  className="df-mobile-event df-card flex min-h-16 w-full items-center gap-3 px-3 py-2.5 text-left df-press"
+                  style={{ outline: selectedId === event.id ? "1.5px solid var(--df-accent)" : "none" }}
+                  aria-pressed={selectedId === event.id}
+                  aria-label={`${event.title}, ${cat.name}, ${fmtRange(event)}, ${fmtDuration(eventDuration(event))}`}
+                >
+                  <span className="h-10 w-1 shrink-0 rounded-full" style={{ background: cat.colorHex }} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[13px] font-semibold" style={{ color: "var(--df-text-primary)" }}>{event.title}</span>
+                    <span className="mt-1 block truncate text-[10.5px]" style={{ color: "var(--df-text-muted)" }}>{cat.name} · {fmtRange(event)}</span>
+                  </span>
+                  <span className="shrink-0 text-[10.5px] font-semibold tabular-nums" style={{ color: "var(--df-text-secondary)" }}>{fmtDuration(eventDuration(event))}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+      <div
+        ref={scrollRef}
+        className="df-desktop-timeline df-scroll flex-1 overflow-y-auto px-4 sm:px-5 pb-8"
+        role="list"
+        aria-label="Day timeline"
+      >
       <div className="relative pt-1" style={{ height: DAY_SPAN * PX_PER_MIN + 30 }}>
         {/* hour lines */}
         <div aria-hidden="true">
@@ -598,6 +636,7 @@ function DayTimeline({
         )}
       </div>
     </div>
+    </>
   );
 }
 

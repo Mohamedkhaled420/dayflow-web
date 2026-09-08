@@ -516,3 +516,93 @@ select {
     transform: none;
   }
 }
+
+@media (max-width: 639px) {
+  .df-desktop-timeline {
+    display: none;
+  }
+
+  .df-mobile-event-list {
+    display: block;
+  }
+
+  .df-mobile-header {
+    background: color-mix(in srgb, var(--df-window-bg) 88%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--df-text-primary) 8%, transparent);
+    backdrop-filter: blur(18px);
+  }
+
+  .df-window > .flex > .df-panel {
+    min-height: calc(100dvh - 112px);
+  }
+
+  .df-timeline-header {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.65rem;
+    padding: 0.85rem 1rem 0.65rem;
+  }
+
+  .df-timeline-header > :first-child {
+    grid-column: 1 / -1;
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .df-timeline-header > :first-child > button:nth-child(2) {
+    flex: 1;
+    justify-content: center;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .df-timeline-header > :nth-child(2) {
+    margin-left: 0;
+    justify-self: start;
+  }
+
+  .df-timeline-header > :nth-child(3) {
+    justify-self: end;
+  }
+
+  .df-timeline-header > :nth-child(3) button:last-child {
+    display: none;
+  }
+
+  .df-timeline-filters {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding: 0 1rem 0.75rem;
+    scrollbar-width: none;
+  }
+
+  .df-timeline-filters::-webkit-scrollbar {
+    display: none;
+  }
+
+  .df-timeline-filters > button {
+    flex: 0 0 auto;
+  }
+
+  .df-daily-view {
+    padding: 1rem;
+  }
+
+  .df-daily-view h1 {
+    font-size: 1.15rem;
+  }
+
+  .df-daily-view .grid.grid-cols-2 {
+    gap: 0.5rem;
+  }
+
+  .df-daily-view .df-summary-card {
+    padding: 0.7rem 0.65rem;
+  }
+
+  .df-daily-view .df-summary-card > div:first-child {
+    font-size: 1rem;
+  }
+}
