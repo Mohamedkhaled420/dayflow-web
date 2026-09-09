@@ -43,6 +43,16 @@ Dayflow's core magic is native: it captures lightweight screen chunks on macOS a
 
 Everything else — every view, chart, and interaction — works end-to-end.
 
+## Design
+
+The UI is a 1:1 port of Dayflow's design system (tokens extracted from `DayflowTheme.swift`), with interaction feel guided by [Apple's interface design principles](https://github.com/emilkowalski/skills/tree/main/skills/apple-design):
+
+- **Springs, not durations** — critically damped springs (~0.3s response) for every interactive transition; interruptible by design.
+- **iOS-style mobile layout** — a floating translucent tab dock (respects the home-indicator safe area), a slim material top bar, and the log/editor as a drag-to-dismiss bottom sheet with rubber-banding and velocity handoff.
+- **Materials** — translucent `backdrop-filter` chrome with a light-catching top hairline; content scrolls beneath.
+- **Instant feedback** — press states on pointer-down (100ms), haptic ticks on commits (where supported), focus-visible rings for keyboard users.
+- **Accessibility** — `prefers-reduced-motion`, `prefers-reduced-transparency`, and `prefers-contrast` all respected; Escape always dismisses.
+
 ## Getting started
 
 ```bash

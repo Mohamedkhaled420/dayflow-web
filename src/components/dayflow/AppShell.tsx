@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   CalendarDays,
   CalendarRange,
@@ -18,6 +18,8 @@ import { HabitsView } from "@/components/dayflow/HabitsView";
 import { ChatView } from "@/components/dayflow/ChatView";
 import { SettingsView } from "@/components/dayflow/SettingsView";
 import { rehydrateDayflow } from "@/lib/store";
+import { hapticSelect } from "@/lib/haptics";
+import { springSoft } from "@/lib/motion";
 
 export type TabId = "timeline" | "daily" | "weekly" | "habits" | "chat" | "settings";
 
@@ -34,9 +36,12 @@ const TABS: {
   { id: "settings", label: "Settings", icon: SettingsIcon },
 ];
 
+/** Apple house-style spring: critically damped, ~0.3s response. */
+
 export function AppShell() {
   const [tab, setTab] = useState<TabId>("timeline");
   const [ready, setReady] = useState(false);
+  const reducedMotion = useReducedMotion();
 
   // Rehydrate the persisted store after mount: the first render uses the
   // deterministic seed so server HTML and the hydration pass match exactly.
@@ -50,7 +55,10 @@ export function AppShell() {
     };
   }, []);
 
-  const select = useCallback((t: TabId) => setTab(t), []);
+  const select = useCallback((t: TabId) => {
+    hapticSelect();
+    setTab(t);
+  }, []);
 
   const content = useMemo(() => {
     if (!ready) return <BootSkeleton />;
@@ -70,24 +78,19 @@ export function AppShell() {
     }
   }, [tab, ready, select]);
 
+  const activeTab = TABS.find((t) => t.id === tab)!;
+
   return (
     <div className="df-window w-full min-h-[100dvh] overflow-x-hidden sm:p-[15px]">
-      {/* mobile header */}
       <header className="lg:hidden sticky top-0 z-40 flex items-center justify-between px-4 pt-[max(0.65rem,env(safe-area-inset-top))] pb-2.5 df-mobile-header">
         <div className="flex items-center gap-2.5">
           <LogoBadge size={30} />
           <div>
             <p className="text-[13px] font-semibold leading-none" style={{ color: "var(--df-text-primary)" }}>Dayflow</p>
-            <p className="mt-1 text-[10px] leading-none" style={{ color: "var(--df-text-muted)" }}>Plan your day</p>
+            <p className="mt-1 text-[10px] leading-none" style={{ color: "var(--df-text-muted)" }}>{activeTab.label}</p>
           </div>
         </div>
-        <button
-          onClick={() => select("settings")}
-          aria-label="Settings"
-          aria-current={tab === "settings"}
-          className="df-press grid size-9 place-items-center rounded-full border border-white/50 bg-white/45"
-          style={{ color: "var(--df-text-secondary)" }}
-        >
+        <button onClick={() => select("settings")} aria-label="Settings" aria-current={tab === "settings"} className="df-press grid size-9 place-items-center rounded-full border border-white/50 bg-white/45" style={{ color: "var(--df-text-secondary)" }}>
           <SettingsIcon className="size-[17px]" strokeWidth={1.8} />
         </button>
       </header>
@@ -121,15 +124,16 @@ export function AppShell() {
           className="flex-1 min-w-0 df-rise"
           style={{ animationDelay: "100ms" }}
         >
-          <div className="df-panel h-full min-h-[calc(100dvh-54px)] lg:min-h-[calc(100vh-30px)] overflow-hidden rounded-none sm:rounded-lg">
-            <AnimatePresence mode="wait">
+          <div className="df-panel h-full min-h-[calc(100dvh-54px)] lg:min-h-[calc(100vh-30px)] overflow-hidden rounded-none sm:rounded-lg pb-[calc(88px+env(safe-area-inset-bottom))] lg:pb-0">
+            <AnimatePresence mode="wait" initial={false}>
               <motion.div
                 key={tab}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                initial={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
+                animate={reducedMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
+                exit={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
+                transition={reducedMotion ? { duration: 0.15 } : springSoft}
                 className="h-full min-w-0 w-full max-w-full overflow-hidden"
+              >
               >
                 {content}
               </motion.div>
@@ -140,18 +144,13 @@ export function AppShell() {
 
       <nav aria-label="Mobile primary" className="df-mobile-dock lg:hidden fixed inset-x-3 bottom-2 z-50 flex items-center justify-around rounded-[1.35rem] border border-white/70 bg-[color:var(--df-mobile-nav-fill)] px-1.5 pb-[max(0.35rem,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur-xl">
         {TABS.filter((item) => item.id !== "settings").map((t) => (
-          <button
+          <DockItem
             key={t.id}
+            label={t.label}
+            active={tab === t.id}
             onClick={() => select(t.id)}
-            aria-label={t.label}
-            aria-current={tab === t.id}
-            className={`df-press flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl py-1.5 text-[9px] font-medium ${tab === t.id ? "text-[var(--df-text-primary)]" : "text-[var(--df-text-muted)]"}`}
-          >
-            <span className={`grid size-7 place-items-center rounded-lg ${tab === t.id ? "bg-[var(--df-control-fill)]" : ""}`}>
-              <t.icon className="size-[17px]" strokeWidth={1.8} />
-            </span>
-            {t.label}
-          </button>
+            icon={<t.icon className="size-[17px]" strokeWidth={1.8} />}
+          />
         ))}
       </nav>
     </div>
@@ -175,6 +174,45 @@ function BootSkeleton() {
   );
 }
 
+function DockItem({
+  label,
+  icon,
+  active,
+  onClick,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  active: boolean;
+  onClick: () => void;
+}) {
+  const reducedMotion = useReducedMotion();
+  return (
+    <button
+      onClick={onClick}
+      aria-label={label}
+      aria-current={active}
+      className="df-press flex-1 min-w-0 h-[52px] rounded-[16px] flex flex-col items-center justify-center gap-[3px]"
+      style={{ color: active ? "var(--df-accent-text)" : "var(--df-text-muted)" }}
+    >
+      <motion.span
+        className="grid place-items-center"
+        animate={
+          reducedMotion ? undefined : { scale: active ? 1.08 : 1, y: active ? -0.5 : 0 }
+        }
+        transition={springSoft}
+      >
+        {icon}
+      </motion.span>
+      <span
+        className="text-[9.5px] font-semibold leading-none"
+        style={{ opacity: active ? 1 : 0.8 }}
+      >
+        {label}
+      </span>
+    </button>
+  );
+}
+
 function SidebarButton({
   label,
   icon,
@@ -186,6 +224,7 @@ function SidebarButton({
   active: boolean;
   onClick: () => void;
 }) {
+  const reducedMotion = useReducedMotion();
   return (
     <button
       onClick={onClick}
@@ -195,8 +234,11 @@ function SidebarButton({
     >
       <span className="relative w-[37px] h-[37px] grid place-items-center">
         {active && (
-          <span
+          <motion.span
             className="absolute inset-0 rounded-[10px]"
+            initial={reducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.88 }}
+            animate={reducedMotion ? { opacity: 1 } : { opacity: 1, scale: 1 }}
+            transition={springSoft}
             style={{
               background: "var(--df-sidebar-selected-fill)",
               border: "0.58px solid var(--df-sidebar-selected-border)",

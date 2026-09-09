@@ -287,6 +287,146 @@ body {
   font-family: var(--font-figtree), var(--font-geist-sans), system-ui,
     sans-serif;
   -webkit-font-smoothing: antialiased;
+  font-optical-sizing: auto;
+  text-rendering: optimizeLegibility;
+}
+
+/* ============================================================
+   Apple-feel layer (from emilkowalski/skills apple-design)
+   — response, materials, typography, accessibility
+   ============================================================ */
+
+/* Kill the 300ms tap delay ghost + iOS tap highlight.
+   Feedback must live on the press itself, not after release. */
+button,
+[role="button"],
+[role="tab"],
+input[type="time"],
+input[type="text"],
+input[type="submit"],
+a {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+button,
+[role="button"],
+[role="tab"] {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Keyboard focus — visible only for keyboard, never on pointer taps */
+button:focus-visible,
+[role="button"]:focus-visible,
+[role="tab"]:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--df-accent) 80%, transparent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Typography discipline (WWDC "The Details of UI Typography"):
+   tracking is size-specific — tighten display text, keep body near 0. */
+h1,
+h2,
+h3,
+h4 {
+  letter-spacing: -0.011em;
+}
+
+/* --- Floating material layers (blur + saturate + light edge) --- */
+
+:root {
+  --df-material-bg: rgba(255, 252, 250, 0.72);
+  --df-material-edge: rgba(255, 255, 255, 0.55);
+  --df-material-shadow: 0 8px 30px rgba(31, 26, 20, 0.12),
+    0 1px 3px rgba(31, 26, 20, 0.06);
+  --df-dock-bg: rgba(255, 252, 250, 0.78);
+}
+.dark {
+  --df-material-bg: rgba(39, 41, 58, 0.72);
+  --df-material-edge: rgba(255, 255, 255, 0.14);
+  --df-material-shadow: 0 10px 34px rgba(0, 0, 0, 0.4),
+    0 1px 3px rgba(0, 0, 0, 0.3);
+  --df-dock-bg: rgba(35, 37, 54, 0.82);
+}
+
+/* Translucent floating layer — content scrolls beneath it.
+   The bright top hairline reads as light catching the material. */
+.df-material {
+  background: var(--df-material-bg);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
+  box-shadow: inset 0 0.5px 0 var(--df-material-edge),
+    var(--df-material-shadow);
+}
+
+/* Mobile tab dock — a floating, thicker material (bigger surface,
+   stronger blur, deeper shadow than small chips). */
+.df-dock {
+  background: var(--df-dock-bg);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  backdrop-filter: blur(28px) saturate(180%);
+  border: 0.5px solid var(--df-material-edge);
+  box-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.5),
+    0 12px 38px rgba(31, 26, 20, 0.2), 0 2px 6px rgba(31, 26, 20, 0.1);
+}
+.dark .df-dock {
+  box-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.12),
+    0 14px 42px rgba(0, 0, 0, 0.55);
+}
+
+/* Scroll-edge fade — content dissolves under floating chrome
+   instead of hitting a hard divider. */
+.df-edge-fade {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    black 14px,
+    black calc(100% - 18px),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    black 14px,
+    black calc(100% - 18px),
+    transparent 100%
+  );
+}
+
+/* App-like scroll containment — no bounce-chaining to the page. */
+.df-scroll {
+  overscroll-behavior: contain;
+}
+
+/* Backdrop-filter fallback for browsers without it */
+@supports not ((backdrop-filter: blur(4px)) or (-webkit-backdrop-filter: blur(4px))) {
+  .df-material,
+  .df-dock {
+    background: var(--df-panel-fill);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .df-material,
+  .df-dock {
+    background: var(--background);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .df-material,
+  .df-dock {
+    border: 1px solid var(--df-text-secondary);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background: var(--background);
+  }
 }
 
 /* ---------- Dayflow component primitives ---------- */
@@ -364,9 +504,24 @@ body {
   border-top: 1px solid var(--df-hour-line);
 }
 
-/* subtle press animation like DayflowPressScaleButtonStyle */
+/* Cards respond to hover with a 1px lift — direct-manipulation
+   affordance on precise pointers. (Kept BEFORE df-press so the
+   press scale wins when both :hover and :active apply.) */
+.df-lift {
+  transition: transform 0.18s ease-out, box-shadow 0.18s ease-out;
+}
+.df-lift:hover {
+  transform: translateY(-1px);
+  box-shadow: inset 0 0 0 2px var(--df-card-glow), 0 6px 18px rgba(0, 0, 0, 0.08);
+}
+.dark .df-lift:hover {
+  box-shadow: inset 0 0 0 2px var(--df-card-glow), 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+/* Subtle press animation like DayflowPressScaleButtonStyle.
+   100ms ease-out — feedback on pointer-DOWN, instant (skill §1). */
 .df-press {
-  transition: transform 0.15s cubic-bezier(0.2, 0, 0, 1), filter 0.15s ease;
+  transition: transform 0.1s ease-out, filter 0.15s ease;
 }
 .df-press:active {
   transform: scale(0.97);
@@ -416,7 +571,10 @@ body {
   }
 }
 .df-rise {
-  animation: df-rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  /* backwards (not both): after the entrance the transform reverts to
+     none, so fixed-position children (dialogs, sheets) anchor to the
+     viewport instead of this animated wrapper. */
+  animation: df-rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
 @keyframes df-shimmer {
@@ -522,6 +680,11 @@ select {
   }
   .df-press,
   .df-press:active {
+    transition: none;
+    transform: none;
+  }
+  .df-lift,
+  .df-lift:hover {
     transition: none;
     transform: none;
   }
