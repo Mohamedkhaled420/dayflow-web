@@ -537,7 +537,6 @@ function DayTimeline({
   const nowMin = nowMinutes();
 
   return (
-<<<<<<< HEAD
     <>
       <div className="df-mobile-event-list df-scroll flex-1 overflow-y-auto px-4 pb-32" role="list" aria-label="Day timeline">
         {events.length === 0 ? (
@@ -572,18 +571,10 @@ function DayTimeline({
       </div>
       <div
         ref={scrollRef}
-        className="df-desktop-timeline df-scroll flex-1 overflow-y-auto px-4 sm:px-5 pb-8"
+        className="df-desktop-timeline df-scroll df-edge-fade flex-1 overflow-y-auto px-4 pb-8 sm:px-5"
         role="list"
         aria-label="Day timeline"
       >
-=======
-    <div
-      ref={scrollRef}
-      className="df-scroll df-edge-fade flex-1 overflow-y-auto px-4 sm:px-5 pb-8"
-      role="list"
-      aria-label="Day timeline"
-    >
->>>>>>> 2fca8b25392573f719f1e6cd88a72eceb59e9e53
       <div className="relative pt-1" style={{ height: DAY_SPAN * PX_PER_MIN + 30 }}>
         {/* hour lines */}
         <div aria-hidden="true">

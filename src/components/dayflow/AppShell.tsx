@@ -134,7 +134,6 @@ export function AppShell() {
                 transition={reducedMotion ? { duration: 0.15 } : springSoft}
                 className="h-full min-w-0 w-full max-w-full overflow-hidden"
               >
-              >
                 {content}
               </motion.div>
             </AnimatePresence>
