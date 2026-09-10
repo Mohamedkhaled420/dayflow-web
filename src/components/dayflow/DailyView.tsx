@@ -20,6 +20,7 @@ import {
   eventsForDay,
 } from "@/lib/compute";
 import { useToast } from "@/hooks/use-toast";
+import { CATEGORY_COLORS } from "@/styles/palette";
 
 const GRID_START = 5 * 60; // 5 AM
 const GRID_END = 23 * 60 + 30; // 11:30 PM
@@ -253,7 +254,7 @@ export function DailyView() {
                   className="h-3 w-3 rounded-[2px]"
                   style={{
                     background:
-                      waterGoal.met ? "#56CFEE" : "color-mix(in srgb, #56CFEE 35%, transparent)",
+                      waterGoal.met ? CATEGORY_COLORS.water : `color-mix(in srgb, ${CATEGORY_COLORS.water} 35%, transparent)`,
                   }}
                 />
                 <span>
@@ -321,13 +322,13 @@ export function DailyView() {
                   key={i}
                   className="flex items-start gap-2 rounded-md px-2 py-1.5"
                   style={{
-                    background: "color-mix(in srgb, #FA8282 12%, transparent)",
-                    border: "0.5px solid color-mix(in srgb, #FA8282 30%, transparent)",
+                    background: "color-mix(in srgb, var(--df-destructive-soft) 12%, transparent)",
+                    border: "0.5px solid color-mix(in srgb, var(--df-destructive-soft) 30%, transparent)",
                   }}
                 >
                   <TriangleAlert
                     className="h-[15px] w-[15px] mt-[1px] shrink-0"
-                    style={{ color: "#E55A3E" }}
+                    style={{ color: "var(--df-destructive-text)" }}
                   />
                   <span
                     className="text-[12px] leading-snug"

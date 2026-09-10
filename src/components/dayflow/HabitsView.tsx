@@ -71,7 +71,7 @@ export function HabitsView() {
             className="df-summary-card px-3.5 py-2 flex items-center gap-2"
             aria-label="Best streak"
           >
-            <Flame className="h-4 w-4" style={{ color: "#F6BE74" }} fill="rgba(246,190,116,0.25)" />
+            <Flame className="h-4 w-4" style={{ color: "var(--df-streak)", fill: "var(--df-streak-fill)" }} />
             <span className="text-[13px] font-bold tabular-nums" style={{ color: "var(--df-text-primary)" }}>
               {bestStreak.streak}d
             </span>
@@ -186,7 +186,7 @@ export function HabitsView() {
                               <path
                                 d="M5 12.5l4.5 4.5L19 7.5"
                                 fill="none"
-                                stroke="#fff"
+                                style={{ stroke: "var(--df-white)" }}
                                 strokeWidth="3"
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
@@ -207,7 +207,7 @@ export function HabitsView() {
                     <Flame
                       className="h-3 w-3"
                       style={{
-                        color: streak > 0 ? "#F6BE74" : "var(--df-text-muted)",
+                        color: streak > 0 ? "var(--df-streak)" : "var(--df-text-muted)",
                       }}
                     />
                     <span
@@ -320,7 +320,7 @@ export function HabitsView() {
                 >
                   <Flame
                     className="h-3 w-3"
-                    style={{ color: streak > 0 ? "#F6BE74" : "var(--df-text-muted)" }}
+                    style={{ color: streak > 0 ? "var(--df-streak)" : "var(--df-text-muted)" }}
                   />
                   {streak}-day streak
                 </span>

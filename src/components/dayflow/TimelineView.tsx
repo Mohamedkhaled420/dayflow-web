@@ -43,6 +43,9 @@ import type { TrackEvent } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { hapticSelect, hapticSuccess, hapticWarn } from "@/lib/haptics";
 import { springSoft } from "@/lib/motion";
+import { CATEGORY_COLORS } from "@/styles/palette";
+
+const WATER = CATEGORY_COLORS.water;
 
 const PX_PER_MIN = 1.1;
 const MIN_CARD_H = 24;
@@ -237,7 +240,7 @@ export function TimelineView() {
               aria-label="Log a glass of water for today"
               title={dayOffset === 0 ? "Log a glass of water" : "Switch to today to quick-log water"}
             >
-              <Droplet className="h-3.5 w-3.5" style={{ color: "#56CFEE" }} fill="#56CFEE" />
+              <Droplet className="h-3.5 w-3.5" style={{ color: WATER, fill: WATER }} />
               Water
             </button>
             <button
@@ -327,7 +330,7 @@ export function TimelineView() {
                       d.offset === dayOffset
                         ? {
                             background: "var(--df-primary-btn-fill)",
-                            color: "#fff",
+                            color: "var(--df-white)",
                             boxShadow: "inset 0 0 0 1.5px var(--df-primary-btn-border)",
                           }
                         : {
@@ -636,11 +639,11 @@ function DayTimeline({
             <span
               className="grid place-items-center w-[18px] h-[18px] rounded-full transition-transform group-hover:scale-125"
               style={{
-                background: "color-mix(in srgb, #56CFEE 26%, transparent)",
-                border: "1px solid color-mix(in srgb, #56CFEE 65%, transparent)",
+                background: `color-mix(in srgb, ${WATER} 26%, transparent)`,
+                border: `1px solid color-mix(in srgb, ${WATER} 65%, transparent)`,
               }}
             >
-              <Droplet className="h-[10px] w-[10px]" style={{ color: "#2E9FBE" }} fill="#56CFEE" />
+              <Droplet className="h-[10px] w-[10px]" style={{ color: "var(--df-water-ink)", fill: WATER }} />
             </span>
           </div>
         ))}
@@ -968,8 +971,8 @@ function DaySummaryPanel({ dateKey, className }: { dateKey: string; className?: 
         <div
           className="mt-2 rounded-lg p-3"
           style={{
-            background: "color-mix(in srgb, #56CFEE 10%, transparent)",
-            border: "0.5px solid color-mix(in srgb, #56CFEE 38%, transparent)",
+            background: `color-mix(in srgb, ${WATER} 10%, transparent)`,
+            border: `0.5px solid color-mix(in srgb, ${WATER} 38%, transparent)`,
           }}
         >
           <div className="flex items-center justify-between">
@@ -987,8 +990,7 @@ function DaySummaryPanel({ dateKey, className }: { dateKey: string; className?: 
                 <Droplet
                   key={i}
                   className="h-4 w-4"
-                  style={{ color: filled ? "#2E9FBE" : "var(--df-text-muted)", opacity: filled ? 1 : 0.35 }}
-                  fill={filled ? "#56CFEE" : "transparent"}
+                  style={{ color: filled ? "var(--df-water-ink)" : "var(--df-text-muted)", opacity: filled ? 1 : 0.35, fill: filled ? WATER : "transparent" }}
                 />
               );
             })}
@@ -998,13 +1000,13 @@ function DaySummaryPanel({ dateKey, className }: { dateKey: string; className?: 
               onClick={logWater}
               className="df-press h-7 px-2.5 rounded-full text-[11px] font-semibold flex items-center gap-1"
               style={{
-                background: "color-mix(in srgb, #56CFEE 24%, transparent)",
-                border: "1px solid color-mix(in srgb, #56CFEE 55%, transparent)",
+                background: `color-mix(in srgb, ${WATER} 24%, transparent)`,
+                border: `1px solid color-mix(in srgb, ${WATER} 55%, transparent)`,
                 color: "var(--df-text-primary)",
               }}
               aria-label="Log a glass of water"
             >
-              <Droplet className="h-3 w-3" fill="#56CFEE" style={{ color: "#2E9FBE" }} />
+              <Droplet className="h-3 w-3" style={{ fill: WATER, color: "var(--df-water-ink)" }} />
               Add glass
             </button>
             {dayWater.length > 0 && (
@@ -1193,9 +1195,9 @@ function EventDetailPanel({
           onClick={onDelete}
           className="df-press h-9 px-3.5 rounded-md text-[12px] font-semibold flex items-center gap-1.5"
           style={{
-            background: "color-mix(in srgb, #FF5950 12%, transparent)",
-            border: "0.5px solid color-mix(in srgb, #FF5950 35%, transparent)",
-            color: "#E55A3E",
+            background: "color-mix(in srgb, var(--df-destructive) 12%, transparent)",
+            border: "0.5px solid color-mix(in srgb, var(--df-destructive) 35%, transparent)",
+            color: "var(--df-destructive-text)",
           }}
         >
           <Trash2 className="h-3.5 w-3.5" />

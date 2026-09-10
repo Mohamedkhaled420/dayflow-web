@@ -24,6 +24,7 @@ import {
   workoutsForDay,
 } from "@/lib/compute";
 import { DonutChart } from "@/components/dayflow/DonutChart";
+import { CATEGORY_COLORS } from "@/styles/palette";
 
 const HEATMAP_START = 5 * 60;
 const HEATMAP_END = 23 * 60;
@@ -271,7 +272,7 @@ export function WeeklyView() {
             goal={(data.goals.sleepMinutes / 60).toFixed(1)}
             values={days.map((d) => (d.sleepMinutes / 60).toFixed(1))}
             todayIndex={days.findIndex((d) => d.isToday)}
-            colorHex="#6E66D4"
+            colorHex={CATEGORY_COLORS.sleep}
             futureFlags={days.map((d) => d.isFuture)}
           />
           <div className="mt-5">
@@ -281,7 +282,7 @@ export function WeeklyView() {
               goal={`${data.goals.waterGlasses}`}
               values={days.map((d) => d.waterGlasses.toFixed(1))}
               todayIndex={days.findIndex((d) => d.isToday)}
-              colorHex="#56CFEE"
+              colorHex={CATEGORY_COLORS.water}
               futureFlags={days.map((d) => d.isFuture)}
             />
           </div>
@@ -375,7 +376,7 @@ export function WeeklyView() {
               >
                 <span
                   className="w-2 h-2 rounded-full shrink-0"
-                  style={{ background: "#FF706B" }}
+                  style={{ background: CATEGORY_COLORS.fitness }}
                 />
                 <div className="min-w-0 flex-1">
                   <div

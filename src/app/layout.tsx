@@ -3,6 +3,7 @@ import { Figtree, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/theme-provider";
+import { THEME_META_COLORS } from "@/styles/palette";
 
 const figtree = Figtree({
   variable: "--font-figtree",
@@ -50,8 +51,8 @@ export const viewport: Viewport = {
   // the tab dock respects env(safe-area-inset-bottom).
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#FFE6E0" },
-    { media: "(prefers-color-scheme: dark)", color: "#313348" },
+    { media: "(prefers-color-scheme: light)", color: THEME_META_COLORS.light },
+    { media: "(prefers-color-scheme: dark)", color: THEME_META_COLORS.dark },
   ],
 };
 

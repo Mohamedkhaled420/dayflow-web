@@ -118,7 +118,12 @@ export function EventDialog({ open, onClose, event, dateKey }: Props) {
           exit={{ opacity: 0 }}
           transition={{ duration: 0.16 }}
           className="fixed inset-0 z-50 flex justify-center p-0 sm:p-4 items-end sm:items-center"
-          style={{ background: "rgba(0,0,0,0.35)", backdropFilter: "blur(3px)" }}
+          style={{
+            background: "var(--df-scrim)",
+            backdropFilter: "blur(3px)",
+            transform: "translateZ(0)",
+            willChange: "transform",
+          }}
           onClick={onScrimClick}
           role="dialog"
           aria-modal="true"
@@ -521,9 +526,9 @@ function FormBody(p: FormBodyProps) {
             onClick={p.remove}
             className="df-press h-11 px-3 rounded-md flex items-center gap-1.5 text-[12px] font-semibold"
             style={{
-              background: "color-mix(in srgb, #FF5950 12%, transparent)",
-              border: "0.5px solid color-mix(in srgb, #FF5950 35%, transparent)",
-              color: "#E55A3E",
+              background: "color-mix(in srgb, var(--df-destructive) 12%, transparent)",
+              border: "0.5px solid color-mix(in srgb, var(--df-destructive) 35%, transparent)",
+              color: "var(--df-destructive-text)",
             }}
             aria-label="Delete block"
           >

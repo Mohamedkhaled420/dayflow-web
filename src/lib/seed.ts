@@ -12,6 +12,7 @@
 // ============================================================
 
 import type { Category, DayflowData, TrackEvent, WaterEntry } from "./types";
+import { CATEGORY_COLORS } from "@/styles/palette";
 
 // ---------- date helpers ----------
 
@@ -59,13 +60,13 @@ const pick = <T,>(r: () => number, arr: T[]): T =>
 // ---------- default categories ----------
 
 export const DEFAULT_CATEGORIES: Category[] = [
-  { id: "work", name: "Work", colorHex: "#8BAAFF", icon: "briefcase", order: 0, kind: "time", isSystem: true },
-  { id: "personal", name: "Personal work", colorHex: "#B984FF", icon: "laptop", order: 1, kind: "time", isSystem: true },
-  { id: "fitness", name: "Fitness", colorHex: "#FF706B", icon: "dumbbell", order: 2, kind: "time", isSystem: true },
-  { id: "meals", name: "Meals", colorHex: "#F6BE74", icon: "utensils", order: 3, kind: "time", isSystem: true },
-  { id: "sleep", name: "Sleep", colorHex: "#6E66D4", icon: "moon", order: 4, kind: "time", isSystem: true },
-  { id: "water", name: "Water", colorHex: "#56CFEE", icon: "glass-water", order: 5, kind: "counter", isSystem: true },
-  { id: "leisure", name: "Leisure", colorHex: "#88E5DF", icon: "coffee", order: 6, kind: "time" },
+  { id: "work", name: "Work", colorHex: CATEGORY_COLORS.work, icon: "briefcase", order: 0, kind: "time", isSystem: true },
+  { id: "personal", name: "Personal work", colorHex: CATEGORY_COLORS.personal, icon: "laptop", order: 1, kind: "time", isSystem: true },
+  { id: "fitness", name: "Fitness", colorHex: CATEGORY_COLORS.fitness, icon: "dumbbell", order: 2, kind: "time", isSystem: true },
+  { id: "meals", name: "Meals", colorHex: CATEGORY_COLORS.meals, icon: "utensils", order: 3, kind: "time", isSystem: true },
+  { id: "sleep", name: "Sleep", colorHex: CATEGORY_COLORS.sleep, icon: "moon", order: 4, kind: "time", isSystem: true },
+  { id: "water", name: "Water", colorHex: CATEGORY_COLORS.water, icon: "glass-water", order: 5, kind: "counter", isSystem: true },
+  { id: "leisure", name: "Leisure", colorHex: CATEGORY_COLORS.leisure, icon: "coffee", order: 6, kind: "time" },
 ];
 
 // ---------- pools ----------

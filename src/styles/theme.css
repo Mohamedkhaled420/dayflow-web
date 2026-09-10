@@ -1,0 +1,381 @@
+/* ============================================================
+   Dayflow AI — design tokens (PRD §9.1 + legacy extraction)
+   ------------------------------------------------------------
+   Structure:
+   1. PRD v6.2 §9.1 @theme block — VERBATIM, do not edit.
+      These are the product's semantic tokens (dark-first).
+   2. shadcn utility mapping (@theme inline) — var() refs only.
+   3. Legacy Dayflow tokens (:root / .dark) — every raw color
+      extracted from globals.css so it is the ONLY stylesheet
+      allowed to hold literal color values (PRD §5.2).
+
+   Policy (DESIGN.md §1):
+   - New ui-kit components consume §9.1 tokens only.
+   - Legacy views consume --df-* tokens — values preserved
+     1:1 from the pre-Phase-0 app (extraction, not restyle).
+   - Category colors are DATA and live in src/styles/palette.ts.
+   ============================================================ */
+
+/* ---------- 1. PRD §9.1 (verbatim) ---------- */
+
+@theme {
+  /* Surfaces */
+  --color-surface: #0e1117;
+  --color-surface-subtle: #161b22;
+  --color-surface-glass: rgba(22, 27, 34, 0.72);
+  --color-surface-elevated: #21262d;
+  /* Ink */
+  --color-ink: #f0f6fc;
+  --color-ink-muted: #8b949e;
+  --color-ink-faint: #484f58;
+  /* Semantic Accents */
+  --color-accent-focus: #58a6ff;     /* Career Work */
+  --color-accent-craft: #bc8cff;     /* Personal Craft */
+  --color-accent-fitness: #3fb950;   /* Movement */
+  --color-accent-recovery: #f0883e;  /* Sleep & Dips */
+  --color-accent-hydration: #38bdf8; /* Water */
+  /* Glass Primitives */
+  --hairline: rgba(255, 255, 255, 0.12);
+  --hairline-accent: rgba(88, 166, 255, 0.3);
+  --radius-panel: 24px;
+  --radius-sheet: 32px;
+  --radius-pill: 9999px;
+  /* Motion */
+  --ease-spring-critical: cubic-bezier(0.32, 0.72, 0, 1);
+  --duration-press: 120ms;
+}
+
+/* ---------- 2. shadcn utility mapping (var refs only) ---------- */
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-figtree);
+  --font-mono: var(--font-geist-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+/* ============================================================
+   3. Legacy Dayflow tokens — ported 1:1 from DayflowTheme.swift
+   Light values in :root, dark values in .dark.
+   Every literal color used by the app lives HERE.
+   ============================================================ */
+
+:root {
+  --radius: 0.5rem;
+
+  /* shadcn base (kept for ui components) */
+  --background: #fbf6f4;
+  --foreground: #333333;
+  --card: #ffffff;
+  --card-foreground: #333333;
+  --popover: #ffffff;
+  --popover-foreground: #333333;
+  --primary: #f3854b;
+  --primary-foreground: #ffffff;
+  --secondary: #fcf9f7;
+  --secondary-foreground: #333333;
+  --muted: #f3f3f3;
+  --muted-foreground: #979797;
+  --accent: #fff4e9;
+  --accent-foreground: #333333;
+  --destructive: #ff5950;
+  --destructive-foreground: #ffffff;
+  --border: #e1e1e1;
+  --input: #e1e1e1;
+  --ring: #f3854b;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #333333;
+  --sidebar-primary: #f3854b;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #fff4e9;
+  --sidebar-accent-foreground: #333333;
+  --sidebar-border: #e1e1e1;
+  --sidebar-ring: #f3854b;
+
+  /* --- Dayflow light theme --- */
+  --df-window-bg: radial-gradient(
+    1250px circle at 64% 100%,
+    #ffe6cf 0%,
+    #ffe6e0 33%,
+    #d6e8ff 100%
+  );
+  --df-window-border: #dbdbdb;
+  --df-panel-fill: rgba(251, 251, 251, 0.55);
+  --df-panel-border: rgba(250, 250, 250, 0.9);
+  --df-panel-shadow: rgba(0, 0, 0, 0.08);
+  --df-panel-inner-glow: rgba(255, 255, 255, 0.25);
+
+  --df-sidebar-selected-fill: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.7),
+    rgba(255, 255, 255, 0.35)
+  );
+  --df-sidebar-selected-border: rgba(255, 255, 255, 0.4);
+  --df-sidebar-selected-glow: rgba(255, 255, 255, 0.8);
+  --df-sidebar-label: #727272;
+  --df-sidebar-label-active: #333333;
+
+  --df-text-primary: #333333;
+  --df-text-secondary: #707070;
+  --df-text-tertiary: #787878;
+  --df-text-muted: #979797;
+  --df-accent: #f3854b;
+  --df-accent-text: #ffa376;
+
+  --df-control-fill: #ffd2b9;
+  --df-control-border: #ead5cd;
+  --df-control-glow: #ffece6;
+  --df-control-text: #606060;
+
+  --df-segment-track: #e7e6e5;
+  --df-segment-track-border: #d5d5d5;
+  --df-segment-inactive: #727272;
+
+  --df-card-fill: rgba(255, 255, 255, 0.61);
+  --df-card-border: rgba(208, 208, 208, 0.9);
+  --df-card-glow: rgba(255, 255, 255, 0.9);
+  --df-card-time: #979797;
+
+  --df-hour-label: #727272;
+  --df-hour-line: rgba(0, 0, 0, 0.12);
+
+  --df-right-panel-fill: rgba(255, 255, 255, 0.6);
+  --df-right-panel-border: #ececec;
+  --df-right-panel-divider: #e7e5e3;
+
+  --df-summary-card-fill: rgba(255, 255, 255, 0.75);
+  --df-summary-card-border: #f2eeec;
+  --df-summary-value: #ffa376;
+
+  --df-donut-ring-bg: rgba(242, 242, 242, 0.95);
+  --df-donut-center: #ffffff;
+
+  --df-secondary-btn-fill: #fcf9f7;
+  --df-secondary-btn-border: #d0d0d0;
+  --df-secondary-btn-text: #727272;
+
+  --df-primary-btn-fill: #ff9f6f;
+  --df-primary-btn-border: #f4c8b1;
+  --df-primary-btn-text: #ffffff;
+
+  --df-chip-fill: rgba(255, 255, 255, 0.9);
+  --df-chip-border: #e1e1e1;
+
+  --df-input-fill: rgba(255, 255, 255, 0.9);
+  --df-input-border: #e1e1e1;
+
+  --df-daily-grid-fill: rgba(255, 255, 255, 0.46);
+  --df-daily-grid-border: #ebe6e3;
+  --df-daily-empty: rgba(152, 152, 152, 0.1);
+  --df-daily-stat-value: #a49d98;
+
+  --df-chat-soft-fill: #fff4e9;
+  --df-chat-soft-border: rgba(249, 110, 0, 0.25);
+  --df-chat-code: #faf7f2;
+  --df-empty-cell: rgba(152, 152, 152, 0.1);
+  --df-mobile-nav-fill: rgba(251, 246, 244, 0.92);
+
+  /* --- Floating material layer (light) --- */
+  --df-material-bg: rgba(255, 252, 250, 0.72);
+  --df-material-edge: rgba(255, 255, 255, 0.55);
+  --df-material-shadow: 0 8px 30px rgba(31, 26, 20, 0.12),
+    0 1px 3px rgba(31, 26, 20, 0.06);
+  --df-dock-bg: rgba(255, 252, 250, 0.78);
+  --df-dock-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.5),
+    0 12px 38px rgba(31, 26, 20, 0.2), 0 2px 6px rgba(31, 26, 20, 0.1);
+
+  /* --- Phase 0 tokenized chrome (values extracted verbatim) --- */
+  --df-white: #ffffff;
+  --df-scrim: rgba(0, 0, 0, 0.35);
+  --df-sheet-shadow: inset 0 1px 0 var(--hairline), 0 18px 48px rgba(0, 0, 0, 0.35);
+  --df-water-ink: #2e9fbe;
+  --df-destructive: #ff5950;
+  --df-destructive-text: #e55a3e;
+  --df-destructive-soft: #fa8282;
+  --df-streak: #f6be74;
+  --df-streak-fill: rgba(246, 190, 116, 0.25);
+
+  --df-radius-panel: 8px;
+  --df-radius-card: 6px;
+  --df-radius-card-lg: 12px;
+  --df-radius-control: 7px;
+  --df-radius-btn: 6px;
+  --df-radius-focus: 6px;
+
+  --df-primary-btn-glow: inset 0 0 0 2px rgba(255, 220, 203, 0.55);
+  --df-lift-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+  --df-generating-bg: linear-gradient(
+    90deg,
+    rgba(50, 135, 255, 0.35),
+    rgba(255, 165, 153, 0.25)
+  );
+
+  --df-logo-gradient: linear-gradient(
+    135deg,
+    #ffb27a 0%,
+    #f3854b 55%,
+    #e0602f 100%
+  );
+  --df-logo-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.55),
+    0 2px 6px rgba(226, 96, 47, 0.35);
+  --df-logo-border: rgba(255, 255, 255, 0.45);
+  --df-logo-dot: #f3854b;
+}
+
+.dark {
+  /* shadcn base (dark) */
+  --background: #272a3c;
+  --foreground: #ffffff;
+  --card: #2d3046;
+  --card-foreground: #ffffff;
+  --popover: #272a3c;
+  --popover-foreground: #ffffff;
+  --primary: #f3854b;
+  --primary-foreground: #ffffff;
+  --secondary: rgba(104, 109, 138, 0.4);
+  --secondary-foreground: #dddddd;
+  --muted: rgba(0, 0, 0, 0.3);
+  --muted-foreground: #b4b4b4;
+  --accent: rgba(243, 133, 75, 0.18);
+  --accent-foreground: #ffffff;
+  --destructive: #ff5950;
+  --destructive-foreground: #ffffff;
+  --border: #4e4e4e;
+  --input: #666666;
+  --ring: #f3854b;
+  --sidebar: #272a3c;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #f3854b;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: rgba(116, 114, 255, 0.3);
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #4e4e4e;
+  --sidebar-ring: #f3854b;
+
+  /* --- Dayflow dark theme --- */
+  --df-window-bg: linear-gradient(
+    195deg,
+    #303c5b 0%,
+    #313348 53%,
+    #3b2b4b 100%
+  );
+  --df-window-border: #414141;
+  --df-panel-fill: linear-gradient(
+    140deg,
+    rgba(39, 41, 58, 0.8) 9%,
+    rgba(32, 39, 51, 0.8) 80%
+  );
+  --df-panel-border: #414141;
+  --df-panel-shadow: rgba(0, 0, 0, 0.12);
+  --df-panel-inner-glow: rgba(255, 255, 255, 0.2);
+
+  --df-sidebar-selected-fill: linear-gradient(
+    to bottom,
+    rgba(116, 114, 255, 0.3),
+    rgba(167, 167, 167, 0.05)
+  );
+  --df-sidebar-selected-border: #848484;
+  --df-sidebar-selected-glow: rgba(255, 255, 255, 0.2);
+  --df-sidebar-label: #a2a2a2;
+  --df-sidebar-label-active: #ffffff;
+
+  --df-text-primary: #ffffff;
+  --df-text-secondary: #dddddd;
+  --df-text-tertiary: #b3b3b3;
+  --df-text-muted: #b4b4b4;
+  --df-accent: #f3854b;
+  --df-accent-text: #f77952;
+
+  --df-control-fill: rgba(226, 160, 121, 0.4);
+  --df-control-border: #875c46;
+  --df-control-glow: rgba(243, 182, 152, 0.5);
+  --df-control-text: #ffffff;
+
+  --df-segment-track: rgba(0, 0, 0, 0.35);
+  --df-segment-track-border: #3f3f3f;
+  --df-segment-inactive: #9d9d9d;
+
+  --df-card-fill: #3a3a4c;
+  --df-card-border: rgba(153, 153, 153, 0.7);
+  --df-card-glow: rgba(255, 255, 255, 0.08);
+  --df-card-time: #b4b4b4;
+
+  --df-hour-label: #dddddd;
+  --df-hour-line: rgba(255, 255, 255, 0.18);
+
+  --df-right-panel-fill: rgba(102, 108, 161, 0.18);
+  --df-right-panel-border: #4e4e4e;
+  --df-right-panel-divider: #585858;
+
+  --df-summary-card-fill: rgba(255, 255, 255, 0.12);
+  --df-summary-card-border: #717171;
+  --df-summary-value: #f77952;
+
+  --df-donut-ring-bg: rgba(255, 255, 255, 0.2);
+  --df-donut-center: #2b2d44;
+
+  --df-secondary-btn-fill: rgba(104, 109, 138, 0.4);
+  --df-secondary-btn-border: #777777;
+  --df-secondary-btn-text: #dddddd;
+
+  --df-primary-btn-fill: #d1653e;
+  --df-primary-btn-border: #ea9265;
+  --df-primary-btn-text: #ffffff;
+
+  --df-chip-fill: rgba(255, 255, 255, 0.15);
+  --df-chip-border: #888888;
+
+  --df-input-fill: rgba(255, 255, 255, 0.1);
+  --df-input-border: #666666;
+
+  --df-daily-grid-fill: rgba(127, 122, 148, 0.1);
+  --df-daily-grid-border: #4e4e4e;
+  --df-daily-empty: rgba(255, 255, 255, 0.08);
+  --df-daily-stat-value: #909ecd;
+
+  --df-chat-soft-fill: rgba(243, 133, 75, 0.18);
+  --df-chat-soft-border: rgba(247, 121, 82, 0.4);
+  --df-chat-code: rgba(0, 0, 0, 0.25);
+  --df-empty-cell: rgba(255, 255, 255, 0.08);
+
+  /* --- Floating material layer (dark) --- */
+  --df-material-bg: rgba(39, 41, 58, 0.72);
+  --df-material-edge: rgba(255, 255, 255, 0.14);
+  --df-material-shadow: 0 10px 34px rgba(0, 0, 0, 0.4),
+    0 1px 3px rgba(0, 0, 0, 0.3);
+  --df-dock-bg: rgba(35, 37, 54, 0.82);
+  --df-dock-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.12),
+    0 14px 42px rgba(0, 0, 0, 0.55);
+
+  /* --- Phase 0 tokenized chrome (dark deltas; unlisted = same as light) --- */
+  --df-primary-btn-glow: inset 0 0 0 2px rgba(255, 135, 77, 0.65);
+  --df-lift-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}

@@ -42,6 +42,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import type { Goals } from "@/lib/types";
 import type { TabId } from "@/components/dayflow/AppShell";
+import { CATEGORY_SWATCHES, THEME_SWATCHES } from "@/styles/palette";
 
 type Section = "profile" | "categories" | "goals" | "appearance" | "providers" | "data";
 
@@ -54,20 +55,8 @@ const SECTIONS: { id: Section; label: string }[] = [
   { id: "data", label: "Data" },
 ];
 
-const PALETTE = [
-  "#8BAAFF",
-  "#CF8FFF",
-  "#90DDF0",
-  "#6E66D4",
-  "#88E5DF",
-  "#B984FF",
-  "#FF706B",
-  "#F6BE74",
-  "#56CFEE",
-  "#FF5950",
-  "#A0AEC0",
-  "#6AADFF",
-];
+// Category colors come from src/styles/palette.ts (single source).
+const PALETTE = CATEGORY_SWATCHES;
 
 const AVATARS = [
   "🌊",
@@ -440,9 +429,9 @@ function CategoriesSection() {
                 title={c.isSystem ? "System categories power goals and can't be deleted" : "Delete category"}
                 className="df-press w-8 h-8 rounded-md grid place-items-center shrink-0 disabled:opacity-30"
                 style={{
-                  background: "color-mix(in srgb, #FF5950 10%, transparent)",
-                  border: "0.5px solid color-mix(in srgb, #FF5950 30%, transparent)",
-                  color: "#E55A3E",
+                  background: "color-mix(in srgb, var(--df-destructive) 10%, transparent)",
+                  border: "0.5px solid color-mix(in srgb, var(--df-destructive) 30%, transparent)",
+                  color: "var(--df-destructive-text)",
                 }}
               >
                 <Trash2 className="h-3.5 w-3.5" />
@@ -675,9 +664,9 @@ function AppearanceSection({
       <div className="mt-3 grid grid-cols-3 gap-2 max-w-[380px]">
         {(
           [
-            { id: "light", label: "Light", icon: Sun, swatch: "linear-gradient(135deg, #FFE6CF, #D6E8FF)" },
-            { id: "dark", label: "Dark", icon: Moon, swatch: "linear-gradient(135deg, #303C5B, #3B2B4B)" },
-            { id: "system", label: "System", icon: Monitor, swatch: "linear-gradient(135deg, #FFE6CF 50%, #3B2B4B 50%)" },
+            { id: "light", label: "Light", icon: Sun, swatch: THEME_SWATCHES.light },
+            { id: "dark", label: "Dark", icon: Moon, swatch: THEME_SWATCHES.dark },
+            { id: "system", label: "System", icon: Monitor, swatch: THEME_SWATCHES.system },
           ] as const
         ).map((opt) => (
           <button
@@ -898,7 +887,7 @@ function DataSection({
             <div className="flex items-center gap-2">
               <span
                 className="w-2 h-2 rounded-full"
-                style={{ background: "#F6BE74", boxShadow: "0 0 0 2px rgba(246,190,116,0.3)" }}
+                style={{ background: "var(--df-streak)", boxShadow: "0 0 0 2px color-mix(in srgb, var(--df-streak) 30%, transparent)" }}
               />
               <span className="text-[12.5px] font-semibold" style={{ color: "var(--df-text-primary)" }}>
                 Supabase — not connected
@@ -990,9 +979,9 @@ function DataSection({
               }}
               className="df-press h-9 px-3 rounded-md text-[12px] font-semibold flex items-center gap-1.5"
               style={{
-                background: "color-mix(in srgb, #FF5950 12%, transparent)",
-                border: "0.5px solid color-mix(in srgb, #FF5950 35%, transparent)",
-                color: "#E55A3E",
+                background: "color-mix(in srgb, var(--df-destructive) 12%, transparent)",
+                border: "0.5px solid color-mix(in srgb, var(--df-destructive) 35%, transparent)",
+                color: "var(--df-destructive-text)",
               }}
             >
               <Trash2 className="h-3.5 w-3.5" />

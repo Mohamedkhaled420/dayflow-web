@@ -9,6 +9,7 @@
 
 import type { Category, DayflowData, GoalProgress, TrackEvent, WaterEntry } from "./types";
 import { keyForOffset, keyToDate, pad2 } from "./seed";
+import { GOAL_FALLBACK_COLORS, UNTRACKED_COLOR } from "@/styles/palette";
 
 export const toMinutes = (hm: string): number => {
   const [h, m] = hm.split(":").map(Number);
@@ -67,7 +68,7 @@ export const categoryById = (categories: Category[], id: string): Category => {
   return {
     id,
     name: "Uncategorized",
-    colorHex: "#A0AEC0",
+    colorHex: UNTRACKED_COLOR,
     icon: "circle",
     order: 99,
     kind: "time",
@@ -115,12 +116,12 @@ export const mealsForDay = (events: TrackEvent[], dateKey: string) =>
 // ---------- goals ----------
 
 export const GOAL_META: Record<GoalProgress["key"], { label: string; fallbackHex: string }> = {
-  work: { label: "Work time", fallbackHex: "#8BAAFF" },
-  personal: { label: "Personal work", fallbackHex: "#B984FF" },
-  fitness: { label: "Fitness", fallbackHex: "#FF706B" },
-  sleep: { label: "Sleep", fallbackHex: "#6E66D4" },
-  water: { label: "Water", fallbackHex: "#56CFEE" },
-  meals: { label: "Meals", fallbackHex: "#F6BE74" },
+  work: { label: "Work time", fallbackHex: GOAL_FALLBACK_COLORS.work },
+  personal: { label: "Personal work", fallbackHex: GOAL_FALLBACK_COLORS.personal },
+  fitness: { label: "Fitness", fallbackHex: GOAL_FALLBACK_COLORS.fitness },
+  sleep: { label: "Sleep", fallbackHex: GOAL_FALLBACK_COLORS.sleep },
+  water: { label: "Water", fallbackHex: GOAL_FALLBACK_COLORS.water },
+  meals: { label: "Meals", fallbackHex: GOAL_FALLBACK_COLORS.meals },
 };
 
 export const goalColor = (data: DayflowData, key: GoalProgress["key"]): string =>
