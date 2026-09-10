@@ -5,9 +5,10 @@
   "description": "Dayflow web — a private, customizable life tracker for fitness, work, sleep, water, and food. Timeline, daily recap, weekly review, habit streaks, and journal chat.",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node scripts/check-raw-colors.mjs && eslint . && next build",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "check:colors": "node scripts/check-raw-colors.mjs"
   },
   "dependencies": {
     "@radix-ui/react-toast": "^1.2.14",
