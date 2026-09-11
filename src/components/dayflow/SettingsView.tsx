@@ -6,6 +6,7 @@
 // and what "on target" means.
 
 import { useState } from "react";
+import Link from "next/link";
 import { useTheme } from "next-themes";
 import {
   ArrowDown,
@@ -25,6 +26,7 @@ import {
   Target,
   Trash2,
   UserRound,
+  Users,
 } from "lucide-react";
 import { CategoryIcon, CATEGORY_ICON_KEYS } from "@/components/dayflow/category-icons";
 import {
@@ -43,6 +45,8 @@ import { useToast } from "@/hooks/use-toast";
 import type { Goals } from "@/lib/types";
 import type { TabId } from "@/components/dayflow/AppShell";
 import { CATEGORY_SWATCHES, THEME_SWATCHES } from "@/styles/palette";
+import { InstallAppCard } from "@/components/dayflow/InstallAppCard";
+import { ShortcutsSetupCard } from "@/components/dayflow/ShortcutsSetupCard";
 
 type Section = "profile" | "categories" | "goals" | "appearance" | "providers" | "data";
 
@@ -216,7 +220,8 @@ function ProfileSection() {
   const updateProfile = useDayflow((s) => s.updateProfile);
 
   return (
-    <SectionCard title="Your profile" icon={<UserRound className="h-4 w-4" />}>
+    <>
+      <SectionCard title="Your profile" icon={<UserRound className="h-4 w-4" />}>
       <p className="text-[12.5px] leading-relaxed" style={{ color: "var(--df-text-secondary)" }}>
         The profile personalizes greetings, chat, and exports. Everything stays on your device.
       </p>
@@ -303,7 +308,50 @@ function ProfileSection() {
           </div>
         </div>
       </div>
-    </SectionCard>
+      </SectionCard>
+
+      {/* Team Mode lives here, not in the dock — the bottom bar is
+          capped at exactly five tabs (PRD §9.2). */}
+      <TeamModeCard />
+      <InstallAppCard />
+      <ShortcutsSetupCard />
+    </>
+  );
+}
+
+function TeamModeCard() {
+  return (
+    <section
+      className="rounded-lg p-4 mt-4"
+      style={{
+        background: "var(--df-daily-grid-fill)",
+        border: "0.5px solid var(--df-daily-grid-border)",
+      }}
+      aria-label="Team Mode"
+    >
+      <h2
+        className="text-[13px] font-bold flex items-center gap-2"
+        style={{ color: "var(--df-text-primary)" }}
+      >
+        <span style={{ color: "var(--df-accent)" }}>
+          <Users className="h-4 w-4" />
+        </span>
+        Team Mode
+      </h2>
+      <p
+        className="mt-2 text-[12.5px] leading-relaxed"
+        style={{ color: "var(--df-text-secondary)" }}
+      >
+        Invite up to five people, share habit wins and streaks in real time, and
+        keep your journal private. Everything else in Dayflow stays yours.
+      </p>
+      <Link
+        href="/team"
+        className="df-press df-btn-primary mt-3 inline-flex items-center h-9 px-4 text-[12.5px] font-semibold"
+      >
+        Open Team Mode
+      </Link>
+    </section>
   );
 }
 
