@@ -311,6 +311,40 @@ h4 {
   animation: df-shimmer 1.6s linear infinite;
 }
 
+/* Team Mode presence pulse (Phase 3) — transform/opacity ONLY so the
+   teammate card stays on its GPU layer (PRD §5.6 motion rules). The
+   element re-mounts (key change) to replay the pulse. */
+@keyframes df-presence-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  35% {
+    transform: scale(1.055);
+    opacity: 0.82;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.df-pulse {
+  animation: df-presence-pulse 480ms var(--ease-spring-critical);
+}
+
+/* visual tick: a small dot that fades out after a live event */
+@keyframes df-tick-fade {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+.df-tick {
+  animation: df-tick-fade 1.2s var(--ease-spring-critical) forwards;
+}
+
 /* Mobile-first layout primitives */
 html {
   overflow-x: hidden;
@@ -391,6 +425,13 @@ select {
   .df-rise,
   .df-generating {
     animation: none;
+  }
+  .df-pulse,
+  .df-tick {
+    animation: none;
+  }
+  .df-tick {
+    opacity: 0;
   }
   .df-press,
   .df-press:active {

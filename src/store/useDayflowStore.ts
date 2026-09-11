@@ -1,5 +1,5 @@
 // ============================================================
-// Dayflow AI — Delta Sync store (Phase 2 / PRD §2)
+// Dayflow AI — Delta Sync store (Phase 2 / PRD §2, Team slice Phase 3)
 // ------------------------------------------------------------
 // Local-first state mirrored from the Supabase schema
 // (src/types/supabase.ts is the single source of truth for shapes):
@@ -11,7 +11,11 @@
 //   - Optimistic writes: local append first, Supabase insert second;
 //     failures flag the row `pending_sync` and are retried as
 //     idempotent full-row upserts on the next boot.
-//   - No realtime subscriptions in Phase 2 (Team Mode is Phase 3).
+//   - Team slice (Phase 3): team + teammate activity state lives in
+//     memory only (never persisted — it is realtime data); habit
+//     completions broadcast STATUS-ONLY events to team_activities,
+//     and the /team page subscribes to the postgres_changes channel
+//     for presence pulses.
 //
 // SSR safety mirrors src/lib/store.ts: skipHydration + explicit
 // rehydrate from a client effect (see bootDayflowSync).
@@ -25,7 +29,7 @@ import {
 } from "zustand/middleware";
 import { del as idbDel, get as idbGet, set as idbSet } from "idb-keyval";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database, Tables, TablesInsert, TablesUpdate } from "@/types/supabase";
+import type { Database, Json, Tables, TablesInsert, TablesUpdate } from "@/types/supabase";
 import { createClient as createBrowserClient } from "@/utils/supabase/client";
 
 // ---------- types (mirror the generated Row shapes) ----------
@@ -41,6 +45,9 @@ export type HydrationLogRow = Tables<"hydration_logs"> & SyncFlag;
 export type WorkoutLogRow = Tables<"workout_logs"> & SyncFlag;
 export type SleepLogRow = Tables<"sleep_logs"> & SyncFlag;
 export type JournalEntryRow = Tables<"journal_entries"> & SyncFlag;
+export type TeamRow = Tables<"teams">;
+export type TeamActivityRow = Tables<"team_activities">;
+export type TeamInviteRow = Tables<"team_invites">;
 
 // ---------- helpers ----------
 
@@ -124,6 +131,12 @@ export interface DayflowSyncState {
   workoutLogs: WorkoutLogRow[];
   sleepLogs: SleepLogRow[];
   journalEntries: JournalEntryRow[];
+  /** Team slice (Phase 3) — in-memory only, never persisted. */
+  team: TeamRow | null;
+  teamActivities: TeamActivityRow[];
+  incomingInvites: TeamInviteRow[];
+  sentInvites: TeamInviteRow[];
+  teamLoaded: boolean;
   /** ISO cursor: pull rows strictly newer than this next boot. */
   lastSyncCursor: string | null;
   lastSyncedAt: string | null;
@@ -166,6 +179,19 @@ export interface DayflowSyncActions {
     content: string;
     mood_score?: number | null;
   }) => Promise<string | null>;
+
+  // ---------- team slice (Phase 3) ----------
+  /** Full team page load: team row + invites + recent activities. */
+  loadTeam: () => Promise<void>;
+  /** Boot-time light load: just the teams row (enables broadcasts). */
+  ensureTeamSummary: () => Promise<void>;
+  /** Re-fetch recent team_activities (after sends / channel events). */
+  loadTeamActivities: () => Promise<void>;
+  createTeamInvite: (email: string) => Promise<boolean>;
+  acceptTeamInvite: (inviteId: string) => Promise<boolean>;
+  sendTeamPraise: (message: string) => Promise<void>;
+  /** RPC upsert of the one presence row per user (0007). */
+  pulseTeamPresence: () => Promise<void>;
 }
 
 export type DayflowSyncStore = DayflowSyncState & DayflowSyncActions;
@@ -178,6 +204,11 @@ const initialState = (): DayflowSyncState => ({
   workoutLogs: [],
   sleepLogs: [],
   journalEntries: [],
+  team: null,
+  teamActivities: [],
+  incomingInvites: [],
+  sentInvites: [],
+  teamLoaded: false,
   lastSyncCursor: null,
   lastSyncedAt: null,
   isSyncing: false,
@@ -286,6 +317,35 @@ async function retryPendingRows(
 async function currentUserId(): Promise<string | null> {
   const { data } = await syncClient().auth.getSession();
   return data.session?.user.id ?? null;
+}
+
+/**
+ * Fire-and-forget Team Mode broadcast (Phase 3). Inserts into
+ * team_activities under the existing member-INSERT policy (0002).
+ * Failures are swallowed — a broadcast is a signal, never source of
+ * truth, and must not block the user's own write path. Payloads are
+ * STATUS ONLY: habit names, notes, and journal content never ride
+ * this channel (journal privacy wall, PRD §2).
+ */
+async function broadcastTeamActivity(
+  activityType: string,
+  payload: Json
+): Promise<void> {
+  try {
+    const { team } = useDayflowStore.getState();
+    const userId = await currentUserId();
+    if (!team || !userId) return;
+    await syncClient()
+      .from("team_activities")
+      .insert({
+        team_id: team.id,
+        user_id: userId,
+        activity_type: activityType,
+        payload,
+      });
+  } catch {
+    // Silent by design (see docblock).
+  }
 }
 
 export const useDayflowStore = create<DayflowSyncStore>()(
@@ -486,6 +546,15 @@ export const useDayflowStore = create<DayflowSyncStore>()(
               ),
             }))
         );
+        // Team Mode broadcast (Phase 3): STATUS ONLY — the payload carries
+        // just the completion signal, never habit names or notes. Fired
+        // only when the log actually landed server-side.
+        const landed = !useDayflowStore
+          .getState()
+          .habitLogs.find((r) => r.id === row.id)?.pending_sync;
+        if (landed) {
+          void broadcastTeamActivity("habit", { status: "completed" });
+        }
         return row.id;
       },
 
@@ -595,6 +664,123 @@ export const useDayflowStore = create<DayflowSyncStore>()(
         );
         return row.id;
       },
+
+      // ---------- team slice (Phase 3) ----------
+
+      ensureTeamSummary: async () => {
+        const userId = await currentUserId();
+        if (!userId) return;
+        const { data } = await syncClient()
+          .from("teams")
+          .select("*")
+          .or(`member_a.eq.${userId},member_b.eq.${userId}`)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        useDayflowStore.setState({ team: data ?? null });
+      },
+
+      loadTeamActivities: async () => {
+        const team = get().team;
+        if (!team) {
+          useDayflowStore.setState({ teamActivities: [] });
+          return;
+        }
+        const { data } = await syncClient()
+          .from("team_activities")
+          .select("*")
+          .eq("team_id", team.id)
+          .order("timestamp", { ascending: false })
+          .limit(60);
+        if (data) useDayflowStore.setState({ teamActivities: data });
+      },
+
+      loadTeam: async () => {
+        const userId = await currentUserId();
+        if (!userId) return;
+        await get().ensureTeamSummary();
+        // RLS splits pending invites into mine-sent vs addressed-to-me
+        // automatically (0002 + 0008 recipient/inviter policies).
+        const { data: invites } = await syncClient()
+          .from("team_invites")
+          .select("*")
+          .eq("status", "pending")
+          .order("created_at", { ascending: false });
+        const all = invites ?? [];
+        useDayflowStore.setState({
+          sentInvites: all.filter((i) => i.inviter_id === userId),
+          incomingInvites: all.filter((i) => i.inviter_id !== userId),
+        });
+        await get().loadTeamActivities();
+        useDayflowStore.setState({ teamLoaded: true });
+      },
+
+      createTeamInvite: async (email) => {
+        const userId = await currentUserId();
+        if (!userId) return false;
+        const clean = email.trim().toLowerCase();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) return false;
+        const { error } = await syncClient()
+          .from("team_invites")
+          .insert({ inviter_id: userId, invitee_email: clean });
+        if (error) return false;
+        await get().loadTeam();
+        return true;
+      },
+
+      acceptTeamInvite: async (inviteId) => {
+        const supabase = syncClient();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) return false;
+        const { data: team, error } = await supabase.rpc("accept_team_invite", {
+          p_invite_id: inviteId,
+        });
+        if (error || !team) return false;
+        // Self-introduction broadcast: profiles are owner-only under
+        // RLS, so each member announces displayName + email on join —
+        // this is the only identity channel. Journal content never
+        // enters team_activities (privacy wall, PRD §2).
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("identity")
+          .eq("id", user.id)
+          .maybeSingle();
+        const displayName =
+          (profile?.identity as { displayName?: string } | null)?.displayName ??
+          user.email?.split("@")[0] ??
+          "Teammate";
+        void supabase.from("team_activities").insert({
+          team_id: team.id,
+          user_id: user.id,
+          activity_type: "join",
+          payload: { displayName, email: user.email ?? null },
+        });
+        useDayflowStore.setState({ team });
+        await get().loadTeam();
+        return true;
+      },
+
+      sendTeamPraise: async (message) => {
+        const team = get().team;
+        const userId = await currentUserId();
+        if (!team || !userId) return;
+        const { error } = await syncClient()
+          .from("team_activities")
+          .insert({
+            team_id: team.id,
+            user_id: userId,
+            activity_type: "praise",
+            payload: { message },
+          });
+        if (!error) await get().loadTeamActivities();
+      },
+
+      pulseTeamPresence: async () => {
+        if (!get().team) return;
+        await syncClient().rpc("update_presence", {});
+      },
     }),
     {
       name: "dayflow-sync-v1",
@@ -636,6 +822,10 @@ export function bootDayflowSync(): Promise<void> {
       } catch {
         // syncDeltas swallows its own errors; guard the boot path anyway.
       }
+      // Team Mode (Phase 3): resolve the teams row at boot so habit
+      // completions anywhere in the app can broadcast status-only
+      // events. Fire-and-forget — never blocks first paint.
+      void useDayflowStore.getState().ensureTeamSummary();
     })();
   }
   return bootPromise;
