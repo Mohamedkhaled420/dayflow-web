@@ -108,8 +108,13 @@ export function Sheet({
     bottom: "calc(var(--safe-area-bottom, 0px) + var(--keyboard-height, 0px))",
   };
 
+  // Phase 6 QA finding (hotfix): z-[60] lifts every sheet above the
+  // mobile dock (z-50, later in DOM order). At equal z-50 the dock
+  // painted over sheet action rows, occluding primary CTAs — the
+  // sheet's 16px bottom padding never reserved the ~88px dock band
+  // the main panel does. Toasts stay on top at z-[100].
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center">
+    <div className="fixed inset-0 z-[60] flex items-end justify-center">
       {/* Scrim — token scrim, frosted, GPU-promoted */}
       <div
         onClick={onClose}

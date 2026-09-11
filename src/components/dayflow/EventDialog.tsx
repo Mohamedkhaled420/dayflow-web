@@ -116,7 +116,7 @@ export function EventDialog({ open, onClose, event, dateKey }: Props) {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.16 }}
-          className="fixed inset-0 z-50 flex justify-center p-0 sm:p-4 items-end sm:items-center"
+          className="fixed inset-0 z-[60] flex justify-center p-0 sm:p-4 items-end sm:items-center"
           style={{
             background: "var(--df-scrim)",
             backdropFilter: "blur(3px)",
