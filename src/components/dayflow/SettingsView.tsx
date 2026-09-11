@@ -7,6 +7,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import {
   Check,
@@ -14,6 +15,7 @@ import {
   Database,
   Download,
   Lock,
+  LogOut,
   Monitor,
   Moon,
   Sun,
@@ -601,6 +603,27 @@ function DataSection({
   const syncError = useDayflowStore((s) => s.syncError);
   const isSyncing = useDayflowStore((s) => s.isSyncing);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+  const router = useRouter();
+
+  // F-3 (Phase 8 / S1): the sign-out path. Local snapshot is wiped
+  // BEFORE the session ends — on a shared device nothing readable
+  // remains; the server keeps every row and re-syncs on the next
+  // sign-in (recoverable by design).
+  const signOut = async () => {
+    if (signingOut) return;
+    setSigningOut(true);
+    try {
+      await useDayflowStore.persist.clearStorage();
+      const { createClient } = await import("@/utils/supabase/client");
+      const supabase = createClient();
+      await supabase.auth.signOut();
+      router.replace("/auth");
+      router.refresh();
+    } finally {
+      setSigningOut(false);
+    }
+  };
 
   // Full JSON backup of everything the Delta Sync store holds —
   // the exact rows that live in Supabase under your account.
@@ -731,6 +754,52 @@ function DataSection({
             <Copy className="h-3.5 w-3.5" />
             Copy today (.md)
           </button>
+        </div>
+      </SectionCard>
+
+      <SectionCard title="Account" icon={<UserRound className="h-4 w-4" />} className="mt-4">
+        <p className="text-[12.5px] leading-relaxed" style={{ color: "var(--df-text-secondary)" }}>
+          Sign out ends this session and clears the local IndexedDB snapshot — nothing stays
+          on a shared device (F-3 remediation). Your rows remain safe in Supabase and re-sync
+          the next time you sign in.
+        </p>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 max-w-[460px] rounded-md px-3.5 py-3"
+          style={{ background: "var(--df-chip-fill)", border: "0.5px solid var(--df-chip-border)" }}>
+          <div>
+            <div className="text-[12.5px] font-semibold" style={{ color: "var(--df-text-primary)" }}>
+              Sign out on this device
+            </div>
+            <div className="text-[11px]" style={{ color: "var(--df-text-muted)" }}>
+              Clears local data, keeps your account
+            </div>
+          </div>
+          <button
+            onClick={() => void signOut()}
+            disabled={signingOut}
+            aria-busy={signingOut}
+            className="df-press df-btn-secondary h-9 px-3.5 rounded-md text-[12.5px] font-semibold flex items-center gap-1.5 disabled:opacity-50"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            {signingOut ? "Signing out…" : "Sign out"}
+          </button>
+        </div>
+        <div className="mt-3 max-w-[460px] rounded-md px-3.5 py-3"
+          style={{
+            background: "color-mix(in srgb, var(--df-destructive) 6%, transparent)",
+            border: "0.5px solid color-mix(in srgb, var(--df-destructive) 22%, transparent)",
+          }}
+          aria-label="Delete account status"
+        >
+          <div className="text-[12.5px] font-semibold" style={{ color: "var(--df-text-primary)" }}>
+            Delete account
+          </div>
+          <p className="mt-0.5 text-[11px] leading-relaxed" style={{ color: "var(--df-text-secondary)" }}>
+            Full deletion (every log, habit, and journal, plus the auth user) lands with the
+            owner-side <code>delete_user_account</code> RPC — see the proposal in
+            <span style={{ color: "var(--df-accent-text)" }}> docs/PRIVACY.md</span>. Until the
+            migration ships, sign out and reset the local cache, or request deletion from the
+            repo owner.
+          </p>
         </div>
       </SectionCard>
 

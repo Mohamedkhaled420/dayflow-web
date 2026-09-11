@@ -138,6 +138,127 @@ h4 {
   overscroll-behavior: contain;
 }
 
+/* ============================================================
+   Phase 8 — Notion-quiet additions
+   ============================================================ */
+
+/* Fixed-height app shell (F-2 remediation): the authenticated
+   app gets a DEFINITE height (100dvh) flex column, so every
+   view's `h-full overflow-y-auto` scroll container finally
+   engages and the mobile header holds its position. The
+   landing/marketing pages keep `.df-window` + body scroll
+   (the 220vh logo runway needs it).
+   overflow-x: CLIP (not hidden) — clip never creates a scroll
+   container, so position:sticky keeps working at every level. */
+.df-app {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow-x: clip;
+  overflow-y: hidden;
+}
+/* Override the legacy min-height fallbacks inside the app
+   shell — the flex track is the single height authority. */
+.df-app .df-panel {
+  min-height: 0;
+}
+
+/* Landing-page-only hero CTA — the one place a gradient is
+   allowed. Every in-app CTA stays SOLID (df-btn-primary /
+   df-btn-secondary). */
+.df-btn-hero {
+  background: var(--df-hero-gradient);
+  color: var(--df-white);
+  border: 0.5px solid transparent;
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--df-accent) 32%, transparent);
+}
+
+/* Rule B (dock avoidance): immersive surfaces (keyboard open,
+   fullscreen editor) slide the dock out. Transform + opacity
+   ONLY — compositor-friendly, and the 88px content reservation
+   never changes, so CLS stays 0 (Rule C). */
+.df-dock-hidden {
+  transform: translateY(calc(100% + 20px));
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Static aurora tint for the Dia chat shell — a fixed radial
+   gradient, NEVER animated (authenticated-app perf budget:
+   no infinite blur/path/gradient animations). */
+.df-chat-aurora {
+  background: var(--df-chat-aurora);
+}
+
+/* Journal rich-text rendering (Phase 8 decision 1): entries
+   are stored as sanitized HTML and rendered through this
+   minimal, token-driven prose layer. */
+.df-prose {
+  line-height: 1.55;
+}
+.df-prose h1,
+.df-prose h2,
+.df-prose h3 {
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 0.6em 0 0.25em;
+}
+.df-prose h1 {
+  font-size: 1.25em;
+}
+.df-prose h2 {
+  font-size: 1.15em;
+}
+.df-prose h3 {
+  font-size: 1.05em;
+}
+.df-prose p {
+  margin: 0.35em 0;
+}
+.df-prose ul {
+  list-style: disc;
+  padding-left: 1.35em;
+  margin: 0.35em 0;
+}
+.df-prose ol {
+  list-style: decimal;
+  padding-left: 1.35em;
+  margin: 0.35em 0;
+}
+.df-prose blockquote {
+  border-left: 2px solid color-mix(in srgb, var(--df-accent) 45%, transparent);
+  padding-left: 0.75em;
+  margin: 0.5em 0;
+  color: var(--df-text-secondary);
+}
+.df-prose pre {
+  background: var(--df-chat-code);
+  border: 0.5px solid var(--df-chip-border);
+  border-radius: var(--df-radius-control);
+  padding: 0.5em 0.75em;
+  margin: 0.5em 0;
+  overflow-x: auto;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.9em;
+}
+.df-prose code {
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.9em;
+  background: var(--df-chat-code);
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+}
+.df-prose pre code {
+  background: transparent;
+  padding: 0;
+}
+.df-prose a {
+  color: var(--df-accent-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 /* Backdrop-filter fallback for browsers without it */
 @supports not ((backdrop-filter: blur(4px)) or (-webkit-backdrop-filter: blur(4px))) {
   .df-material,
@@ -268,12 +389,12 @@ h4 {
 
 .df-mobile-dock {
   box-shadow: 0 12px 32px color-mix(in srgb, var(--df-panel-shadow) 42%, transparent), inset 0 1px 0 color-mix(in srgb, var(--df-white) 70%, transparent);
-  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 180ms ease;
+  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 180ms ease, opacity 180ms ease, visibility 180ms;
   transform: translateZ(0);
   will-change: transform;
 }
 
-.df-mobile-dock:has(button[aria-current="true"]) {
+.df-mobile-dock:has(button[aria-current="page"]) {
   box-shadow: 0 14px 36px color-mix(in srgb, var(--df-panel-shadow) 48%, transparent), inset 0 1px 0 color-mix(in srgb, var(--df-white) 70%, transparent);
 }
 
@@ -392,16 +513,20 @@ h4 {
   animation: df-tick-fade 1.2s var(--ease-spring-critical) forwards;
 }
 
-/* Mobile-first layout primitives */
+/* Mobile-first layout primitives.
+   overflow-x: CLIP everywhere (F-2): unlike hidden, clip does
+   NOT create a scroll container, so sticky headers and the
+   landing logo runway keep working while nothing can pan
+   sideways. */
 html {
-  overflow-x: hidden;
+  overflow-x: clip;
   background: var(--background);
 }
 
 body {
   min-width: 300px;
   min-height: 100dvh;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 button,
@@ -455,6 +580,11 @@ select {
     max-width: 100%;
   }
 
+  .df-app .df-panel,
+  .df-app .df-panel > div {
+    max-width: 100%;
+  }
+
   .df-btn-primary,
   .df-btn-secondary,
   .df-glass-control {
@@ -497,6 +627,11 @@ select {
   .df-lift:hover {
     transition: none;
     transform: none;
+  }
+  /* Dock hide/show becomes an instant state change — no slide. */
+  .df-mobile-dock,
+  .df-dock-hidden {
+    transition: none;
   }
 }
 

@@ -99,7 +99,7 @@ export function Dock({
             type="button"
             role="tab"
             aria-selected={active}
-            aria-current={active ? "true" : undefined}
+            aria-current={active ? "page" : undefined}
             onClick={() => onSelect?.(tab.id)}
             className="relative z-10 flex min-w-[48px] min-h-[48px] flex-1 flex-col items-center justify-center gap-1 bg-transparent"
             style={{

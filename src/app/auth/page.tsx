@@ -17,6 +17,7 @@ import { useRouter } from "next/navigation";
 import { Fingerprint } from "lucide-react";
 import { GlassPanel } from "@/components/ui/GlassPanel";
 import { LogoMark } from "@/components/brand/LogoMark";
+import { BackgroundPaths } from "@/components/brand/BackgroundPaths";
 import { Segmented } from "@/components/ui/Segmented";
 import { passkeysServerEnabled, signInWithPasskey } from "@/lib/passkeys";
 import { triggerHaptic } from "@/lib/haptics";
@@ -78,6 +79,17 @@ export default function AuthPage() {
     }
 
     if (mode === "sign-up" && result.data.user) {
+      // F-4 (Phase 8 / S1): no session means email confirmation is
+      // pending. The pre-confirmation profile bootstrap upsert is
+      // RLS-blocked by design (401), so it must NOT run before this
+      // branch — show the intended "check your email" message first
+      // and skip the bootstrap entirely; onboarding creates the
+      // profile after the confirmed sign-in.
+      if (!result.data.session) {
+        setMessage("Check your email to confirm your account, then sign in.");
+        setPending(false);
+        return;
+      }
       const { error: profileError } = await supabase.from("profiles").upsert({
         id: result.data.user.id,
         identity: {
@@ -90,12 +102,6 @@ export default function AuthPage() {
 
       if (profileError) {
         setError("Your account was created, but profile setup could not be completed.");
-        setPending(false);
-        return;
-      }
-
-      if (!result.data.session) {
-        setMessage("Check your email to confirm your account, then sign in.");
         setPending(false);
         return;
       }
@@ -148,8 +154,11 @@ export default function AuthPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center p-4">
-      <GlassPanel className="w-full max-w-md p-6 sm:p-8">
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden p-4">
+      {/* Phase 8: flowing-path backdrop — /auth ONLY (the
+          authenticated app bans infinite path animations). */}
+      <BackgroundPaths />
+      <GlassPanel className="relative w-full max-w-md p-6 sm:p-8">
         <div>
           <LogoMark size={36} />
           <p className="mt-3 text-xs font-semibold tracking-[0.22em] text-(--color-accent-focus)">

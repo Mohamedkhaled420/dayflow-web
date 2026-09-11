@@ -16,6 +16,7 @@
 
 import { useMemo, useState } from "react";
 import { Check, Droplet, Sun } from "lucide-react";
+import { z } from "zod";
 import { Sheet } from "@/components/ui/Sheet";
 import { useDayflowStore } from "@/store/useDayflowStore";
 import { keyForOffset } from "@/lib/seed";
@@ -29,14 +30,22 @@ export interface MorningTriadRecord {
   lightConfirmed: boolean;
 }
 
+/** F-5b (Phase 8 / S1): storage is untrusted input — validate the
+ *  shape instead of casting the parsed JSON. */
+const MorningTriadSchema = z.object({
+  dateKey: z.string(),
+  lightConfirmed: z.boolean(),
+});
+
 /** Read today's completion record (SSR-safe). */
 export function readMorningTriad(): MorningTriadRecord | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = window.localStorage.getItem(MORNING_TRIAD_STORAGE_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as MorningTriadRecord;
-    return parsed.dateKey === keyForOffset(0) ? parsed : null;
+    const parsed = MorningTriadSchema.safeParse(JSON.parse(raw));
+    if (!parsed.success) return null;
+    return parsed.data.dateKey === keyForOffset(0) ? parsed.data : null;
   } catch {
     return null;
   }

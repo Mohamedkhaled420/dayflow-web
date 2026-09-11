@@ -205,3 +205,92 @@ Banned from any screen. Audit target: **≤1 trigger per PR** (PRD §5.1).
 16. Skeleton-screen flashing on every navigation (keep current UI until ready per §3 row 3; skeletons are for genuine cold starts only)
 
 *(Audit note: legacy views contain a small number of pre-existing uppercase micro-labels — "HYDRATION", day headers — inherited from the native app port. They predate this contract, are tracked as triggers in the audit, and are fair game for the convergence phase.)*
+
+---
+
+## 7. Phase 8 — Notion-Quiet Rebrand System
+
+**Decision record (2026-09, human-approved):** the legacy `--df-*` layer was
+VALUE-remapped in place. Token NAMES are frozen — the six legacy views
+(Timeline / Daily / Weekly / Habits / Journal / Settings) and every dialog
+reference them — so the rebrand landed atomically across all surfaces without
+touching view code. This is the "legacy convergence" conclusion (S3): every
+legacy surface resolves through tokens; zero raw color literals outside
+`theme.css` (enforced by `scripts/check-raw-colors.mjs` + ESLint
+`dayflow/no-raw-colors`; evidence in `docs/PHASE8_REMEDIATION.md`).
+
+### 7.1 Palette (light / dark)
+
+| Role | Light | Dark | AA |
+|---|---|---|---|
+| window / panel | `#ffffff` / `#ffffff` | `#191919` / `#212121` | — |
+| ink (text-primary) | `#37352f` | `#ffffff` | 12.6:1 / 16:1 |
+| text-secondary | `#6f6e6b` | `#d4d4d2` | 5.0:1 / 10.7:1 |
+| text-muted | `#757471` | `#b1b1af` | 4.67:1 / 7.5:1 (remediates A-1) |
+| accent (graphics/focus) | `#2383e2` | `#379eff` | graphics ≥3:1 |
+| accent-text | `#1a6fc4` | `#6cb2ff` | 4.76:1 / 7.2:1 (remediates A-2) |
+| primary CTA fill / text | `#1a6fc4` / white | same | 4.76:1 (remediates A-3) |
+| secondary CTA | `#f7f7f5` fill, `#37352f` text | `#2a2a2a` / `#e6e6e4` | pass |
+| borders | `#e9e9e7` / `#e3e3e1` / `#dbdbd8` | `#2f2f2f` / `#383838` / `#3d3d3d` | hairlines |
+| streak (orange data) | `#d9730d` | `#e3b341` | graphics |
+| destructive | `#e03e3e` (text `#b3261e`) | `#f85149` (text `#ff8182`) | pass |
+
+The §9.1 `@theme` block stays VERBATIM (PRD contract) — the auth surface
+remains the dark doorway it always was.
+
+### 7.2 CTA discipline
+
+In-app buttons are SOLID: `df-btn-primary` (solid `#1a6fc4`, white text),
+`df-btn-secondary` (neutral fill, ink text). The ONE gradient in the product
+is `--df-hero-gradient` (`#2383e2 → #d9730d`, class `df-btn-hero`), allowed
+ONLY on the landing hero CTA. Marketing may glow; the app may not.
+
+### 7.3 The Dia chat shell (Journal / Coach)
+
+The browser chrome is a FUNCTIONAL shell — "a browser into your own life":
+
+- **Traffic lights** = live sync status: all three dots take the aggregate
+  state color (`--df-sync-ok` green / `--df-sync-pending` amber /
+  `--df-sync-error` red), derived from `isSyncing` + `navigator.onLine` +
+  `syncError`. `role="status"` + `aria-live="polite"`.
+- **Back / forward** = walk the journal entry history (newest-first pointer;
+  the pointed entry highlights with an accent ring and scrolls into view).
+  Hidden below 400px (collapsed chrome at 375px).
+- **Refresh** = re-run the last coach answer.
+- **Omnibar** = mode + privacy: `🔒 coach://journal|workout`; tap switches
+  the coach context (journal → route mode `journal`; workout → route mode
+  `coaching` with the training system prompt + last-3-workouts context).
+- **Hero area** = the message flow (`role="log"` + `aria-live="polite"`).
+- **Quick cards** = preset prompt chips above the composer.
+- **Aurora** = STATIC (`--df-chat-aurora`, a fixed radial tint). No animated
+  gradients inside the authenticated app (perf budget, see §7.4).
+- The landing page reuses `<DiaChrome>` (static mode) as a REAL frame of
+  this shell — dogfooding marketing, no fake mockups.
+
+### 7.4 Performance budget (unchanged, restated)
+
+The authenticated app allows NO infinite blur / path / gradient animations
+(the historical screenshot-capture stall). Animated SVG paths live on `/auth`
+ONLY (`BackgroundPaths`, token-colored, reduced-motion static). The aurora
+tint is static CSS. Dock hide/show is transform+opacity only (180ms).
+
+### 7.5 Dock avoidance rules (S2)
+
+- **Rule A — overlays float:** sheets/dialogs paint above the dock
+  (`z-60`), toasts above everything (`z-100`). (F-1 hotfix, retained.)
+- **Rule B — immersive hides:** `use-dock-visibility.ts` reference-counts
+  hide requests by reason string; the dock returns only when every requester
+  releases. Active requesters: the on-screen keyboard
+  (`watchDockKeyboard`, visualViewport heuristic >120px) and the fullscreen
+  journal editor (`useDockHideRequest("editor-fullscreen", …)`).
+- **Rule C — content reserves:** scroll containers keep a constant
+  `pb-[calc(88px+env(safe-area-inset-bottom))]` regardless of dock state;
+  the reserved band never changes size, so hide/show is CLS-0.
+
+### 7.6 App shell height discipline (F-2)
+
+The authenticated shell is `.df-app`: a `100dvh` flex column with
+`overflow-x: clip` (clip — unlike hidden — creates no scroll container, so
+sticky keeps working). Every view's `h-full overflow-y-auto` scroll container
+engages against that definite height. The landing/marketing pages keep
+`.df-window` + body scroll (the 220vh logo runway needs it).

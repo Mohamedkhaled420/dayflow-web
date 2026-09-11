@@ -548,7 +548,7 @@ export default function TeamPage() {
                     key={message}
                     type="button"
                     onClick={() => praise(message)}
-                    aria-label={`Send praise: ${message}`}
+                    aria-label={`Send praise to ${teammateName}: ${message}`}
                     className="flex min-h-11 items-center justify-center gap-2 rounded-(--radius-pill) border border-(--hairline) bg-(--color-surface-elevated) px-3 text-sm font-medium text-(--color-ink) transition-[transform,opacity] duration-(--duration-press) ease-(--ease-spring-critical) hover:opacity-90 active:scale-[0.97]"
                   >
                     <Icon className="size-4 text-(--color-accent-recovery)" aria-hidden />

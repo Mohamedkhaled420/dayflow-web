@@ -531,9 +531,20 @@ function WorkoutCard({
         setError(payload.error ?? "Coach returned an empty plan.");
         return;
       }
-      // Zod-validate BEFORE render (PRD §4.5).
+      // Zod-validate BEFORE render (PRD §4.5). F-5 (Phase 8 / S1):
+      // the JSON.parse is guarded FIRST — when the algorithmic floor
+      // answers plain text (Groq key unset / cascade exhausted), the
+      // dedicated "plan didn't validate" branch stays reachable
+      // instead of falling into the generic network-catch.
       const raw = payload.text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
-      const parsed = WorkoutPlanSchema.safeParse(JSON.parse(raw));
+      let json: unknown;
+      try {
+        json = JSON.parse(raw);
+      } catch {
+        setError("The plan didn't validate — ask again for a cleaner one.");
+        return;
+      }
+      const parsed = WorkoutPlanSchema.safeParse(json);
       if (!parsed.success) {
         setError("The plan didn't validate — ask again for a cleaner one.");
         return;

@@ -291,7 +291,17 @@ export function WeeklyView() {
 
         {/* heatmap */}
         <Card title="Tracking heatmap" sub="Tracked minutes per hour of day">
-          <div className="mt-3 overflow-x-auto df-scroll">
+          {/* A-4 (Phase 8 / S1): the 126 cells are decorative
+              title-tooltip divs — the grid is aria-hidden and an
+              accessible summary line carries the same data for
+              screen readers. Retroactive logging lives on the
+              Timeline date picker (QA F-6 disposition). */}
+          <p className="sr-only">
+            Heatmap of tracked minutes per hour across the week. This week totals{" "}
+            {fmtDuration(totalTrackedWeek)}; darker cells mean more tracked minutes in that
+            hour. Retroactive logging happens on the Timeline via the date picker.
+          </p>
+          <div className="mt-3 overflow-x-auto df-scroll" aria-hidden="true">
             <div className="min-w-[300px]">
               <div className="grid gap-[3px]" style={{ gridTemplateColumns: `34px repeat(${HEAT_COLS}, 1fr)` }}>
                 {Array.from({ length: HEAT_ROWS }, (_, r) => {
