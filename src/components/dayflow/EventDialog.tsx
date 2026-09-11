@@ -22,7 +22,7 @@ import {
   motion,
   useDragControls,
   useReducedMotion,
-} from "framer-motion";
+} from "motion/react";
 import { Check, Clock, Trash2, X } from "lucide-react";
 import { CategoryIcon } from "@/components/dayflow/category-icons";
 import { useDayflow } from "@/lib/store";

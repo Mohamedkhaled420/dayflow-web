@@ -1,4 +1,4 @@
-import type { Transition } from "framer-motion";
+import type { Transition } from "motion/react";
 
 /**
  * Apple house-style motion presets (from the apple-design skill):

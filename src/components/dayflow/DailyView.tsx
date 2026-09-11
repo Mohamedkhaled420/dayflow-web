@@ -6,7 +6,7 @@
 // "Daily" view; the standup card becomes a personal recap.
 
 import { useMemo, useState } from "react";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { CheckCircle2, Copy, Sparkles, TriangleAlert } from "lucide-react";
 import { useDayflowData, useSortedCategories } from "@/lib/store";
 import { keyForOffset, keyToDate } from "@/lib/seed";

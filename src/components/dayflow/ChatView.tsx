@@ -6,7 +6,7 @@
 // from that context, or through a live LLM when a key is saved.
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion } from "motion/react";
 import { ArrowUp, BedDouble, Calendar, Droplet, Dumbbell, Sparkles } from "lucide-react";
 import { getApiKey } from "@/lib/api-key-store";
 import { useDayflowData } from "@/lib/store";

@@ -5,7 +5,7 @@
 // "tailored to my goals" heart of the web tracker.
 
 import { useMemo } from "react";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { Flame, Target, Trophy } from "lucide-react";
 import { useDayflowData } from "@/lib/store";
 import { keyForOffset } from "@/lib/seed";

@@ -7,7 +7,7 @@
 // screen capture).
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion } from "motion/react";
 import {
   Calendar,
   ChevronLeft,

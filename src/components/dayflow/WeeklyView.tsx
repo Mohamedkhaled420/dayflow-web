@@ -5,7 +5,7 @@
 // a tracking heatmap, workout log, and auto highlights.
 
 import { useMemo, useState } from "react";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { ChevronLeft, ChevronRight, Dumbbell, Droplet, MoonStar, TrendingUp } from "lucide-react";
 import { useDayflowData, useSortedCategories } from "@/lib/store";
 import { keyForOffset } from "@/lib/seed";
