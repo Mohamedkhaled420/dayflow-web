@@ -1,68 +1,66 @@
 "use client";
 
-// ChatView — journal chat grounded in the user's tracker data.
-// The client computes a compact context from the local store and
-// posts it with the conversation; the API answers deterministically
-// from that context, or through a live LLM when a key is saved.
+// ============================================================
+// Dayflow AI — JournalView (Phase 5 T1a, PRD §4.4)
+// ------------------------------------------------------------
+// Replaces the legacy BYO-key Chat view: every entry writes to
+// journal_entries through the Delta Sync store (owner-only RLS),
+// the scrollable list carries mood indicators, and "Ask Coach"
+// calls /api/ai/coach (mode: journal) with the last 3 entries as
+// context (Amendment #12 Bearer auth; the route caps the prompt
+// and runs the Groq cascade with the algorithmic floor as the
+// final fallback).
+// ============================================================
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowUp, BedDouble, Calendar, Droplet, Dumbbell, Sparkles } from "lucide-react";
-import { getApiKey } from "@/lib/api-key-store";
-import { useDayflowData } from "@/lib/store";
-import { keyForOffset, keyToDate } from "@/lib/seed";
 import {
-  eventDuration,
-  eventsForDay,
-  fmtDuration,
-  fmtRange,
-  goalsForDay,
-  aggregateWeek,
-  weekOf,
-  weekWorkoutSessions,
-  workoutsForDay,
-} from "@/lib/compute";
+  ArrowUp,
+  Frown,
+  Laugh,
+  Meh,
+  NotebookPen,
+  Smile,
+  Sparkles,
+} from "lucide-react";
+import { useDayflowStore } from "@/store/useDayflowStore";
+import { useDayflowData } from "@/lib/viewmodel";
+import { useToast } from "@/hooks/use-toast";
+import { triggerHaptic } from "@/lib/haptics";
 
-interface Msg {
+const MOODS = [
+  { score: 1, label: "Rough", Icon: Frown },
+  { score: 2, label: "Low", Icon: Frown },
+  { score: 3, label: "Okay", Icon: Meh },
+  { score: 4, label: "Good", Icon: Smile },
+  { score: 5, label: "Great", Icon: Laugh },
+] as const;
+
+interface CoachTurn {
   id: number;
-  role: "user" | "assistant";
+  role: "user" | "coach";
   content: string;
 }
 
-const SUGGESTIONS = [
-  { icon: "bed", label: "How did I sleep this week?" },
-  { icon: "drop", label: "How much water did I drink today?" },
-  { icon: "dumbbell", label: "Am I hitting my fitness goals?" },
-  { icon: "calendar", label: "Summarize my week" },
-];
-
-const SUGGESTION_ICONS: Record<
-  string,
-  React.ComponentType<{
-    className?: string;
-    style?: React.CSSProperties;
-  }>
-> = {
-  bed: BedDouble,
-  drop: Droplet,
-  dumbbell: Dumbbell,
-  calendar: Calendar,
-};
-
 export function ChatView() {
+  const journalEntries = useDayflowStore((s) => s.journalEntries);
+  const addJournalEntry = useDayflowStore((s) => s.addJournalEntry);
   const data = useDayflowData();
-  const [messages, setMessages] = useState<Msg[]>([]);
-  const [input, setInput] = useState("");
-  const [busy, setBusy] = useState(false);
+  const { toast } = useToast();
+
+  const [draft, setDraft] = useState("");
+  const [mood, setMood] = useState<number>(3);
+  const [saving, setSaving] = useState(false);
+  const [coachTurns, setCoachTurns] = useState<CoachTurn[]>([]);
+  const [asking, setAsking] = useState(false);
+  const [coachError, setCoachError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const welcome = useMemo<Msg>(
-    () => ({
-      id: 0,
-      role: "assistant",
-      content: `Hi ${data.profile.name.split(" ")[0]}! I'm grounded in your tracker — ask me about your sleep, workouts, water, meals, work time, or how the week is going.\n\nRight now I answer from your local data. Add an API key in Settings for a live LLM with the same grounding.`,
-    }),
-    [data.profile.name]
+  // Newest first for the reading list; coach context wants the
+  // last-3 in chronological order.
+  const entries = useMemo(
+    () => [...journalEntries].sort((a, b) => b.created_at.localeCompare(a.created_at)),
+    [journalEntries]
   );
 
   useEffect(() => {
@@ -70,104 +68,82 @@ export function ChatView() {
       top: scrollRef.current.scrollHeight,
       behavior: "smooth",
     });
-  }, [messages, busy]);
+  }, [entries.length, coachTurns.length, asking]);
 
-  // compact tracker context computed from the store, sent with every ask
-  const buildContext = () => {
-    const todayKey = keyForOffset(0);
-    const today = eventsForDay(data.events, todayKey);
-    const week = weekOf(todayKey);
-    const days = aggregateWeek(data, week);
-    return {
-      today: {
-        dateLabel: keyToDate(todayKey).toLocaleDateString("en-US", {
-          weekday: "long",
-          month: "long",
-          day: "numeric",
-        }),
-        events: today.map((e) => ({
-          title: e.title,
-          category:
-            data.categories.find((c) => c.id === e.categoryId)?.name ?? "Uncategorized",
-          range: fmtRange(e),
-          minutes: eventDuration(e),
-          notes: e.notes,
-        })),
-        goals: goalsForDay(data, todayKey).map((g) => ({
-          label: g.label,
-          done: Math.round(g.done * 10) / 10,
-          target: g.target,
-          unit: g.unit,
-          met: g.met,
-        })),
-      },
-      week: {
-        days: days.map((d) => ({
-          label: d.label,
-          dateLabel: d.dateLabel,
-          minutesByCategory: d.minutesByCategory,
-          waterGlasses: d.waterGlasses,
-          sleepMinutes: d.sleepMinutes,
-          totalTracked: d.totalTracked,
-        })),
-        workouts: (() => {
-          const w = weekWorkoutSessions(data, week);
-          return { count: w.count, minutes: w.minutes, titles: w.titles };
-        })(),
-        goals: {
-          workMinutesPerDay: data.goals.workMinutes,
-          sleepMinutesPerNight: data.goals.sleepMinutes,
-          waterGlassesPerDay: data.goals.waterGlasses,
-          fitnessSessionsPerWeek: data.goals.fitnessSessionsPerWeek,
-        },
-      },
-      workoutsToday: workoutsForDay(data.events, todayKey).map((e) => e.title),
-    };
-  };
-
-  const send = async (text: string) => {
-    const q = text.trim();
-    if (!q || busy) return;
-    setInput("");
-    setMessages((m) => [...m, { id: Date.now(), role: "user", content: q }]);
-    setBusy(true);
+  const saveEntry = async () => {
+    const content = draft.trim();
+    if (!content || saving) return;
+    setSaving(true);
     try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: [...messages.filter((m) => m.id !== 0), { role: "user", content: q }],
-          apiKey: getApiKey() || undefined,
-          context: buildContext(),
-        }),
-      });
-      const data2 = (await res.json()) as { reply?: string; error?: string };
-      setMessages((m) => [
-        ...m,
-        {
-          id: Date.now() + 1,
-          role: "assistant",
-          content:
-            data2.reply ??
-            data2.error ??
-            "Something went wrong answering that. Try again?",
-        },
-      ]);
-    } catch {
-      setMessages((m) => [
-        ...m,
-        {
-          id: Date.now() + 1,
-          role: "assistant",
-          content: "The chat service is unreachable right now. Try again in a moment.",
-        },
-      ]);
+      await addJournalEntry({ content, mood_score: mood });
+      triggerHaptic(); // T2a: haptic on every journal save
+      setDraft("");
+      toast({ title: "Journal saved", description: MOODS[mood - 1].label });
     } finally {
-      setBusy(false);
+      setSaving(false);
     }
   };
 
-  const allMessages = messages.length > 0 ? [welcome, ...messages] : [welcome];
+  const askCoach = async () => {
+    const question = draft.trim();
+    if (!question || asking) return;
+    setAsking(true);
+    setCoachError(null);
+    setCoachTurns((t) => [...t, { id: Date.now(), role: "user", content: question }]);
+    setDraft("");
+    try {
+      // Amendment #12: live session JWT on the Bearer.
+      const { createClient } = await import("@/utils/supabase/client");
+      const supabase = createClient();
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) {
+        setCoachError("Sign in again — your session expired.");
+        return;
+      }
+      // Last 3 entries as context (§10.1 prompt discipline; the
+      // route re-caps at 4K tokens before any Groq call).
+      const context = entries.slice(0, 3).reverse().map((e) => ({
+        role: "user" as const,
+        content: `[journal ${e.created_at.slice(0, 10)}${e.mood_score ? ` · mood ${e.mood_score}/5` : ""}] ${e.content}`,
+      }));
+      const res = await fetch("/api/ai/coach", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          mode: "journal",
+          messages: [
+            {
+              role: "system",
+              content:
+                "You are Dayflow's psychology coach — CBT and Stoic framing, warm, concrete, brief. Reflect the user's own logged entries back to them. Never give medical advice; suggest professional help for clinical concerns.",
+            },
+            ...context,
+            { role: "user", content: question },
+          ],
+        }),
+      });
+      if (!res.ok) {
+        setCoachError(`Coach unavailable (HTTP ${res.status}).`);
+        return;
+      }
+      const payload = (await res.json()) as { text?: string; error?: string };
+      if (payload.error || !payload.text) {
+        setCoachError(payload.error ?? "The coach had nothing to say.");
+        return;
+      }
+      setCoachTurns((t) => [
+        ...t,
+        { id: Date.now() + 1, role: "coach", content: payload.text! },
+      ]);
+    } catch {
+      setCoachError("The coach couldn't be reached. Try again in a moment.");
+    } finally {
+      setAsking(false);
+    }
+  };
+
+  const firstName = data.profile.name.split(" ")[0];
 
   return (
     <div className="flex flex-col h-full">
@@ -180,34 +156,43 @@ export function ChatView() {
             border: "0.5px solid var(--df-chat-soft-border)",
           }}
         >
-          <Sparkles className="h-4 w-4" style={{ color: "var(--df-accent)" }} />
+          <NotebookPen className="h-4 w-4" style={{ color: "var(--df-accent)" }} />
         </span>
         <div>
-          <h1
-            className="text-[15.5px] font-bold leading-tight"
-            style={{ color: "var(--df-text-primary)" }}
-          >
-            Chat with your tracker
+          <h1 className="text-[15.5px] font-bold leading-tight" style={{ color: "var(--df-text-primary)" }}>
+            Journal
           </h1>
           <p className="text-[11.5px]" style={{ color: "var(--df-text-muted)" }}>
-            Answers grounded in your logs — no data leaves your browser without a key
+            Private to your account — entries sync through Dayflow, never to your team
           </p>
         </div>
       </header>
 
-      {/* messages */}
+      {/* entries + coach conversation */}
       <div
         ref={scrollRef}
         className="df-scroll flex-1 overflow-y-auto px-4 sm:px-6 pb-2 flex flex-col gap-3"
         role="log"
-        aria-label="Chat messages"
+        aria-label="Journal entries and coach replies"
       >
-        {allMessages.map((m) => (
-          <Bubble key={m.id} role={m.role}>
-            {m.content}
+        {entries.length === 0 && coachTurns.length === 0 && (
+          <div className="df-card mt-3 p-5 text-center">
+            <p className="text-[13px] font-semibold" style={{ color: "var(--df-text-primary)" }}>
+              Nothing written yet
+            </p>
+            <p className="mt-1 text-[11.5px]" style={{ color: "var(--df-text-secondary)" }}>
+              Hi {firstName} — write the first entry below, then ask your coach about it.
+            </p>
+          </div>
+        )}
+
+        {coachTurns.map((t) => (
+          <Bubble key={t.id} role={t.role === "user" ? "user" : "coach"}>
+            {t.content}
           </Bubble>
         ))}
-        {busy && (
+
+        {asking && (
           <div className="df-generating rounded-lg h-[34px] max-w-[60%]" aria-label="Thinking">
             <div className="h-full flex items-center px-4 gap-1.5">
               {[0, 1, 2].map((i) => (
@@ -222,42 +207,114 @@ export function ChatView() {
             </div>
           </div>
         )}
+
+        {coachError && (
+          <p
+            className="text-[12px] rounded-md px-3 py-2 self-start max-w-[80%]"
+            role="alert"
+            style={{
+              color: "var(--df-destructive-text)",
+              background: "color-mix(in srgb, var(--df-destructive) 12%, transparent)",
+            }}
+          >
+            {coachError}
+          </p>
+        )}
+
+        {entries.map((e) => {
+          const moodMeta = e.mood_score ? MOODS[Math.min(4, Math.max(0, e.mood_score - 1))] : null;
+          return (
+            <article
+              key={e.id}
+              className="rounded-[12px] px-3.5 py-2.5"
+              style={{
+                background: "var(--df-card-fill)",
+                border: "0.5px solid var(--df-card-border)",
+                boxShadow: "inset 0 0 0 2px var(--df-card-glow)",
+              }}
+            >
+              <div className="flex items-center gap-2">
+                {moodMeta ? (
+                  <span
+                    className="flex items-center gap-1 rounded-full px-1.5 py-[1px]"
+                    style={{
+                      background: "var(--df-chip-fill)",
+                      border: "0.5px solid var(--df-chip-border)",
+                    }}
+                    aria-label={`Mood: ${moodMeta.label} (${e.mood_score} of 5)`}
+                  >
+                    <moodMeta.Icon className="h-3 w-3" style={{ color: "var(--df-accent)" }} />
+                    <span className="text-[10px] font-semibold" style={{ color: "var(--df-text-secondary)" }}>
+                      {moodMeta.label}
+                    </span>
+                  </span>
+                ) : null}
+                <time
+                  className="text-[10px] tabular-nums"
+                  style={{ color: "var(--df-text-muted)" }}
+                  dateTime={e.created_at}
+                >
+                  {new Date(e.created_at).toLocaleString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })}
+                </time>
+                {e.pending_sync && (
+                  <span className="text-[9px] font-bold uppercase" style={{ color: "var(--df-text-muted)" }}>
+                    pending
+                  </span>
+                )}
+              </div>
+              <p
+                className="mt-1.5 text-[13px] leading-[1.55] whitespace-pre-wrap"
+                style={{ color: "var(--df-text-primary)" }}
+              >
+                {e.content}
+              </p>
+            </article>
+          );
+        })}
       </div>
 
-      {/* suggestions */}
-      <AnimatePresence>
-        {messages.length === 0 && !busy && (
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 8 }}
-            className="px-4 sm:px-6 pb-2 flex flex-wrap gap-2"
-          >
-            {SUGGESTIONS.map((s) => {
-              const Icon = SUGGESTION_ICONS[s.icon] ?? Sparkles;
-              return (
-                <button
-                  key={s.label}
-                  onClick={() => send(s.label)}
-                  className="df-press df-chip rounded-full h-8 pl-2.5 pr-3.5 flex items-center gap-1.5 text-[12px] font-medium"
-                >
-                  <Icon className="h-3.5 w-3.5" style={{ color: "var(--df-accent)" }} />
-                  {s.label}
-                </button>
-              );
-            })}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* composer */}
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          send(input);
-        }}
+      <div
         className="px-4 sm:px-6 py-3"
+        style={{
+          paddingBottom:
+            "calc(0.75rem + max(0px, var(--keyboard-height, 0px)))",
+        }}
       >
+        {/* mood picker */}
+        <div className="flex items-center gap-1.5 mb-2" role="radiogroup" aria-label="Mood for this entry">
+          {MOODS.map((m) => {
+            const active = mood === m.score;
+            return (
+              <button
+                key={m.score}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                aria-label={m.label}
+                onClick={() => setMood(m.score)}
+                className="df-press grid min-h-11 min-w-11 place-items-center rounded-full"
+                style={{
+                  background: active ? "var(--df-chat-soft-fill)" : "transparent",
+                  border: active
+                    ? "1.5px solid color-mix(in srgb, var(--df-accent) 55%, transparent)"
+                    : "1.5px solid transparent",
+                }}
+              >
+                <m.Icon
+                  className="h-5 w-5"
+                  style={{ color: active ? "var(--df-accent)" : "var(--df-text-muted)" }}
+                />
+              </button>
+            );
+          })}
+        </div>
+
         <div
           className="flex items-end gap-2 rounded-[10px] p-2"
           style={{
@@ -266,66 +323,81 @@ export function ChatView() {
           }}
         >
           <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault();
-                send(input);
+                void saveEntry();
               }
             }}
-            rows={1}
-            placeholder="Ask about your day…"
-            aria-label="Ask a question about your tracker"
-            className="flex-1 bg-transparent outline-none resize-none text-[13px] leading-relaxed placeholder:text-[var(--df-text-muted)] max-h-32"
+            rows={2}
+            placeholder="How did today go?"
+            aria-label="Journal entry"
+            className="flex-1 bg-transparent outline-none resize-none text-base leading-relaxed placeholder:text-[var(--df-text-muted)] max-h-32"
             style={{ color: "var(--df-text-primary)" }}
           />
+        </div>
+
+        <div className="mt-2 flex items-center gap-2">
           <button
-            type="submit"
-            disabled={!input.trim() || busy}
-            aria-label="Send message"
-            className="df-press df-btn-primary w-8 h-8 rounded-[8px] grid place-items-center disabled:opacity-40"
+            type="button"
+            onClick={saveEntry}
+            disabled={!draft.trim() || saving}
+            className="df-press df-btn-primary min-h-11 px-4 rounded-md text-[12.5px] font-semibold flex items-center gap-1.5 disabled:opacity-40"
           >
-            <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
+            <NotebookPen className="h-3.5 w-3.5" />
+            {saving ? "Saving…" : "Save entry"}
+          </button>
+          <button
+            type="button"
+            onClick={askCoach}
+            disabled={!draft.trim() || asking}
+            className="df-press df-btn-secondary min-h-11 px-4 rounded-md text-[12.5px] font-semibold flex items-center gap-1.5 disabled:opacity-40"
+          >
+            <Sparkles className="h-3.5 w-3.5" style={{ color: "var(--df-accent)" }} />
+            {asking ? "Asking…" : "Ask Coach"}
           </button>
         </div>
         <p className="text-[10px] mt-1.5 text-center" style={{ color: "var(--df-text-muted)" }}>
-          Chat answers from your local tracker data. Add an API key in Settings for a live LLM.
+          Entries stay owner-only (RLS). Ask Coach sends your last 3 entries for context.
         </p>
-      </form>
+      </div>
     </div>
   );
 }
 
-function Bubble({ role, children }: { role: "user" | "assistant"; children: string }) {
+function Bubble({ role, children }: { role: "user" | "coach"; children: string }) {
   const isUser = role === "user";
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 8, scale: 0.99 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-      className={`max-w-[78%] sm:max-w-[62%] rounded-[12px] px-3.5 py-2.5 ${
-        isUser ? "self-end" : "self-start"
-      }`}
-      style={
-        isUser
-          ? {
-              background: "var(--df-chat-soft-fill)",
-              border: "0.5px solid var(--df-chat-soft-border)",
-            }
-          : {
-              background: "var(--df-card-fill)",
-              border: "0.5px solid var(--df-card-border)",
-              boxShadow: "inset 0 0 0 2px var(--df-card-glow)",
-            }
-      }
-    >
-      <p
-        className="text-[13px] leading-[1.5] whitespace-pre-wrap"
-        style={{ color: "var(--df-text-primary)" }}
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0, y: 8, scale: 0.99 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+        className={`max-w-[78%] sm:max-w-[62%] rounded-[12px] px-3.5 py-2.5 ${
+          isUser ? "self-end" : "self-start"
+        }`}
+        style={
+          isUser
+            ? {
+                background: "var(--df-chat-soft-fill)",
+                border: "0.5px solid var(--df-chat-soft-border)",
+              }
+            : {
+                background: "var(--df-card-fill)",
+                border: "0.5px solid var(--df-card-border)",
+                boxShadow: "inset 0 0 0 2px var(--df-card-glow)",
+              }
+        }
       >
-        {children}
-      </p>
-    </motion.div>
+        <p
+          className="text-[13px] leading-[1.5] whitespace-pre-wrap"
+          style={{ color: "var(--df-text-primary)" }}
+        >
+          {children}
+        </p>
+      </motion.div>
+    </AnimatePresence>
   );
 }

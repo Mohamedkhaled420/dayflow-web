@@ -25,23 +25,22 @@ import {
 } from "motion/react";
 import { Check, Clock, Trash2, X } from "lucide-react";
 import { CategoryIcon } from "@/components/dayflow/category-icons";
-import { useDayflow } from "@/lib/store";
+import { LOGGABLE_CATEGORIES, localDateTime } from "@/lib/viewmodel";
+import {
+  useDayflowStore,
+} from "@/store/useDayflowStore";
 import { keyForOffset } from "@/lib/seed";
 import { toMinutes, eventDuration } from "@/lib/compute";
 import { useToast } from "@/hooks/use-toast";
 import { useIsPhone } from "@/hooks/use-media-query";
-import { hapticSuccess, hapticWarn } from "@/lib/haptics";
+import { hapticSuccess, hapticWarn, triggerHaptic } from "@/lib/haptics";
+import { useKeyboardTracking } from "@/components/ui/Sheet";
 import { springSheet, springSoft } from "@/lib/motion";
 import type { Category, TrackEvent } from "@/lib/types";
 
 const PLACEHOLDERS: Record<string, string> = {
-  work: "Deep work — payments API",
-  personal: "Side project — portfolio site",
   fitness: "Gym — upper body push",
-  meals: "Lunch — chicken grain bowl",
   sleep: "Sleep",
-  water: "Water",
-  leisure: "Walk + podcast",
 };
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -205,63 +204,91 @@ function EventForm({
   onDragStart: (e: React.PointerEvent) => void;
   draggable: boolean;
 }) {
-  const categories = useDayflow((s) => s.categories);
-  const addEvent = useDayflow((s) => s.addEvent);
-  const updateEvent = useDayflow((s) => s.updateEvent);
-  const deleteEvent = useDayflow((s) => s.deleteEvent);
+  // Phase 5 T0: the dialog is now the server-backed logger. Blocks
+  // map 1:1 onto the log tables — sleep -> sleep_logs,
+  // fitness -> workout_logs — through the Delta Sync store.
+  const addSleepLog = useDayflowStore((s) => s.addSleepLog);
+  const addWorkoutLog = useDayflowStore((s) => s.addWorkoutLog);
+  const updateSleepLog = useDayflowStore((s) => s.updateSleepLog);
+  const updateWorkoutLog = useDayflowStore((s) => s.updateWorkoutLog);
+  const deleteSleepLog = useDayflowStore((s) => s.deleteSleepLog);
+  const deleteWorkoutLog = useDayflowStore((s) => s.deleteWorkoutLog);
   const { toast } = useToast();
 
-  const timeCategories = categories
-    .filter((c) => c.kind === "time")
-    .sort((a, b) => a.order - b.order);
+  const timeCategories = LOGGABLE_CATEGORIES;
 
   const initialStart = event?.start ?? nowHM();
   const startM = toMinutes(initialStart);
   const endM = (startM + 60) % (24 * 60);
 
   const [categoryId, setCategoryId] = useState<string>(
-    event?.categoryId ?? timeCategories[0]?.id ?? "work"
+    event?.categoryId ?? timeCategories[0]?.id ?? "sleep"
   );
   const [title, setTitle] = useState(event?.title ?? "");
   const [start, setStart] = useState(initialStart);
   const [end, setEnd] = useState(
     event?.end ?? `${pad(Math.floor(endM / 60))}:${pad(endM % 60)}`
   );
-  const [notes, setNotes] = useState(event?.notes ?? "");
+  // Sleep -> resting heart rate; Workout -> active calories.
+  // (The old free-text notes had no server column — PRD §2 tables.)
+  const [metric, setMetric] = useState("");
 
-  const validCat: Category | undefined = categories.find((c) => c.id === categoryId);
+  const validCat: Category | undefined = timeCategories.find((c) => c.id === categoryId);
   const overnight = end !== start && toMinutes(end) <= toMinutes(start);
   const duration = start && end ? eventDuration({ start, end } as TrackEvent) : 0;
-  const valid = !!validCat && title.trim().length > 0 && duration > 0 && duration < 24 * 60;
+  const isSleep = categoryId === "sleep";
+  const valid =
+    !!validCat &&
+    duration > 0 &&
+    duration < 24 * 60 &&
+    (isSleep || title.trim().length > 0) &&
+    (metric.trim() === "" || (Number(metric) >= 0 && Number.isFinite(Number(metric))));
 
-  const save = () => {
+  const save = async () => {
     if (!valid || !validCat) return;
-    const payload = {
-      dateKey: event?.dateKey ?? dateKey ?? keyForOffset(0),
-      categoryId: validCat.id,
-      title: title.trim(),
-      start,
-      end,
-      notes: notes.trim() || undefined,
-    };
-    if (event) {
-      updateEvent(event.id, payload);
-      toast({ title: "Block updated", description: `${title.trim()} · ${payload.start}–${payload.end}` });
+    const dayKey = event?.dateKey ?? dateKey ?? keyForOffset(0);
+    const metricNum = metric.trim() === "" ? null : Math.round(Number(metric));
+    const range = `${start}–${end}`;
+    if (isSleep) {
+      // Sleep blocks end at the wake time — logged_at IS the wake
+      // timestamp, sleep_minutes is the block duration.
+      const payload = {
+        sleep_minutes: duration,
+        resting_heart_rate: metricNum,
+        logged_at: localDateTime(dayKey, end),
+      };
+      if (event) await updateSleepLog(event.id, payload);
+      else await addSleepLog(payload);
+      toast({
+        title: event ? "Sleep updated" : "Sleep logged",
+        description: `${range} · ${Math.floor(duration / 60)}h ${duration % 60 ? `${duration % 60}m` : ""}`,
+      });
     } else {
-      addEvent(payload);
-      toast({ title: "Block logged", description: `${title.trim()} · ${payload.start}–${payload.end}` });
+      const payload = {
+        type: title.trim(),
+        duration_minutes: duration,
+        active_calories: metricNum,
+        logged_at: localDateTime(dayKey, start),
+      };
+      if (event) await updateWorkoutLog(event.id, payload);
+      else await addWorkoutLog(payload);
+      toast({ title: event ? "Workout updated" : "Workout logged", description: `${title.trim()} · ${range}` });
     }
-    hapticSuccess();
+    triggerHaptic();
     onClose();
   };
 
-  const remove = () => {
+  const remove = async () => {
     if (!event) return;
-    deleteEvent(event.id);
+    if (event.categoryId === "sleep") await deleteSleepLog(event.id);
+    else await deleteWorkoutLog(event.id);
     toast({ title: "Block deleted", description: event.title });
     hapticWarn();
     onClose();
   };
+
+  // T2b: keep the phone sheet above the software keyboard.
+  useKeyboardTracking();
 
   if (!isPhone) {
     return (
@@ -278,8 +305,9 @@ function EventForm({
           setStart={setStart}
           end={end}
           setEnd={setEnd}
-          notes={notes}
-          setNotes={setNotes}
+          metric={metric}
+          setMetric={setMetric}
+          isSleep={isSleep}
           duration={duration}
           overnight={overnight}
           valid={valid}
@@ -315,8 +343,9 @@ function EventForm({
           setStart={setStart}
           end={end}
           setEnd={setEnd}
-          notes={notes}
-          setNotes={setNotes}
+          metric={metric}
+          setMetric={setMetric}
+          isSleep={isSleep}
           duration={duration}
           overnight={overnight}
           valid={valid}
@@ -367,8 +396,10 @@ interface FormBodyProps {
   setStart: (v: string) => void;
   end: string;
   setEnd: (v: string) => void;
-  notes: string;
-  setNotes: (v: string) => void;
+  /** Resting HR (sleep) or active calories (workout). */
+  metric: string;
+  setMetric: (v: string) => void;
+  isSleep: boolean;
   duration: number;
   overnight: boolean;
   valid: boolean;
@@ -415,16 +446,17 @@ function FormBody(p: FormBodyProps) {
         </div>
       </div>
 
-      {/* title */}
+      {/* title — workouts only (sleep blocks are titled server-side) */}
+      {!p.isSleep && (
       <div className="mt-3.5">
         <label
           className="text-[10.5px] font-bold uppercase tracking-[0.06em]"
           style={{ color: "var(--df-text-secondary)" }}
         >
-          Title
+          Workout
         </label>
         <div
-          className="mt-1.5 rounded-md px-3 h-11 flex items-center"
+          className="mt-1.5 rounded-md px-3 min-h-12 flex items-center"
           style={{
             background: "var(--df-input-fill)",
             border: "0.5px solid var(--df-input-border)",
@@ -434,13 +466,14 @@ function FormBody(p: FormBodyProps) {
             value={p.title}
             onChange={(e) => p.setTitle(e.target.value)}
             placeholder={PLACEHOLDERS[p.categoryId] ?? "What did you do?"}
-            aria-label="Block title"
-            className="w-full bg-transparent outline-none text-[13px] placeholder:text-[var(--df-text-muted)]"
+            aria-label="Workout type"
+            className="w-full bg-transparent outline-none text-base placeholder:text-[var(--df-text-muted)]"
             style={{ color: "var(--df-text-primary)" }}
             autoFocus
           />
         </div>
       </div>
+      )}
 
       {/* times */}
       <div className="mt-3.5 grid grid-cols-2 gap-2.5">
@@ -470,7 +503,7 @@ function FormBody(p: FormBodyProps) {
                 value={f.value}
                 onChange={(e) => f.set(e.target.value)}
                 aria-label={`${f.label} time`}
-                className="w-full bg-transparent outline-none text-[13px] [color-scheme:light] dark:[color-scheme:dark]"
+                className="w-full bg-transparent outline-none text-base [color-scheme:light] dark:[color-scheme:dark]"
                 style={{ color: "var(--df-text-primary)" }}
               />
             </div>
@@ -496,27 +529,34 @@ function FormBody(p: FormBodyProps) {
         {p.duration <= 0 && "End must be after start (or before it for overnight sleep)"}
       </div>
 
-      {/* notes */}
+      {/* metric — resting HR for sleep, active calories for workouts */}
       <div className="mt-3.5">
         <label
           className="text-[10.5px] font-bold uppercase tracking-[0.06em]"
           style={{ color: "var(--df-text-secondary)" }}
         >
-          Notes <span className="normal-case font-medium opacity-70">(optional)</span>
+          {p.isSleep ? "Resting HR" : "Active calories"}{" "}
+          <span className="normal-case font-medium opacity-70">
+            (optional — {p.isSleep ? "bpm" : "kcal"})
+          </span>
         </label>
-        <textarea
-          value={p.notes}
-          onChange={(e) => p.setNotes(e.target.value)}
-          rows={2}
-          placeholder="Sets, pace, what you ate, how it felt…"
-          aria-label="Notes"
-          className="mt-1.5 w-full rounded-md px-3 py-2 bg-transparent outline-none resize-none text-[12.5px] leading-relaxed placeholder:text-[var(--df-text-muted)]"
+        <div
+          className="mt-1.5 rounded-md px-3 min-h-12 flex items-center"
           style={{
-            color: "var(--df-text-primary)",
             background: "var(--df-input-fill)",
             border: "0.5px solid var(--df-input-border)",
           }}
-        />
+        >
+          <input
+            value={p.metric}
+            onChange={(e) => p.setMetric(e.target.value.replace(/[^0-9]/g, ""))}
+            inputMode="numeric"
+            placeholder={p.isSleep ? "58" : "320"}
+            aria-label={p.isSleep ? "Resting heart rate in bpm" : "Active calories in kcal"}
+            className="w-full bg-transparent outline-none text-base tabular-nums placeholder:text-[var(--df-text-muted)]"
+            style={{ color: "var(--df-text-primary)" }}
+          />
+        </div>
       </div>
 
       {/* actions */}

@@ -8,12 +8,16 @@ import {
   CalendarRange,
   Clock3,
   Flame,
-  MessageCircle,
+  NotebookPen,
   Settings as SettingsIcon,
 } from "lucide-react";
 import { LogoBadge } from "@/components/dayflow/LogoBadge";
-import { rehydrateDayflow } from "@/lib/store";
-import { bootDayflowSync } from "@/store/useDayflowStore";
+import { bootDayflowSync, useDayflowStore } from "@/store/useDayflowStore";
+import {
+  MorningTriadGate,
+  readMorningTriad,
+} from "@/components/dayflow/MorningTriadGate";
+import { LiquidGlass, LiquidGlassFilters } from "@/components/ui/LiquidGlass";
 import { hapticSelect } from "@/lib/haptics";
 import { springSoft } from "@/lib/motion";
 
@@ -53,6 +57,9 @@ function ViewSkeleton() {
 
 export type TabId = "timeline" | "daily" | "weekly" | "habits" | "chat" | "settings";
 
+/** The Focus surface is the circadian Timeline (PRD §4.2 / §4.9). */
+const FOCUS_TAB: TabId = "timeline";
+
 const TABS: {
   id: TabId;
   label: string;
@@ -62,36 +69,78 @@ const TABS: {
   { id: "daily", label: "Daily", icon: CalendarDays },
   { id: "weekly", label: "Weekly", icon: CalendarRange },
   { id: "habits", label: "Habits", icon: Flame },
-  { id: "chat", label: "Chat", icon: MessageCircle },
+  { id: "chat", label: "Journal", icon: NotebookPen },
   { id: "settings", label: "Settings", icon: SettingsIcon },
 ];
-
-/** Apple house-style spring: critically damped, ~0.3s response. */
 
 export function AppShell() {
   const [tab, setTab] = useState<TabId>("timeline");
   const [ready, setReady] = useState(false);
+  // Morning Triad: the gate is DERIVED (profile + Focus tab + the
+  // localStorage day-record), never set from an effect. Dismissal
+  // and unlock are user events; triadNonce forces the re-render
+  // that re-reads the day-record.
+  const [triadDismissed, setTriadDismissed] = useState(false);
+  const [triadNonce, setTriadNonce] = useState(0);
   const reducedMotion = useReducedMotion();
 
-  // Rehydrate the persisted store after mount: the first render uses the
-  // deterministic seed so server HTML and the hydration pass match exactly.
+  const profileRow = useDayflowStore((s) => s.profile);
+
+  // Morning Triad gate conditions (PRD §4.9): only when the
+  // occupational status is NOT 'employed_structured' and the
+  // morning anchor is enforced on the profile.
+  const triadRequired = useMemo(() => {
+    const occ =
+      profileRow?.occupational_context &&
+      typeof profileRow.occupational_context === "object" &&
+      !Array.isArray(profileRow.occupational_context)
+        ? (profileRow.occupational_context as Record<string, unknown>)
+        : {};
+    const status = typeof occ.status === "string" ? occ.status : "";
+    const enforce = occ.enforceMorningAnchor === true;
+    return status !== "employed_structured" && enforce;
+  }, [profileRow]);
+
+  // Rehydrate the Delta Sync store's IndexedDB snapshot after
+  // mount (the first render uses empty state so server HTML and
+  // the hydration pass match exactly), then pull server deltas in
+  // the background — never blocking first paint.
   useEffect(() => {
     let cancelled = false;
-    rehydrateDayflow().finally(() => {
-      if (!cancelled) setReady(true);
-    });
-    // Delta Sync (Phase 2): pull Supabase rows into IndexedDB on boot.
-    // Fire-and-forget — never blocks the first paint.
+    Promise.resolve(useDayflowStore.persist.rehydrate())
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setReady(true);
+      });
     void bootDayflowSync();
     return () => {
       cancelled = true;
     };
   }, []);
 
-  const select = useCallback((t: TabId) => {
-    hapticSelect();
-    setTab(t);
-  }, []);
+  // The gate shows whenever a gated user is ON the Focus tab without
+  // today's anchor record — boot included, no effect needed.
+  const triadOpen =
+    triadRequired &&
+    ready &&
+    tab === FOCUS_TAB &&
+    !triadDismissed &&
+    !readMorningTriad();
+  void triadNonce;
+
+  const select = useCallback(
+    (t: TabId) => {
+      hapticSelect();
+      if (t === FOCUS_TAB && triadRequired && !readMorningTriad()) {
+        // Gate the Focus tab behind the morning check-in (T1d):
+        // switch onto Focus, where the derived gate takes over.
+        setTab(t);
+        return;
+      }
+      setTab(t);
+    },
+    [triadRequired]
+  );
 
   const content = useMemo(() => {
     if (!ready) return <BootSkeleton />;
@@ -115,6 +164,10 @@ export function AppShell() {
 
   return (
     <div className="df-window w-full min-h-[100dvh] overflow-x-hidden sm:p-[15px]">
+      {/* T1 material filters — mounted once, referenced by the two
+          Liquid Glass surfaces (mobile dock + Habits Log CTA). */}
+      <LiquidGlassFilters />
+
       <header className="lg:hidden sticky top-0 z-40 flex items-center justify-between px-4 pt-[max(0.65rem,env(safe-area-inset-top))] pb-2.5 df-mobile-header">
         <div className="flex items-center gap-2.5">
           <LogoBadge size={30} />
@@ -179,17 +232,46 @@ export function AppShell() {
         </div>
       </div>
 
-      <nav aria-label="Mobile primary" className="df-mobile-dock lg:hidden fixed inset-x-3 bottom-2 z-50 flex items-center justify-around rounded-[1.35rem] border border-white/70 bg-[color:var(--df-mobile-nav-fill)] px-1.5 pb-[max(0.35rem,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur-xl">
-        {TABS.filter((item) => item.id !== "settings").map((t) => (
-          <DockItem
-            key={t.id}
-            label={t.label}
-            active={tab === t.id}
-            onClick={() => select(t.id)}
-            icon={<t.icon className="size-[17px]" strokeWidth={1.8} />}
-          />
-        ))}
-      </nav>
+      {/* Mobile dock — Liquid Glass T1 surface #1 (PRD §6.2, max 2). */}
+      <LiquidGlass
+        filterCss="url(#lg-dock) blur(18px) saturate(1.7)"
+        className="df-mobile-dock lg:hidden fixed inset-x-3 bottom-2 z-50"
+        style={{
+          background: "var(--df-mobile-nav-fill)",
+          border: "0.5px solid var(--df-chip-border)",
+        }}
+      >
+        <nav
+          aria-label="Mobile primary"
+          className="flex items-center justify-around px-1.5 pb-[max(0.35rem,env(safe-area-inset-bottom))] pt-1.5"
+        >
+          {TABS.filter((item) => item.id !== "settings").map((t) => (
+            <DockItem
+              key={t.id}
+              label={t.label}
+              active={tab === t.id}
+              onClick={() => select(t.id)}
+              icon={<t.icon className="size-[17px]" strokeWidth={1.8} />}
+            />
+          ))}
+        </nav>
+      </LiquidGlass>
+
+      {/* Morning Triad gate (T1d) — gates the Focus tab. */}
+      <MorningTriadGate
+        open={triadOpen}
+        onUnlocked={() => {
+          // Day-record written inside the gate — re-read via nonce.
+          setTriadDismissed(false);
+          setTriadNonce((n) => n + 1);
+        }}
+        onClose={() => {
+          // Staying out of Focus: land on the Daily tab instead.
+          setTriadDismissed(true);
+          setTriadNonce((n) => n + 1);
+          setTab((current) => (current === FOCUS_TAB ? "daily" : current));
+        }}
+      />
     </div>
   );
 }

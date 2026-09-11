@@ -7,7 +7,8 @@
 import { useMemo, useState } from "react";
 import { motion } from "motion/react";
 import { ChevronLeft, ChevronRight, Dumbbell, Droplet, MoonStar, TrendingUp } from "lucide-react";
-import { useDayflowData, useSortedCategories } from "@/lib/store";
+import { useDayflowData } from "@/lib/viewmodel";
+import { LOGGABLE_CATEGORIES } from "@/lib/viewmodel";
 import { keyForOffset } from "@/lib/seed";
 import {
   aggregateWeek,
@@ -33,7 +34,7 @@ const HEAT_COLS = 7;
 
 export function WeeklyView() {
   const data = useDayflowData();
-  const categories = useSortedCategories();
+  const categories = LOGGABLE_CATEGORIES;
   const [anchor, setAnchor] = useState(keyForOffset(0));
 
   const week = useMemo(() => weekOf(anchor), [anchor]);

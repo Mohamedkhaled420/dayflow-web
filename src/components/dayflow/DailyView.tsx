@@ -8,7 +8,8 @@
 import { useMemo, useState } from "react";
 import { motion } from "motion/react";
 import { CheckCircle2, Copy, Sparkles, TriangleAlert } from "lucide-react";
-import { useDayflowData, useSortedCategories } from "@/lib/store";
+import { useDayflowData } from "@/lib/viewmodel";
+import { LOGGABLE_CATEGORIES } from "@/lib/viewmodel";
 import { keyForOffset, keyToDate } from "@/lib/seed";
 import {
   fmtDuration,
@@ -29,7 +30,7 @@ const SLOTS = (GRID_END - GRID_START) / SLOT; // 37
 
 export function DailyView() {
   const data = useDayflowData();
-  const categories = useSortedCategories();
+  const categories = LOGGABLE_CATEGORIES;
   const { toast } = useToast();
   const [dayOffset, setDayOffset] = useState(0);
   const [checked, setChecked] = useState<Record<number, boolean>>({});

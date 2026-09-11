@@ -157,6 +157,14 @@ export interface DayflowSyncState {
 export interface DayflowSyncActions {
   syncDeltas: () => Promise<void>;
 
+  /** Settings (Phase 5 T0): merge + persist profile JSONB sections. */
+  updateProfileSections: (sections: {
+    identity?: Json;
+    chronobiology?: Json;
+    occupational_context?: Json;
+    metabolism?: Json;
+  }) => Promise<void>;
+
   addHabit: (input: {
     name: string;
     icon?: string | null;
@@ -189,6 +197,18 @@ export interface DayflowSyncActions {
     content: string;
     mood_score?: number | null;
   }) => Promise<string | null>;
+
+  // ---------- log mutations (Phase 5 T0: timeline editing/drag) ----------
+  /** Update a sleep row (duration / wake time) — optimistic, reverts on failure. */
+  updateSleepLog: (id: string, patch: Partial<TablesUpdate<"sleep_logs">>) => Promise<boolean>;
+  /** Update a workout row (type / start / duration) — optimistic, reverts on failure. */
+  updateWorkoutLog: (id: string, patch: Partial<TablesUpdate<"workout_logs">>) => Promise<boolean>;
+  /** Remove a hydration row ("Undo last glass") — optimistic, restores on failure. */
+  deleteHydrationLog: (id: string) => Promise<boolean>;
+  /** Remove a sleep row — optimistic, restores on failure. */
+  deleteSleepLog: (id: string) => Promise<boolean>;
+  /** Remove a workout row — optimistic, restores on failure. */
+  deleteWorkoutLog: (id: string) => Promise<boolean>;
 
   // ---------- team slice (Phase 3) ----------
   /** Full team page load: team row + invites + recent activities. */
@@ -329,6 +349,19 @@ async function currentUserId(): Promise<string | null> {
   const supabase = await syncClient();
   const { data } = await supabase.auth.getSession();
   return data.session?.user.id ?? null;
+}
+
+/** Shared success tail for update/delete writes (cursor advance). */
+async function bumpSyncCursor(userId: string): Promise<void> {
+  const timestamp = nowIso();
+  const supabase = await syncClient();
+  await supabase
+    .from("profiles")
+    .update({ last_sync_timestamp: timestamp })
+    .eq("id", userId);
+  useDayflowStore.setState((s) => ({
+    lastSyncCursor: maxIso(s.lastSyncCursor, timestamp),
+  }));
 }
 
 /**
@@ -478,6 +511,34 @@ export const useDayflowStore = create<DayflowSyncStore>()(
           isSyncing: false,
           syncError: errors.length > 0 ? errors.join("; ") : null,
         });
+      },
+
+      // ---------- profile sections (Settings, Phase 5 T0) ----------
+
+      updateProfileSections: async (sections) => {
+        const userId = await currentUserId();
+        if (!userId) return;
+        // Optimistic local merge (server row wins on next delta pull).
+        const before = get().profile;
+        const merged = before
+          ? { ...before, ...sections }
+          : ({ id: userId, ...sections, created_at: nowIso() } as ProfileRow);
+        set({ profile: merged });
+        const supabase = await syncClient();
+        const { error } = await supabase.from("profiles").update(sections).eq("id", userId);
+        if (error) {
+          set({ profile: before, syncError: `profiles update: ${error.message}` });
+          return;
+        }
+        // Same success tail as log inserts: advance the delta cursor.
+        const timestamp = nowIso();
+        await supabase
+          .from("profiles")
+          .update({ last_sync_timestamp: timestamp })
+          .eq("id", userId);
+        useDayflowStore.setState((s) => ({
+          lastSyncCursor: maxIso(s.lastSyncCursor, timestamp),
+        }));
       },
 
       // ---------- habits ----------
@@ -694,6 +755,107 @@ export const useDayflowStore = create<DayflowSyncStore>()(
             }))
         );
         return row.id;
+      },
+
+      // ---------- log mutations (Phase 5 T0) ----------
+
+      updateSleepLog: async (id, patch) => {
+        const userId = await currentUserId();
+        if (!userId) return false;
+        const before = get().sleepLogs.find((r) => r.id === id);
+        if (!before) return false;
+        set((s) => ({
+          sleepLogs: s.sleepLogs.map((r) => (r.id === id ? { ...r, ...patch } : r)),
+        }));
+        const supabase = await syncClient();
+        const { error } = await supabase.from("sleep_logs").update(patch).eq("id", id);
+        if (error) {
+          set((s) => ({
+            sleepLogs: s.sleepLogs.map((r) => (r.id === id ? before : r)),
+            syncError: `sleep_logs update: ${error.message}`,
+          }));
+          return false;
+        }
+        void bumpSyncCursor(userId);
+        return true;
+      },
+
+      updateWorkoutLog: async (id, patch) => {
+        const userId = await currentUserId();
+        if (!userId) return false;
+        const before = get().workoutLogs.find((r) => r.id === id);
+        if (!before) return false;
+        set((s) => ({
+          workoutLogs: s.workoutLogs.map((r) => (r.id === id ? { ...r, ...patch } : r)),
+        }));
+        const supabase = await syncClient();
+        const { error } = await supabase.from("workout_logs").update(patch).eq("id", id);
+        if (error) {
+          set((s) => ({
+            workoutLogs: s.workoutLogs.map((r) => (r.id === id ? before : r)),
+            syncError: `workout_logs update: ${error.message}`,
+          }));
+          return false;
+        }
+        void bumpSyncCursor(userId);
+        return true;
+      },
+
+      deleteHydrationLog: async (id) => {
+        const userId = await currentUserId();
+        if (!userId) return false;
+        const before = get().hydrationLogs.find((r) => r.id === id);
+        if (!before) return false;
+        set((s) => ({ hydrationLogs: s.hydrationLogs.filter((r) => r.id !== id) }));
+        const supabase = await syncClient();
+        const { error } = await supabase.from("hydration_logs").delete().eq("id", id);
+        if (error) {
+          set((s) => ({
+            hydrationLogs: [...s.hydrationLogs, before],
+            syncError: `hydration_logs delete: ${error.message}`,
+          }));
+          return false;
+        }
+        void bumpSyncCursor(userId);
+        return true;
+      },
+
+      deleteSleepLog: async (id) => {
+        const userId = await currentUserId();
+        if (!userId) return false;
+        const before = get().sleepLogs.find((r) => r.id === id);
+        if (!before) return false;
+        set((s) => ({ sleepLogs: s.sleepLogs.filter((r) => r.id !== id) }));
+        const supabase = await syncClient();
+        const { error } = await supabase.from("sleep_logs").delete().eq("id", id);
+        if (error) {
+          set((s) => ({
+            sleepLogs: [...s.sleepLogs, before],
+            syncError: `sleep_logs delete: ${error.message}`,
+          }));
+          return false;
+        }
+        void bumpSyncCursor(userId);
+        return true;
+      },
+
+      deleteWorkoutLog: async (id) => {
+        const userId = await currentUserId();
+        if (!userId) return false;
+        const before = get().workoutLogs.find((r) => r.id === id);
+        if (!before) return false;
+        set((s) => ({ workoutLogs: s.workoutLogs.filter((r) => r.id !== id) }));
+        const supabase = await syncClient();
+        const { error } = await supabase.from("workout_logs").delete().eq("id", id);
+        if (error) {
+          set((s) => ({
+            workoutLogs: [...s.workoutLogs, before],
+            syncError: `workout_logs delete: ${error.message}`,
+          }));
+          return false;
+        }
+        void bumpSyncCursor(userId);
+        return true;
       },
 
       // ---------- team slice (Phase 3) ----------

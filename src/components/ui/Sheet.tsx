@@ -17,10 +17,43 @@
 import {
   useEffect,
   useRef,
+  type CSSProperties,
   type HTMLAttributes,
   type ReactNode,
 } from "react";
 import { cn } from "@/lib/utils";
+
+/**
+ * visualViewport keyboard tracking (PRD §7 / Phase 5 T2b).
+ *
+ * Maintains `--keyboard-height` (px) on <html> so every sheet can
+ * ride above the software keyboard: `bottom: calc(var(--safe-area-bottom) +
+ * var(--keyboard-height))`. Writes the CSS variable directly on the
+ * documentElement (no React state) — resize events are async, so
+ * the set-state-in-effect rule never applies, and every open sheet
+ * stays in sync through the single shared variable.
+ */
+export function useKeyboardTracking(): void {
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+    const apply = () => {
+      const keyboardHeight = Math.max(
+        0,
+        Math.round(window.innerHeight - viewport.height - viewport.offsetTop)
+      );
+      document.documentElement.style.setProperty("--keyboard-height", `${keyboardHeight}px`);
+    };
+    apply();
+    viewport.addEventListener("resize", apply);
+    viewport.addEventListener("scroll", apply);
+    return () => {
+      viewport.removeEventListener("resize", apply);
+      viewport.removeEventListener("scroll", apply);
+      document.documentElement.style.setProperty("--keyboard-height", "0px");
+    };
+  }, []);
+}
 
 export interface SheetProps {
   /** Whether the sheet is open. */
@@ -52,6 +85,11 @@ export function Sheet({
 }: SheetProps) {
   const panelRef = useRef<HTMLDivElement>(null);
 
+  // T2b: track the software keyboard for the whole time a sheet
+  // can be open — the shared --keyboard-height variable lifts the
+  // surface via the bottom offset below.
+  useKeyboardTracking();
+
   // Escape dismissal — part of the dialog API surface.
   useEffect(() => {
     if (!open) return;
@@ -63,6 +101,12 @@ export function Sheet({
   }, [open, onClose]);
 
   if (!open) return null;
+
+  // Keyboard clearance: the sheet rides above the software keyboard
+  // (PRD §7) — safe-area + tracked keyboard height.
+  const sheetOffsetStyle: CSSProperties = {
+    bottom: "calc(var(--safe-area-bottom, 0px) + var(--keyboard-height, 0px))",
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center">
@@ -85,12 +129,8 @@ export function Sheet({
         aria-modal="true"
         {...(title ? { "aria-label": title } : {})}
         data-df-sheet-panel=""
-        className={cn(
-          "relative z-10 max-h-[92dvh] w-full max-w-[560px] overflow-hidden",
-          "df-edge-fade",
-          className
-        )}
         style={{
+          ...sheetOffsetStyle,
           background: "var(--color-surface-glass)",
           borderTopLeftRadius: "var(--radius-sheet)",
           borderTopRightRadius: "var(--radius-sheet)",
@@ -100,6 +140,11 @@ export function Sheet({
           transform: "translateZ(0)",
           willChange: "transform",
         }}
+        className={cn(
+          "relative z-10 max-h-[92dvh] w-full max-w-[560px] overflow-hidden",
+          "df-edge-fade",
+          className
+        )}
       >
         {/* Grab handle — the Phase 1 drag API surface.
             1:1 drag, rubber-band, velocity dismissal attach here. */}

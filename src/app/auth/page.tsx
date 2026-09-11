@@ -1,19 +1,24 @@
 "use client";
 
 // ============================================================
-// Dayflow AI — auth page (Phase 2 restyle)
+// Dayflow AI — auth page (Phase 2 restyle, Phase 5 passkeys)
 // ------------------------------------------------------------
 // v0's logic is preserved 1:1 (mode state machine, Supabase sign-in /
 // sign-up / Google OAuth, signup profile bootstrap, pending + error
-// + message states). Only the presentation changed: every value now
-// comes from src/styles/theme.css tokens, the card is a GlassPanel,
-// and the mode toggle is the Segmented primitive.
+// + message states). Phase 5 T4 adds the passkey path (Amendment #17):
+// "Continue with Face ID" sits above the other options, and the
+// password form is REVEALED by the fallback chain — passkeys
+// unavailable, disabled server-side, cancelled, or failed all land
+// there. Never a dead end.
 // ============================================================
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Fingerprint } from "lucide-react";
 import { GlassPanel } from "@/components/ui/GlassPanel";
 import { Segmented } from "@/components/ui/Segmented";
+import { passkeysServerEnabled, signInWithPasskey } from "@/lib/passkeys";
+import { triggerHaptic } from "@/lib/haptics";
 
 export default function AuthPage() {
   const router = useRouter();
@@ -23,6 +28,25 @@ export default function AuthPage() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [pending, setPending] = useState(false);
+
+  // Passkey surface state (T4). The password form starts REVEALED on
+  // browsers without passkey support; on capable browsers it waits
+  // behind "Use email and password instead" until the fallback fires.
+  const [passkeyAvailable, setPasskeyAvailable] = useState(false);
+  const [showPasswordForm, setShowPasswordForm] = useState(true);
+  const [passkeyBusy, setPasskeyBusy] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void passkeysServerEnabled().then((enabled) => {
+      if (cancelled) return;
+      setPasskeyAvailable(enabled);
+      setShowPasswordForm(!enabled);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -80,6 +104,35 @@ export default function AuthPage() {
     router.refresh();
   }
 
+  async function signInWithPasskeyFlow() {
+    setError("");
+    setPasskeyBusy(true);
+    try {
+      const { accessToken, refreshToken } = await signInWithPasskey();
+      const { createClient } = await import("@/utils/supabase/client");
+      const supabase = createClient();
+      const { error: sessionError } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      });
+      if (sessionError) throw new Error(sessionError.message);
+      triggerHaptic();
+      router.replace("/");
+      router.refresh();
+    } catch (e) {
+      // MANDATORY fallback chain: cancelled ceremony, no credential,
+      // or server refusal — always land on the password form.
+      setShowPasswordForm(true);
+      setError(
+        e instanceof Error && e.message === "Passkey cancelled"
+          ? ""
+          : "Passkey sign-in didn't complete — use your email and password below."
+      );
+    } finally {
+      setPasskeyBusy(false);
+    }
+  }
+
   async function signInWithGoogle() {
     setError("");
     const { createClient } = await import("@/utils/supabase/client");
@@ -124,6 +177,32 @@ export default function AuthPage() {
           />
         </div>
 
+        {/* Passkey first (Amendment #17): above every other option. */}
+        {passkeyAvailable && (
+          <button
+            type="button"
+            onClick={signInWithPasskeyFlow}
+            disabled={passkeyBusy || pending}
+            className="mt-6 min-h-12 w-full rounded-(--radius-pill) bg-(--color-ink) px-4 text-base font-semibold text-(--color-accent-focus) transition-[transform,opacity] duration-(--duration-press) ease-(--ease-spring-critical) hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <span className="flex items-center justify-center gap-2">
+              <Fingerprint className="h-5 w-5" aria-hidden="true" />
+              {passkeyBusy ? "Waiting for your passkey…" : "Continue with Face ID"}
+            </span>
+          </button>
+        )}
+
+        {passkeyAvailable && !showPasswordForm && (
+          <button
+            type="button"
+            onClick={() => setShowPasswordForm(true)}
+            className="mt-4 min-h-11 w-full rounded-(--radius-pill) px-4 text-sm font-medium text-(--color-ink-muted) transition-colors hover:bg-(--color-surface-subtle)"
+          >
+            Use email and password instead
+          </button>
+        )}
+
+        {showPasswordForm && (
         <form className="mt-6 flex flex-col gap-4" onSubmit={submit}>
           <label className="flex flex-col gap-2">
             <span className="text-sm font-medium text-(--color-ink-muted)">Email</span>
@@ -166,6 +245,7 @@ export default function AuthPage() {
             {pending ? "Please wait…" : mode === "sign-in" ? "Continue" : "Create account"}
           </button>
         </form>
+        )}
 
         <div className="my-6 flex items-center gap-3 text-xs text-(--color-ink-faint)">
           <span className="h-px flex-1 bg-(--hairline)" />

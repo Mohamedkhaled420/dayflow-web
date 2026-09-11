@@ -18,6 +18,20 @@ body {
   height: 100%;
 }
 
+/* ============================================================
+   Phase 5 tokens — keyboard clearance (T2b) + Liquid Glass T1
+   (T3, PRD §6.2). The displacement scale is baked per-variant in
+   src/components/ui/LiquidGlass.tsx (precomputed maps); the rim
+   opacity + radius ride these tokens.
+   ============================================================ */
+:root {
+  --keyboard-height: 0px;
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --lg-displacement: 26;
+  --lg-rim-opacity: 0.6;
+  --lg-radius: var(--radius-panel);
+}
+
 body {
   background: var(--df-window-bg);
   background-attachment: fixed;

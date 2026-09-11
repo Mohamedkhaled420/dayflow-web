@@ -30,6 +30,7 @@ import {
 import { GlassPanel } from "@/components/ui/GlassPanel";
 import { Segmented } from "@/components/ui/Segmented";
 import { createClient } from "@/utils/supabase/client";
+import { enrollPasskey, passkeysSupported } from "@/lib/passkeys";
 
 // ---------- constants ----------
 
@@ -162,6 +163,11 @@ export default function OnboardingPage() {
   const [craftMinutes, setCraftMinutes] = useState(60);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
+  // Passkey enrollment offer (Amendment #17): offered at the end of
+  // onboarding; skip is always one tap away.
+  const [offerPasskey, setOfferPasskey] = useState(false);
+  const [passkeyBusy, setPasskeyBusy] = useState(false);
+  const [passkeyNote, setPasskeyNote] = useState<string | null>(null);
 
   const chronotype = useMemo(() => deriveChronotype(wakeTime), [wakeTime]);
   const ChronoIcon = chronotype.includes("owl") ? Moon : Sun;
@@ -297,6 +303,14 @@ export default function OnboardingPage() {
       });
       if (upsertError) throw upsertError;
 
+      // Amendment #17: enrollment is offered at the end of
+      // onboarding (only when the browser can do passkeys).
+      if (passkeysSupported()) {
+        setOfferPasskey(true);
+        setPending(false);
+        return;
+      }
+
       router.replace("/");
       router.refresh();
     } catch (e) {
@@ -309,7 +323,73 @@ export default function OnboardingPage() {
     }
   }
 
+  const enroll = async () => {
+    setPasskeyBusy(true);
+    setPasskeyNote(null);
+    try {
+      const supabase = createClient();
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) {
+        setPasskeyNote("Session expired — finish with email sign-in.");
+        return;
+      }
+      await enrollPasskey(token);
+      setPasskeyNote("Face ID enabled — see you tomorrow morning.");
+    } catch (e) {
+      setPasskeyNote(
+        e instanceof Error ? e.message : "Couldn't enable the passkey — you can retry later."
+      );
+    } finally {
+      setPasskeyBusy(false);
+    }
+  };
+
   const meta = STEP_META[step];
+
+  if (offerPasskey) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-(--color-surface) p-4 font-sans">
+        <GlassPanel className="w-full max-w-md p-6 sm:p-8">
+          <p className="text-xs font-semibold tracking-[0.22em] text-(--color-accent-focus)">
+            DAYFLOW AI
+          </p>
+          <h1 className="mt-3 text-2xl font-semibold text-(--color-ink)">
+            One less password day
+          </h1>
+          <p className="mt-2 text-sm leading-6 text-(--color-ink-muted)">
+            Enable Face ID / a device passkey and tomorrow&apos;s sign-in is a glance.
+            You can skip this and use your email any time.
+          </p>
+          {passkeyNote && (
+            <p role="status" className="mt-4 text-sm text-(--color-accent-focus)">
+              {passkeyNote}
+            </p>
+          )}
+          <div className="mt-6 flex flex-col gap-3">
+            <button
+              type="button"
+              onClick={enroll}
+              disabled={passkeyBusy}
+              className="min-h-12 rounded-(--radius-pill) bg-(--color-ink) px-4 text-base font-semibold text-(--color-accent-focus) transition-[transform,opacity] duration-(--duration-press) ease-(--ease-spring-critical) hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {passkeyBusy ? "Waiting for your device…" : "Enable Face ID"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                router.replace("/");
+                router.refresh();
+              }}
+              className="min-h-11 rounded-(--radius-pill) px-4 text-sm font-medium text-(--color-ink-muted) transition-colors hover:bg-(--color-surface-subtle)"
+            >
+              Skip for now
+            </button>
+          </div>
+        </GlassPanel>
+      </main>
+    );
+  }
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-(--color-surface) p-4 font-sans">

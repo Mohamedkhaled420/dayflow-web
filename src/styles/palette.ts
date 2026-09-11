@@ -70,6 +70,16 @@ export const PWA_SURFACE_COLORS = {
   background: "#0e1117",
 } as const;
 
+/**
+ * Circadian zone colors (Phase 5 T1c) — DATA colors for the Timeline
+ * overlay bands: green Peaks, orange Dip. Same data-color rules as
+ * CATEGORY_COLORS above (raw hex allowed only in this file).
+ */
+export const CIRCADIAN_COLORS = {
+  peak: "#34C759",
+  dip: "#F59E0B",
+} as const;
+
 /** Convenience: every fallback used by the goals layer (lib/compute). */
 export const GOAL_FALLBACK_COLORS: Record<
   GoalProgress["key"],

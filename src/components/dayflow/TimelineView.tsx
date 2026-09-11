@@ -7,7 +7,7 @@
 // screen capture).
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   Calendar,
   ChevronLeft,
@@ -20,7 +20,19 @@ import {
 import { CategoryIcon } from "@/components/dayflow/category-icons";
 import { DonutChart } from "@/components/dayflow/DonutChart";
 import { EventDialog } from "@/components/dayflow/EventDialog";
-import { useDayflow, useDayflowData, useSortedCategories } from "@/lib/store";
+import {
+  useDayflowData,
+  LOGGABLE_CATEGORIES,
+  localDateTime,
+} from "@/lib/viewmodel";
+import { useDayflowStore } from "@/store/useDayflowStore";
+import {
+  computeCircadianZones,
+  zonesForTimeline,
+  isMinuteInPeak,
+  type CircadianZones,
+  type TimelineZone,
+} from "@/lib/circadian";
 import { keyForOffset, keyToDate, pad2 } from "@/lib/seed";
 import {
   categoryById,
@@ -41,9 +53,9 @@ import {
 } from "@/lib/compute";
 import type { TrackEvent } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
-import { hapticSelect, hapticSuccess, hapticWarn } from "@/lib/haptics";
+import { hapticSelect, hapticWarn, triggerHaptic } from "@/lib/haptics";
 import { springSoft } from "@/lib/motion";
-import { CATEGORY_COLORS } from "@/styles/palette";
+import { CATEGORY_COLORS, CIRCADIAN_COLORS } from "@/styles/palette";
 
 const WATER = CATEGORY_COLORS.water;
 
@@ -76,12 +88,36 @@ export function TimelineView() {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const data = useDayflowData();
-  const categories = useSortedCategories();
-  const addWater = useDayflow((s) => s.addWater);
+  const categories = LOGGABLE_CATEGORIES;
+  const addHydrationLog = useDayflowStore((s) => s.addHydrationLog);
+  const deleteSleepLog = useDayflowStore((s) => s.deleteSleepLog);
+  const deleteWorkoutLog = useDayflowStore((s) => s.deleteWorkoutLog);
+  const updateSleepLog = useDayflowStore((s) => s.updateSleepLog);
+  const updateWorkoutLog = useDayflowStore((s) => s.updateWorkoutLog);
+  const profileRow = useDayflowStore((s) => s.profile);
   const profile = data.profile;
 
   const dateKey = keyForOffset(dayOffset);
   const dayEvents = useMemo(() => eventsForDay(data.events, dateKey), [data.events, dateKey]);
+
+  // Circadian zones (T1c): MCTQ windows from the profile's
+  // chronobiology section — naturalWakeTime + target sleep duration.
+  const zones = useMemo<CircadianZones>(() => {
+    const chrono =
+      profileRow?.chronobiology &&
+      typeof profileRow.chronobiology === "object" &&
+      !Array.isArray(profileRow.chronobiology)
+        ? (profileRow.chronobiology as {
+            naturalWakeTime?: string;
+            targetSleepDurationMinutes?: number;
+          })
+        : {};
+    return computeCircadianZones(
+      chrono.naturalWakeTime,
+      chrono.targetSleepDurationMinutes
+    );
+  }, [profileRow]);
+  const timelineZones = useMemo(() => zonesForTimeline(zones), [zones]);
   const visibleEvents = useMemo(
     () => (filter ? dayEvents.filter((e) => e.categoryId === filter) : dayEvents),
     [dayEvents, filter]
@@ -141,15 +177,12 @@ export function TimelineView() {
   };
 
   const quickWater = () => {
-    hapticSuccess();
-    const d = new Date();
-    addWater({
-      dateKey,
-      time: `${pad2(d.getHours())}:${pad2(d.getMinutes())}`,
-      ml: profile.waterGlassMl,
-    });
+    triggerHaptic();
+    // Optimistic toast on the expected total — the Delta Sync store
+    // appends locally first, then fires the Supabase insert.
+    void addHydrationLog({ amount_ml: profile.waterGlassMl });
     toast({
-      title: "Glass logged 💧",
+      title: "Glass logged",
       description: `${profile.waterGlassMl} ml · ${waterTotal(data.water, dateKey) + profile.waterGlassMl} ml today`,
     });
   };
@@ -356,9 +389,27 @@ export function TimelineView() {
             glassMl={profile.waterGlassMl}
             isToday={dayOffset === 0}
             selectedId={selectedId}
+            zones={timelineZones}
             onSelect={(id) => {
               hapticSelect();
               setSelectedId((cur) => (cur === id ? null : id));
+            }}
+            onMove={async (event, newStart, newEnd) => {
+              // Drag-to-reschedule: persist through the Delta Sync
+              // store (sleep -> wake time shift, workout -> start shift).
+              const dur = eventDuration(event);
+              if (event.categoryId === "sleep") {
+                await updateSleepLog(event.id, {
+                  sleep_minutes: dur,
+                  logged_at: localDateTime(event.dateKey, newEnd),
+                });
+              } else {
+                await updateWorkoutLog(event.id, {
+                  type: event.title,
+                  duration_minutes: dur,
+                  logged_at: localDateTime(event.dateKey, newStart),
+                });
+              }
             }}
             scrollRef={scrollRef}
           />
@@ -378,10 +429,14 @@ export function TimelineView() {
         <EventDetailPanel
           event={selected}
           onEdit={() => setDialog({ open: true, event: selected })}
-          onDelete={() => {
+          onDelete={async () => {
             hapticWarn();
-            useDayflow.getState().deleteEvent(selected.id);
             setSelectedId(null);
+            if (selected.categoryId === "sleep") {
+              await deleteSleepLog(selected.id);
+            } else {
+              await deleteWorkoutLog(selected.id);
+            }
             toast({ title: "Block deleted", description: selected.title });
           }}
           className="lg:w-[300px] xl:w-[320px] shrink-0 border-t lg:border-t-0"
@@ -520,7 +575,9 @@ function DayTimeline({
   glassMl,
   isToday,
   selectedId,
+  zones,
   onSelect,
+  onMove,
   scrollRef,
 }: {
   events: TrackEvent[];
@@ -528,10 +585,13 @@ function DayTimeline({
   glassMl: number;
   isToday: boolean;
   selectedId: string | null;
+  zones: TimelineZone[];
   onSelect: (id: string) => void;
+  onMove: (event: TrackEvent, newStart: string, newEnd: string) => void;
   scrollRef: React.RefObject<HTMLDivElement | null>;
 }) {
   const placed = useMemo(() => placeSegments(events), [events]);
+  const { toast } = useToast();
   const hourLines = useMemo(() => {
     const out: number[] = [];
     for (let h = 0; h <= 24; h++) out.push(h);
@@ -539,18 +599,65 @@ function DayTimeline({
   }, []);
   const nowMin = nowMinutes();
 
+  // T1c: translucent circadian bands behind the grid — green Peaks,
+  // orange Dip (colors from the palette data single-source).
+  const zoneBands = (extraClass: string) =>
+    zones.map((z) => {
+      const color = z.kind === "peak" ? CIRCADIAN_COLORS.peak : CIRCADIAN_COLORS.dip;
+      const top = z.startMin * PX_PER_MIN;
+      const height = Math.max((z.endMin - z.startMin) * PX_PER_MIN, 8);
+      return (
+        <div
+          key={`${z.kind}-${z.startMin}`}
+          aria-hidden="true"
+          className={`absolute ${extraClass}`}
+          style={{
+            top,
+            height,
+            left: 46,
+            right: 0,
+            background: `color-mix(in srgb, ${color} 12%, transparent)`,
+            borderTop: `1px dashed color-mix(in srgb, ${color} 45%, transparent)`,
+            borderBottom: `1px dashed color-mix(in srgb, ${color} 45%, transparent)`,
+          }}
+        />
+      );
+    });
+
+  /** Zone chip for a block — mobile list affordance (T1c). */
+  const zoneChipFor = (event: TrackEvent) => {
+    const startMin = toMinutes(event.start);
+    const hit = zones.find(
+      (z) => startMin >= z.startMin && startMin < z.endMin
+    );
+    if (!hit) return null;
+    const color = hit.kind === "peak" ? CIRCADIAN_COLORS.peak : CIRCADIAN_COLORS.dip;
+    return (
+      <span
+        className="rounded-full px-1.5 py-[1px] text-[9px] font-bold uppercase tracking-wide"
+        style={{
+          color,
+          background: `color-mix(in srgb, ${color} 16%, transparent)`,
+          border: `0.5px solid color-mix(in srgb, ${color} 45%, transparent)`,
+        }}
+      >
+        {hit.kind === "peak" ? "Peak" : "Dip"}
+      </span>
+    );
+  };
+
   return (
     <>
       <div className="df-mobile-event-list df-scroll flex-1 overflow-y-auto px-4 pb-32" role="list" aria-label="Day timeline">
         {events.length === 0 ? (
           <div className="df-card mt-3 p-5 text-center">
             <p className="text-[13px] font-semibold" style={{ color: "var(--df-text-primary)" }}>Nothing tracked yet</p>
-            <p className="mt-1 text-[11.5px]" style={{ color: "var(--df-text-secondary)" }}>Tap Log above to add your first block.</p>
+            <p className="mt-1 text-[11.5px]" style={{ color: "var(--df-text-secondary)" }}>Tap Log above to add sleep or a workout.</p>
           </div>
         ) : (
           <div className="flex flex-col gap-2 pt-1">
             {events.map((event) => {
-              const cat = categoryById(useDayflow.getState().categories, event.categoryId);
+              const cat = categoryById(LOGGABLE_CATEGORIES, event.categoryId);
               return (
                 <button
                   key={event.id}
@@ -562,7 +669,10 @@ function DayTimeline({
                 >
                   <span className="h-10 w-1 shrink-0 rounded-full" style={{ background: cat.colorHex }} />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[13px] font-semibold" style={{ color: "var(--df-text-primary)" }}>{event.title}</span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="truncate text-[13px] font-semibold" style={{ color: "var(--df-text-primary)" }}>{event.title}</span>
+                      {zoneChipFor(event)}
+                    </span>
                     <span className="mt-1 block truncate text-[10.5px]" style={{ color: "var(--df-text-muted)" }}>{cat.name} · {fmtRange(event)}</span>
                   </span>
                   <span className="shrink-0 text-[10.5px] font-semibold tabular-nums" style={{ color: "var(--df-text-secondary)" }}>{fmtDuration(eventDuration(event))}</span>
@@ -579,6 +689,11 @@ function DayTimeline({
         aria-label="Day timeline"
       >
       <div className="relative pt-1" style={{ height: DAY_SPAN * PX_PER_MIN + 30 }}>
+        {/* circadian zone bands (T1c) — behind everything */}
+        <div aria-hidden="true" className="absolute inset-0">
+          {zoneBands("z-0")}
+        </div>
+
         {/* hour lines */}
         <div aria-hidden="true">
           {hourLines.map((h) => (
@@ -672,7 +787,9 @@ function DayTimeline({
                   : undefined
               }
               selected={selectedId === seg.event.id}
+              zones={zones}
               onClick={() => onSelect(seg.event.id)}
+              onMove={onMove}
             />
           </motion.div>
         ))}
@@ -687,8 +804,8 @@ function DayTimeline({
               Nothing tracked yet
             </p>
             <p className="text-[11.5px] mt-1" style={{ color: "var(--df-text-secondary)" }}>
-              Tap <b>Log</b> above to add your first block — a workout, work session, meal, or
-              night of sleep.
+              Tap <b>Log</b> above to track a night of sleep or a workout — or drag a
+              block into a green peak zone to schedule it there.
             </p>
           </div>
         )}
@@ -702,31 +819,84 @@ function ActivityCard({
   event,
   segmentLabel,
   selected,
+  zones,
   onClick,
+  onMove,
 }: {
   event: TrackEvent;
   segmentLabel?: string;
   selected: boolean;
+  zones: TimelineZone[];
   onClick: () => void;
+  onMove: (event: TrackEvent, newStart: string, newEnd: string) => void;
 }) {
   const data = useDayflowData();
+  const { toast } = useToast();
+  const reducedMotion = useReducedMotion();
   const cat = categoryById(data.categories, event.categoryId);
   const dur = eventDuration(event);
   const cardH = Math.max(dur * PX_PER_MIN - 2, MIN_CARD_H);
   const compact = cardH < 44;
+
+  // T1c drag: vertical drag reschedules the block; dropping into a
+  // Peak zone fires the flow-state haptic + a visual confirmation.
+  // Taps below motion's drag epsilon still register as clicks.
+  const minutesToClock = (m: number) =>
+    `${pad2(Math.floor(((m % 1440) + 1440) % 1440 / 60))}:${pad2(m % 60)}`;
+
+  const handleDragEnd = (_: unknown, info: { offset: { y: number } }) => {
+    const deltaMin = Math.round(info.offset.y / PX_PER_MIN / 5) * 5; // 5-min snap
+    if (Math.abs(deltaMin) < 5) return; // treat as a tap/select
+    const startMin = toMinutes(event.start);
+    const durM = eventDuration(event);
+    // Sleep blocks are anchored by their END (wake) time.
+    const isSleep = event.categoryId === "sleep";
+    const base = isSleep ? toMinutes(event.end) : startMin;
+    const newBase = Math.max(0, Math.min(1439, base + deltaMin));
+    const newStart = isSleep ? newBase - durM : newBase;
+    const newEnd = isSleep ? newBase : newBase + durM;
+    const landedPeak = zones.some(
+      (z) =>
+        z.kind === "peak" &&
+        Math.max(0, newStart) >= z.startMin &&
+        Math.max(0, newStart) < z.endMin
+    );
+    onMove(event, minutesToClock(newStart), minutesToClock(newEnd));
+    if (landedPeak) {
+      // Flow-state confirmation (PRD §4.2): haptic + visual tick.
+      triggerHaptic();
+      toast({
+        title: "Scheduled into a Peak zone",
+        description: `${event.title} now rides your ${isSleep ? "wake" : "start"} at ${minutesToClock(newBase)}`,
+      });
+    }
+  };
+
   return (
-    <button
+    <motion.button
       onClick={onClick}
+      drag={reducedMotion ? false : "y"}
+      dragSnapToOrigin
+      dragMomentum={false}
+      dragElastic={0.18}
+      onDragEnd={handleDragEnd}
+      whileDrag={{ scale: 1.015, zIndex: 30 }}
+      style={{ cursor: "grab", touchAction: "none" }}
       className={`df-card df-lift w-full h-full text-left flex flex-col overflow-hidden df-press relative ${
         compact ? "py-[3px] px-3" : "py-2 px-3.5"
       }`}
-      style={{
-        outline: selected ? "1.5px solid var(--df-accent)" : "none",
-        outlineOffset: "1px",
-      }}
       aria-pressed={selected}
-      aria-label={`${event.title}, ${cat.name}, ${fmtRange(event)}, ${fmtDuration(dur)}`}
+      aria-label={`${event.title}, ${cat.name}, ${fmtRange(event)}, ${fmtDuration(dur)}. Drag vertically to reschedule.`}
     >
+      {/* selection outline — on the wrapper (motion.button) */}
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 rounded-[inherit]"
+        style={{
+          outline: selected ? "1.5px solid var(--df-accent)" : "none",
+          outlineOffset: "1px",
+        }}
+      />
       {/* category color edge */}
       <span
         aria-hidden="true"
@@ -782,7 +952,7 @@ function ActivityCard({
           </span>
         </>
       )}
-    </button>
+    </motion.button>
   );
 }
 
@@ -859,8 +1029,8 @@ function WeekTimeline({ dateKey }: { dateKey: string }) {
 
 function DaySummaryPanel({ dateKey, className }: { dateKey: string; className?: string }) {
   const data = useDayflowData();
-  const addWater = useDayflow((s) => s.addWater);
-  const removeLastWater = useDayflow((s) => s.removeLastWaterOfToday);
+  const addHydrationLog = useDayflowStore((s) => s.addHydrationLog);
+  const deleteHydrationLog = useDayflowStore((s) => s.deleteHydrationLog);
   const goals = useMemo(() => goalsForDay(data, dateKey), [data, dateKey]);
   const totals = useMemo(() => categoryTotals(data.events, dateKey), [data.events, dateKey]);
   const donutSlices = useMemo(
@@ -879,12 +1049,8 @@ function DaySummaryPanel({ dateKey, className }: { dateKey: string; className?: 
   const isToday = dateKey === keyForOffset(0);
 
   const logWater = () => {
-    hapticSuccess();
-    const d = new Date();
-    const time = isToday
-      ? `${pad2(d.getHours())}:${pad2(d.getMinutes())}`
-      : "12:00";
-    addWater({ dateKey, time, ml: data.profile.waterGlassMl });
+    triggerHaptic();
+    void addHydrationLog({ amount_ml: data.profile.waterGlassMl });
   };
 
   return (
@@ -1011,7 +1177,10 @@ function DaySummaryPanel({ dateKey, className }: { dateKey: string; className?: 
             </button>
             {dayWater.length > 0 && (
               <button
-                onClick={removeLastWater}
+                onClick={() => {
+                  const last = dayWater[dayWater.length - 1];
+                  void deleteHydrationLog(last.id);
+                }}
                 className="df-press h-7 px-2.5 rounded-full text-[11px] font-semibold"
                 style={{
                   background: "var(--df-chip-fill)",
