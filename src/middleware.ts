@@ -88,5 +88,9 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+  // `.*\\..*` excludes every static asset (manifest.json, sw.js,
+  // apple-touch-icon.png, icons/*, logo.svg, robots.txt, …) — the
+  // browser fetches several of those WITHOUT session cookies (install
+  // prompt, service worker script), and a 307 would break both.
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|.*\\..*).*)"],
 };

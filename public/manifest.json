@@ -1,0 +1,33 @@
+{
+  "name": "Dayflow AI",
+  "short_name": "Dayflow",
+  "description": "Dayflow tracks what matters to you — workouts, work time, personal projects, sleep, water, and meals — as a clear daily timeline with habit streaks, weekly reviews, and a grounded chat.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#0e1117",
+  "background_color": "#0e1117",
+  "categories": ["health", "fitness", "productivity", "lifestyle"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

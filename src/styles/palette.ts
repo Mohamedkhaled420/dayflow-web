@@ -59,6 +59,17 @@ export const THEME_META_COLORS = {
   dark: "#313348",
 } as const;
 
+/**
+ * PWA install surfaces (Phase 4 ship): manifest theme_color /
+ * background_color and the browser <meta name="theme-color">, pinned
+ * to --color-surface (#0e1117) so the installed app shell, splash
+ * background, and address-bar chrome all read as one surface.
+ */
+export const PWA_SURFACE_COLORS = {
+  theme: "#0e1117",
+  background: "#0e1117",
+} as const;
+
 /** Convenience: every fallback used by the goals layer (lib/compute). */
 export const GOAL_FALLBACK_COLORS: Record<
   GoalProgress["key"],
