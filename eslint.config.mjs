@@ -13,8 +13,9 @@ const __dirname = dirname(__filename);
 // component code. Allowed locations (DESIGN.md §1.3):
 //   - src/styles/theme.css   (the token home — not linted here)
 //   - src/styles/palette.ts  (category colors are DATA)
-//   - src/app/auth/**        (v0 auth pages, deferred to Phase 1)
 // Chained into `pnpm build` (see package.json).
+// Auth pages were restyled onto tokens in Phase 2 — the exemption
+// is gone; they are guarded like every other component.
 // ============================================================
 
 const RAW_COLOR = /#[0-9a-fA-F]{3,8}\b|\brgba?\(\s*\d|\bhsla?\(\s*\d|\boklch\(\s*\d|\boklab\(\s*\d/;
@@ -64,10 +65,9 @@ const eslintConfig = [
     },
   },
   {
-    // Phase 0 exemptions (DESIGN.md §1.3):
-    // - palette.ts: category colors are user-editable DATA, single source
-    // - auth pages: v0 code, restyle deferred to Phase 1 (zero-diff constraint)
-    files: ["src/styles/palette.ts", "src/app/auth/**/*.{ts,tsx}"],
+    // Phase 0 exemption (DESIGN.md §1.3): palette.ts — category colors
+    // are user-editable DATA, single-sourced there.
+    files: ["src/styles/palette.ts"],
     rules: {
       "dayflow/no-raw-colors": "off",
     },

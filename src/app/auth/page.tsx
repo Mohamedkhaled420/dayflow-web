@@ -1,8 +1,20 @@
 "use client";
 
+// ============================================================
+// Dayflow AI — auth page (Phase 2 restyle)
+// ------------------------------------------------------------
+// v0's logic is preserved 1:1 (mode state machine, Supabase sign-in /
+// sign-up / Google OAuth, signup profile bootstrap, pending + error
+// + message states). Only the presentation changed: every value now
+// comes from src/styles/theme.css tokens, the card is a GlassPanel,
+// and the mode toggle is the Segmented primitive.
+// ============================================================
+
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
+import { GlassPanel } from "@/components/ui/GlassPanel";
+import { Segmented } from "@/components/ui/Segmented";
 
 export default function AuthPage() {
   const router = useRouter();
@@ -79,32 +91,92 @@ export default function AuthPage() {
 
   return (
     <main className="flex min-h-screen items-center justify-center p-4">
-      <section className="w-full max-w-md rounded-2xl border border-white/12 bg-[#151a22] p-6 shadow-2xl">
-        <div className="mb-6">
-          <p className="text-sm font-semibold tracking-[0.18em] text-[#a6f0d0]">DAYFLOW AI</p>
-          <h1 className="mt-3 text-3xl font-semibold text-white">Your day, in flow.</h1>
-          <p className="mt-2 text-sm leading-6 text-white/60">A calm home for your timeline, habits, and weekly rhythm.</p>
+      <GlassPanel className="w-full max-w-md p-6 sm:p-8">
+        <div>
+          <p className="text-xs font-semibold tracking-[0.22em] text-(--color-accent-focus)">
+            DAYFLOW AI
+          </p>
+          <h1 className="mt-3 text-3xl font-semibold text-(--color-ink)">
+            Your day, in flow.
+          </h1>
+          <p className="mt-2 text-sm leading-6 text-(--color-ink-muted)">
+            A calm home for your timeline, habits, and weekly rhythm.
+          </p>
         </div>
 
-        <div className="mb-5 grid grid-cols-2 rounded-xl bg-white/6 p-1">
-          {(["sign-in", "sign-up"] as const).map((value) => (
-            <button key={value} type="button" onClick={() => { setMode(value); setError(""); setMessage(""); }} className={`rounded-lg px-3 py-2 text-sm font-medium transition ${mode === value ? "bg-white text-[#0e1117]" : "text-white/60 hover:text-white"}`}>
-              {value === "sign-in" ? "Sign In" : "Sign Up"}
-            </button>
-          ))}
+        <div className="mt-6">
+          <Segmented
+            label="Authentication mode"
+            options={[
+              { id: "sign-in", label: "Sign In" },
+              { id: "sign-up", label: "Sign Up" },
+            ]}
+            value={mode}
+            onChange={(value) => {
+              setMode(value as "sign-in" | "sign-up");
+              setError("");
+              setMessage("");
+            }}
+          />
         </div>
 
-        <form className="flex flex-col gap-4" onSubmit={submit}>
-          <label className="flex flex-col gap-2 text-sm text-white/70">Email<input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} className="rounded-xl border border-white/12 bg-white/6 px-3 py-3 text-white outline-none transition focus:border-[#a6f0d0]" /></label>
-          <label className="flex flex-col gap-2 text-sm text-white/70">Password<input required minLength={6} type="password" value={password} onChange={(event) => setPassword(event.target.value)} className="rounded-xl border border-white/12 bg-white/6 px-3 py-3 text-white outline-none transition focus:border-[#a6f0d0]" /></label>
-          {error ? <p role="alert" className="text-sm text-[#ff9b9b]">{error}</p> : null}
-          {message ? <p role="status" className="text-sm text-[#a6f0d0]">{message}</p> : null}
-          <button disabled={pending} type="submit" className="rounded-xl bg-[#a6f0d0] px-4 py-3 font-semibold text-[#0e1117] transition hover:bg-[#c3f8e1] disabled:cursor-not-allowed disabled:opacity-60">{pending ? "Please wait…" : mode === "sign-in" ? "Continue" : "Create account"}</button>
+        <form className="mt-6 flex flex-col gap-4" onSubmit={submit}>
+          <label className="flex flex-col gap-2">
+            <span className="text-sm font-medium text-(--color-ink-muted)">Email</span>
+            <input
+              required
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              autoComplete="email"
+              className="min-h-12 rounded-(--radius-panel) border border-(--hairline) bg-(--color-surface-subtle) px-4 text-base text-(--color-ink) outline-none transition-colors placeholder:text-(--color-ink-faint) focus:border-(--hairline-accent)"
+            />
+          </label>
+          <label className="flex flex-col gap-2">
+            <span className="text-sm font-medium text-(--color-ink-muted)">Password</span>
+            <input
+              required
+              minLength={6}
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              autoComplete={mode === "sign-in" ? "current-password" : "new-password"}
+              className="min-h-12 rounded-(--radius-panel) border border-(--hairline) bg-(--color-surface-subtle) px-4 text-base text-(--color-ink) outline-none transition-colors placeholder:text-(--color-ink-faint) focus:border-(--hairline-accent)"
+            />
+          </label>
+          {error ? (
+            <p role="alert" className="text-sm text-(--df-destructive)">
+              {error}
+            </p>
+          ) : null}
+          {message ? (
+            <p role="status" className="text-sm text-(--color-accent-focus)">
+              {message}
+            </p>
+          ) : null}
+          <button
+            disabled={pending}
+            type="submit"
+            className="min-h-12 rounded-(--radius-pill) bg-(--color-ink) px-4 text-base font-semibold text-(--color-accent-focus) transition-[transform,opacity] duration-(--duration-press) ease-(--ease-spring-critical) hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {pending ? "Please wait…" : mode === "sign-in" ? "Continue" : "Create account"}
+          </button>
         </form>
 
-        <div className="my-5 flex items-center gap-3 text-xs text-white/35"><span className="h-px flex-1 bg-white/10" />OR<span className="h-px flex-1 bg-white/10" /></div>
-        <button type="button" onClick={signInWithGoogle} className="w-full rounded-xl border border-white/12 px-4 py-3 text-sm font-medium text-white transition hover:bg-white/6">Continue with Google</button>
-      </section>
+        <div className="my-6 flex items-center gap-3 text-xs text-(--color-ink-faint)">
+          <span className="h-px flex-1 bg-(--hairline)" />
+          OR
+          <span className="h-px flex-1 bg-(--hairline)" />
+        </div>
+
+        <button
+          type="button"
+          onClick={signInWithGoogle}
+          className="min-h-12 w-full rounded-(--radius-pill) border border-(--hairline) px-4 text-base font-medium text-(--color-ink) transition-[transform,opacity] duration-(--duration-press) ease-(--ease-spring-critical) hover:bg-(--color-surface-subtle) active:scale-[0.98]"
+        >
+          Continue with Google
+        </button>
+      </GlassPanel>
     </main>
   );
 }
