@@ -4,20 +4,28 @@
 // Raw fetch only: no SDK imports, no Vercel AI Gateway. Model IDs
 // come exclusively from src/lib/groq-models.ts (Amendment #13).
 //
-// reasoning_effort contract (PRD §10.1):
-//   - qwen/qwen3-32b accepts 'none' | 'default' ONLY (no low/medium/high)
-//   - Llama models do not expose reasoning_effort at all — it is
-//     NEVER sent to them (REASONING_CAPABLE gate below).
+// reasoning_effort contract (Amendment #16): every routed model
+// accepts the GRADED scale 'none' | 'low' | 'medium' | 'high'.
+// REASONING_CAPABLE remains a gate so a future model that drops
+// graded reasoning can never silently receive the field.
 // ============================================================
 
 import { GROQ_MODELS } from "./groq-models";
 
 export type GroqModel = (typeof GROQ_MODELS)[keyof typeof GROQ_MODELS];
 
+/** Graded reasoning scale (Amendment #16 — replaces the Phase 2 'default' toggle). */
+export type ReasoningEffort = "none" | "low" | "medium" | "high";
+
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 
-// Only these models accept a reasoning_effort field on Groq's free tier.
-const REASONING_CAPABLE: ReadonlySet<GroqModel> = new Set([GROQ_MODELS.qwen32b]);
+// All four routed IDs accept reasoning_effort (verified 2026-09-11).
+const REASONING_CAPABLE: ReadonlySet<GroqModel> = new Set([
+  GROQ_MODELS.gptOss120b,
+  GROQ_MODELS.gptOss20b,
+  GROQ_MODELS.qwen38,
+  GROQ_MODELS.qwen36,
+]);
 
 export class GroqError extends Error {
   constructor(
@@ -39,8 +47,8 @@ export interface CallGroqOptions {
   model: GroqModel;
   temperature?: number;
   json?: boolean;
-  /** 'default' enables thinking mode — attached ONLY for capable models. */
-  reasoningEffort?: "none" | "default";
+  /** Graded effort — attached ONLY for capable models (all four are). */
+  reasoningEffort?: ReasoningEffort;
   maxTokens?: number;
 }
 
@@ -61,10 +69,12 @@ export async function callGroq(opts: CallGroqOptions): Promise<string> {
   };
   if (opts.json) body.response_format = { type: "json_object" };
 
-  // Attach reasoning_effort ONLY for capable models, and ONLY when
-  // enabling it. Llama models must never receive this field.
-  if (opts.reasoningEffort === "default" && REASONING_CAPABLE.has(opts.model)) {
-    body.reasoning_effort = "default";
+  // Attach the graded reasoning_effort ONLY for capable models
+  // (Amendment #16: all four routed IDs are graded-reasoning
+  // capable; the gate exists so a future incapable model can
+  // never receive the field).
+  if (opts.reasoningEffort && REASONING_CAPABLE.has(opts.model)) {
+    body.reasoning_effort = opts.reasoningEffort;
   }
 
   const res = await fetch(GROQ_URL, {

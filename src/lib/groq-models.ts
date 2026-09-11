@@ -1,14 +1,22 @@
 // ============================================================
-// Dayflow AI — Groq model registry (PRD §10.1 / Amendment #13)
+// Dayflow AI — Groq model registry (Amendment #16)
 // ------------------------------------------------------------
-// The ONLY place model IDs live. Verified at Phase 2 kickoff via:
-//   GET https://api.groq.com/openai/v1/models
-// (probe pending a live GROQ_API_KEY — see PR body). If the catalog
-// returns the legacy un-namespaced ID, flip it here and nowhere else.
+// The ONLY place model IDs live. Catalog verified 2026-09-11 by a
+// human-run probe: all four routed IDs below are chat/reasoning
+// models on the account's free tier (30 RPM / 1,000 RPD /
+// 8,000 TPM / 200,000 TPD) and ALL of them accept the graded
+// reasoning_effort scale ('none' | 'low' | 'medium' | 'high').
+//
+// The account also exposes non-chat models (STT, TTS, safety
+// classifiers, and a low-quota legacy tier). Those are NEVER valid
+// routing targets. The full forbidden-ID list is documented in the
+// Phase 3 PR body — intentionally NOT in source, so a catalog grep
+// of src/ can only ever find the four routed IDs.
 // ============================================================
 
 export const GROQ_MODELS = {
-  qwen32b: "qwen/qwen3-32b",
-  llama70b: "llama-3.3-70b-versatile",
-  llama8b: "llama-3.1-8b-instant",
+  gptOss120b: "openai/gpt-oss-120b",
+  gptOss20b: "openai/gpt-oss-20b",
+  qwen38: "qwen/qwen3.8-27b",
+  qwen36: "qwen/qwen3.6-27b",
 } as const;

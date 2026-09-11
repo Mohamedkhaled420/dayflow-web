@@ -11,9 +11,10 @@
 //      Either valid credential passes; anything else is 401.
 //   3. Zod validation of the body BEFORE any Groq call (Amendment #12).
 //
-// Cascade per PRD §10.1 with 429/503-only retries; the algorithmic
-// floor answers when every model is exhausted. Model IDs come
-// exclusively from src/lib/groq-models.ts (Amendment #13).
+// Cascade per Amendment #16 (supersedes the PRD §10.1 table) with
+// 429/503-only retries; the algorithmic floor answers when every
+// model is exhausted. Model IDs come exclusively from
+// src/lib/groq-models.ts (Amendment #13).
 // ============================================================
 
 import { cookies } from "next/headers";
@@ -21,18 +22,96 @@ import { createServerClient } from "@supabase/ssr";
 import { z } from "zod";
 import { createClient } from "@/utils/supabase/server";
 import { GROQ_MODELS } from "@/lib/groq-models";
-import { callGroq, GroqError, type GroqMessage, type GroqModel } from "@/lib/groq";
+import {
+  callGroq,
+  GroqError,
+  type GroqMessage,
+  type GroqModel,
+  type ReasoningEffort,
+} from "@/lib/groq";
 
 export const runtime = "nodejs";
 
-const ROUTES = {
-  journal: [GROQ_MODELS.qwen32b, GROQ_MODELS.llama70b, GROQ_MODELS.llama8b],
-  workout: [GROQ_MODELS.llama70b, GROQ_MODELS.qwen32b],
-  recap: [GROQ_MODELS.llama70b, GROQ_MODELS.qwen32b],
-  coaching: [GROQ_MODELS.qwen32b, GROQ_MODELS.llama8b],
-} as const satisfies Record<string, GroqModel[]>;
+/** One cascade hop: model + optional graded effort / JSON mode. */
+interface CascadeStep {
+  model: GroqModel;
+  reasoningEffort?: ReasoningEffort;
+  json?: boolean;
+}
 
-type CoachMode = keyof typeof ROUTES;
+type CoachMode = "journal" | "workout" | "recap" | "coaching";
+
+// Amendment #16 routing (this table supersedes PRD §10.1).
+// Unannotated hops send no reasoning_effort; 'json' rides the
+// first workout hop only, per the annotation in the amendment.
+const ROUTES: Record<CoachMode, CascadeStep[]> = {
+  journal: [
+    { model: GROQ_MODELS.gptOss120b, reasoningEffort: "high" },
+    { model: GROQ_MODELS.qwen38, reasoningEffort: "high" },
+    { model: GROQ_MODELS.qwen36, reasoningEffort: "medium" },
+  ],
+  workout: [
+    { model: GROQ_MODELS.qwen38, json: true },
+    { model: GROQ_MODELS.gptOss120b },
+    { model: GROQ_MODELS.qwen36 },
+  ],
+  recap: [
+    { model: GROQ_MODELS.gptOss120b },
+    { model: GROQ_MODELS.qwen38 },
+    { model: GROQ_MODELS.qwen36 },
+  ],
+  coaching: [
+    { model: GROQ_MODELS.qwen36 },
+    { model: GROQ_MODELS.gptOss20b },
+  ],
+};
+
+// ---------- TPM discipline (Amendment #16) ----------
+// Every routed model shares an 8,000 TPM budget. Each coach request
+// is capped at ~4K prompt tokens (≈16K characters at 4 chars/token)
+// and at most the last 3 journal entries, so one heavy conversation
+// can never exhaust the shared quota.
+
+const MAX_PROMPT_TOKENS = 4_000;
+const CHARS_PER_TOKEN = 4;
+const MAX_JOURNAL_ENTRIES = 3;
+
+function totalChars(messages: GroqMessage[]): number {
+  return messages.reduce((n, m) => n + m.content.length, 0);
+}
+
+/**
+ * Trim the outgoing prompt: keep system instructions and at most
+ * the last 3 user entries (plus the turns that follow them), then
+ * drop the oldest non-system messages until the estimate fits the
+ * budget, finally truncating any single runaway message.
+ */
+function capMessages(messages: GroqMessage[]): GroqMessage[] {
+  const userIndexes = messages
+    .map((m, i) => (m.role === "user" ? i : -1))
+    .filter((i) => i >= 0);
+  const firstKept =
+    userIndexes.length > MAX_JOURNAL_ENTRIES
+      ? userIndexes[userIndexes.length - MAX_JOURNAL_ENTRIES]
+      : 0;
+  let kept = messages.filter((m, i) => m.role === "system" || i >= firstKept);
+
+  const budget = MAX_PROMPT_TOKENS * CHARS_PER_TOKEN;
+  while (totalChars(kept) > budget) {
+    const idx = kept.findIndex((m) => m.role !== "system");
+    if (idx === -1) break; // only system messages left
+    kept = kept.filter((_, i) => i !== idx);
+  }
+
+  if (totalChars(kept) > budget) {
+    // A single runaway message (e.g. a huge system prompt) still
+    // overflows: truncate it in place to keep the request shapely.
+    kept = kept.map((m) =>
+      m.content.length > budget ? { ...m, content: m.content.slice(0, budget) } : m
+    );
+  }
+  return kept;
+}
 
 // Amendment #12: validate the request body BEFORE any Groq call.
 const CoachRequestSchema = z.object({
@@ -69,16 +148,18 @@ async function generateWithFallback(
   messages: GroqMessage[],
   ctx: { streak?: number; hydrationPct?: number } = {}
 ): Promise<string> {
-  for (const model of ROUTES[mode]) {
+  // TPM discipline happens once, before the cascade: every hop
+  // receives the SAME capped prompt (Amendment #16).
+  const capped = capMessages(messages);
+  for (const step of ROUTES[mode]) {
     try {
       return await callGroq({
-        messages,
-        model,
-        json: mode === "workout",
-        // 'default' (thinking mode) rides ONLY qwen3-32b, and ONLY for
-        // genuine journal submissions (PRD §10.1); callGroq drops the
-        // field entirely for Llama models.
-        reasoningEffort: mode === "journal" ? "default" : "none",
+        messages: capped,
+        model: step.model,
+        json: step.json,
+        // Graded effort rides ONLY the hops the amendment annotates;
+        // callGroq drops the field for any non-capable model.
+        reasoningEffort: step.reasoningEffort,
       });
     } catch (e) {
       // Groq transient/overload codes: 429 (rate limit) and 503 (service
