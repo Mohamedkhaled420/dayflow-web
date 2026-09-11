@@ -1,0 +1,24 @@
+-- ============================================================
+-- Phase 3 / T1 — Team Mode realtime (INSERT + UPDATE events only)
+-- ------------------------------------------------------------
+-- 0003 added team_activities to supabase_realtime, which by default
+-- publishes every operation (insert, update, delete, truncate).
+-- This migration restricts the publication to INSERT + UPDATE —
+-- the only events Team Mode consumes:
+--   - INSERT  -> habit completions, praise, new activity rows
+--   - UPDATE  -> presence pulses (update_presence() upserts one
+--                presence row per user, see 0007)
+-- DELETE/TRUNCATE broadcasts are cut: Team Mode never deletes
+-- activity rows, and trimming the WAL stream keeps it minimal.
+--
+-- supabase_realtime has exactly ONE member table — team_activities
+-- (added by 0003; nothing else touches this publication) — so the
+-- restriction is scoped to it in practice.
+--
+-- journal_entries must NEVER be added to this publication
+-- (journal privacy wall). REPLICA IDENTITY FULL (set by 0003) is
+-- kept: UPDATE events carry the old record so Realtime can
+-- re-evaluate RLS per subscriber.
+-- ============================================================
+
+alter publication supabase_realtime set (publish = 'insert, update');
