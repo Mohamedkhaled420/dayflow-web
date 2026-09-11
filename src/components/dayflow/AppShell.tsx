@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   CalendarDays,
   CalendarRange,
@@ -18,6 +18,7 @@ import { HabitsView } from "@/components/dayflow/HabitsView";
 import { ChatView } from "@/components/dayflow/ChatView";
 import { SettingsView } from "@/components/dayflow/SettingsView";
 import { rehydrateDayflow } from "@/lib/store";
+import { bootDayflowSync } from "@/store/useDayflowStore";
 import { hapticSelect } from "@/lib/haptics";
 import { springSoft } from "@/lib/motion";
 
@@ -50,6 +51,9 @@ export function AppShell() {
     rehydrateDayflow().finally(() => {
       if (!cancelled) setReady(true);
     });
+    // Delta Sync (Phase 2): pull Supabase rows into IndexedDB on boot.
+    // Fire-and-forget — never blocks the first paint.
+    void bootDayflowSync();
     return () => {
       cancelled = true;
     };
