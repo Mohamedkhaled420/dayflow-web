@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   CalendarDays,
@@ -11,16 +12,44 @@ import {
   Settings as SettingsIcon,
 } from "lucide-react";
 import { LogoBadge } from "@/components/dayflow/LogoBadge";
-import { TimelineView } from "@/components/dayflow/TimelineView";
-import { DailyView } from "@/components/dayflow/DailyView";
-import { WeeklyView } from "@/components/dayflow/WeeklyView";
-import { HabitsView } from "@/components/dayflow/HabitsView";
-import { ChatView } from "@/components/dayflow/ChatView";
-import { SettingsView } from "@/components/dayflow/SettingsView";
 import { rehydrateDayflow } from "@/lib/store";
 import { bootDayflowSync } from "@/store/useDayflowStore";
 import { hapticSelect } from "@/lib/haptics";
 import { springSoft } from "@/lib/motion";
+
+// Phase 4 bundle diet: every tab view is code-split and streams in
+// behind the boot skeleton, so none of the view bundles ride the
+// initial JS payload. The dock shows the same BootSkeleton the
+// rehydration gate already paints, so the swap is invisible.
+const TimelineView = dynamic(
+  () => import("./TimelineView").then((m) => m.TimelineView),
+  { ssr: false, loading: ViewSkeleton }
+);
+const DailyView = dynamic(() => import("./DailyView").then((m) => m.DailyView), {
+  ssr: false,
+  loading: ViewSkeleton,
+});
+const WeeklyView = dynamic(() => import("./WeeklyView").then((m) => m.WeeklyView), {
+  ssr: false,
+  loading: ViewSkeleton,
+});
+const HabitsView = dynamic(() => import("./HabitsView").then((m) => m.HabitsView), {
+  ssr: false,
+  loading: ViewSkeleton,
+});
+const ChatView = dynamic(() => import("./ChatView").then((m) => m.ChatView), {
+  ssr: false,
+  loading: ViewSkeleton,
+});
+const SettingsView = dynamic(() => import("./SettingsView").then((m) => m.SettingsView), {
+  ssr: false,
+  loading: ViewSkeleton,
+});
+
+/** Placeholder shown while a lazy view chunk streams in. */
+function ViewSkeleton() {
+  return <BootSkeleton />;
+}
 
 export type TabId = "timeline" | "daily" | "weekly" | "habits" | "chat" | "settings";
 
@@ -129,7 +158,12 @@ export function AppShell() {
           style={{ animationDelay: "100ms" }}
         >
           <div className="df-panel h-full min-h-[calc(100dvh-54px)] lg:min-h-[calc(100vh-30px)] overflow-hidden rounded-none sm:rounded-lg pb-[calc(88px+env(safe-area-inset-bottom))] lg:pb-0">
-            <AnimatePresence mode="wait" initial={false}>
+            {/* popLayout (not "wait"): lazy view chunks can resolve while
+                their tab child is exiting — mode="wait" deadlocks in that
+                window (exit never completes, the next tab never mounts).
+                popLayout lets the entering view take the layout flow
+                immediately while the old one pops out and fades. */}
+            <AnimatePresence mode="popLayout" initial={false}>
               <motion.div
                 key={tab}
                 initial={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}

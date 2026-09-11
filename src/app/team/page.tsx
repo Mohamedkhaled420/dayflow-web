@@ -26,6 +26,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import {
   ArrowLeft,
   Check,
@@ -155,9 +156,10 @@ export default function TeamPage() {
   useEffect(() => {
     let alive = true;
     (async () => {
+      const supabase = await syncClient();
       const {
         data: { user },
-      } = await syncClient().auth.getUser();
+      } = await supabase.auth.getUser();
       if (!alive) return;
       setMyId(user?.id ?? null);
       await loadTeam();
@@ -171,9 +173,8 @@ export default function TeamPage() {
   const teamId = team?.id ?? null;
   useEffect(() => {
     if (!teamId || !myId) return;
-    const supabase = syncClient();
     let disposed = false;
-    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let channel: RealtimeChannel | null = null;
 
     const onEvent = (payload: { new: TeamActivityRow }) => {
       const row = payload.new;
@@ -195,7 +196,12 @@ export default function TeamPage() {
       }
     };
 
-    (async () => {
+    void (async () => {
+      // syncClient is async (Phase 4 bundle diet): the shared client
+      // arrives as a cached promise; everything below is unchanged.
+      const supabase = await syncClient();
+      if (disposed) return;
+
       // Explicit realtime auth: the cookie-restored session can race the
       // socket connect, and a token-less postgres_changes join authorizes
       // nothing server-side (channel still reports SUBSCRIBED). AWAITING
@@ -238,7 +244,11 @@ export default function TeamPage() {
     return () => {
       disposed = true;
       setLive(false);
-      if (channel) void supabase.removeChannel(channel);
+      // The client promise is a cached singleton — resolving it in the
+      // cleanup always yields the same instance that owns the channel.
+      void syncClient().then((supabase) => {
+        if (channel) void supabase.removeChannel(channel);
+      });
     };
   }, [teamId, myId]);
 

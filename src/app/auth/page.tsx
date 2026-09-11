@@ -12,7 +12,6 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/utils/supabase/client";
 import { GlassPanel } from "@/components/ui/GlassPanel";
 import { Segmented } from "@/components/ui/Segmented";
 
@@ -30,6 +29,10 @@ export default function AuthPage() {
     setError("");
     setMessage("");
     setPending(true);
+    // Phase 4 bundle diet: the supabase-js chunk is imported on the
+    // first submit instead of riding the initial payload — the login
+    // form renders and hydrates without it.
+    const { createClient } = await import("@/utils/supabase/client");
     const supabase = createClient();
 
     const result = mode === "sign-in"
@@ -79,6 +82,7 @@ export default function AuthPage() {
 
   async function signInWithGoogle() {
     setError("");
+    const { createClient } = await import("@/utils/supabase/client");
     const supabase = createClient();
     const { error: authError } = await supabase.auth.signInWithOAuth({
       provider: "google",

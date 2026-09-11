@@ -30,7 +30,6 @@ import {
 import { del as idbDel, get as idbGet, set as idbSet } from "idb-keyval";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, Json, Tables, TablesInsert, TablesUpdate } from "@/types/supabase";
-import { createClient as createBrowserClient } from "@/utils/supabase/client";
 
 // ---------- types (mirror the generated Row shapes) ----------
 
@@ -67,12 +66,23 @@ function uuid(): string {
 }
 
 /**
- * The v0 browser helper returns the shared singleton; this cast gives the
- * sync engine the generated Database types WITHOUT creating a second
- * client instance or touching the frozen helper module.
+ * Deferred Supabase browser client (Phase 4 bundle diet).
+ *
+ * The supabase-js browser chunk (~42KB gzipped) is dynamically
+ * imported on the first SYNC use — after first paint — instead of
+ * riding the initial JS payload. The singleton promise is cached so
+ * every caller still shares one client instance, and the cast gives
+ * the sync engine the generated Database types exactly as before.
  */
-export function syncClient(): SupabaseClient<Database> {
-  return createBrowserClient() as unknown as SupabaseClient<Database>;
+let browserClientPromise: Promise<SupabaseClient<Database>> | null = null;
+
+export function syncClient(): Promise<SupabaseClient<Database>> {
+  if (!browserClientPromise) {
+    browserClientPromise = import("@/utils/supabase/client").then(
+      ({ createClient }) => createClient() as unknown as SupabaseClient<Database>
+    );
+  }
+  return browserClientPromise;
 }
 
 /** Server rows win (cloud truth); local-only pending rows never collide. */
@@ -236,7 +246,8 @@ async function settleWrite(
   }
   // On Supabase success, advance the delta-sync signal (PRD §2).
   const timestamp = nowIso();
-  await syncClient()
+  const supabase = await syncClient();
+  await supabase
     .from("profiles")
     .update({ last_sync_timestamp: timestamp })
     .eq("id", userId);
@@ -254,7 +265,7 @@ async function retryPendingRows(
   set: (partial: Partial<DayflowSyncState>) => void,
   get: () => DayflowSyncState
 ): Promise<void> {
-  const supabase = syncClient();
+  const supabase = await syncClient();
   const cleared = {
     habits: [] as string[],
     habitLogs: [] as string[],
@@ -315,7 +326,8 @@ async function retryPendingRows(
 
 /** Local session read (cached by supabase-js — no network round-trip). */
 async function currentUserId(): Promise<string | null> {
-  const { data } = await syncClient().auth.getSession();
+  const supabase = await syncClient();
+  const { data } = await supabase.auth.getSession();
   return data.session?.user.id ?? null;
 }
 
@@ -335,7 +347,8 @@ async function broadcastTeamActivity(
     const { team } = useDayflowStore.getState();
     const userId = await currentUserId();
     if (!team || !userId) return;
-    await syncClient()
+    const supabase = await syncClient();
+    await supabase
       .from("team_activities")
       .insert({
         team_id: team.id,
@@ -359,7 +372,7 @@ export const useDayflowStore = create<DayflowSyncStore>()(
         set({ isSyncing: true, syncError: null });
 
         const errors: string[] = [];
-        const supabase = syncClient();
+        const supabase = await syncClient();
 
         // 0. Session gate — unauthenticated boots keep local state.
         const { data: authData, error: authError } = await supabase.auth.getUser();
@@ -485,7 +498,10 @@ export const useDayflowStore = create<DayflowSyncStore>()(
         const { pending_sync, ...payload } = row;
         await settleWrite(
           row,
-          () => syncClient().from("habits").insert(payload),
+          async () => {
+            const supabase = await syncClient();
+            return supabase.from("habits").insert(payload);
+          },
           userId,
           () =>
             useDayflowStore.setState((s) => ({
@@ -499,7 +515,7 @@ export const useDayflowStore = create<DayflowSyncStore>()(
         set((s) => ({
           habits: s.habits.map((r) => (r.id === id ? { ...r, ...patch } : r)),
         }));
-        const supabase = syncClient();
+        const supabase = await syncClient();
         const { error } = await supabase.from("habits").update(patch).eq("id", id);
         if (error) {
           // Flag for a full-row upsert retry next boot.
@@ -511,7 +527,7 @@ export const useDayflowStore = create<DayflowSyncStore>()(
 
       deleteHabit: async (id) => {
         // Pessimistic (DB cascades habit_logs): only remove locally on success.
-        const supabase = syncClient();
+        const supabase = await syncClient();
         const { error } = await supabase.from("habits").delete().eq("id", id);
         if (!error) {
           set((s) => ({
@@ -537,7 +553,10 @@ export const useDayflowStore = create<DayflowSyncStore>()(
         const { pending_sync, ...payload } = row;
         await settleWrite(
           row,
-          () => syncClient().from("habit_logs").insert(payload),
+          async () => {
+            const supabase = await syncClient();
+            return supabase.from("habit_logs").insert(payload);
+          },
           userId,
           () =>
             useDayflowStore.setState((s) => ({
@@ -572,7 +591,10 @@ export const useDayflowStore = create<DayflowSyncStore>()(
         const { pending_sync, ...payload } = row;
         await settleWrite(
           row,
-          () => syncClient().from("hydration_logs").insert(payload),
+          async () => {
+            const supabase = await syncClient();
+            return supabase.from("hydration_logs").insert(payload);
+          },
           userId,
           () =>
             useDayflowStore.setState((s) => ({
@@ -600,7 +622,10 @@ export const useDayflowStore = create<DayflowSyncStore>()(
         const { pending_sync, ...payload } = row;
         await settleWrite(
           row,
-          () => syncClient().from("workout_logs").insert(payload),
+          async () => {
+            const supabase = await syncClient();
+            return supabase.from("workout_logs").insert(payload);
+          },
           userId,
           () =>
             useDayflowStore.setState((s) => ({
@@ -627,7 +652,10 @@ export const useDayflowStore = create<DayflowSyncStore>()(
         const { pending_sync, ...payload } = row;
         await settleWrite(
           row,
-          () => syncClient().from("sleep_logs").insert(payload),
+          async () => {
+            const supabase = await syncClient();
+            return supabase.from("sleep_logs").insert(payload);
+          },
           userId,
           () =>
             useDayflowStore.setState((s) => ({
@@ -653,7 +681,10 @@ export const useDayflowStore = create<DayflowSyncStore>()(
         const { pending_sync, ...payload } = row;
         await settleWrite(
           row,
-          () => syncClient().from("journal_entries").insert(payload),
+          async () => {
+            const supabase = await syncClient();
+            return supabase.from("journal_entries").insert(payload);
+          },
           userId,
           () =>
             useDayflowStore.setState((s) => ({
@@ -670,7 +701,8 @@ export const useDayflowStore = create<DayflowSyncStore>()(
       ensureTeamSummary: async () => {
         const userId = await currentUserId();
         if (!userId) return;
-        const { data } = await syncClient()
+        const supabase = await syncClient();
+        const { data } = await supabase
           .from("teams")
           .select("*")
           .or(`member_a.eq.${userId},member_b.eq.${userId}`)
@@ -686,7 +718,8 @@ export const useDayflowStore = create<DayflowSyncStore>()(
           useDayflowStore.setState({ teamActivities: [] });
           return;
         }
-        const { data } = await syncClient()
+        const supabase = await syncClient();
+        const { data } = await supabase
           .from("team_activities")
           .select("*")
           .eq("team_id", team.id)
@@ -701,7 +734,8 @@ export const useDayflowStore = create<DayflowSyncStore>()(
         await get().ensureTeamSummary();
         // RLS splits pending invites into mine-sent vs addressed-to-me
         // automatically (0002 + 0008 recipient/inviter policies).
-        const { data: invites } = await syncClient()
+        const supabase = await syncClient();
+        const { data: invites } = await supabase
           .from("team_invites")
           .select("*")
           .eq("status", "pending")
@@ -720,7 +754,8 @@ export const useDayflowStore = create<DayflowSyncStore>()(
         if (!userId) return false;
         const clean = email.trim().toLowerCase();
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) return false;
-        const { error } = await syncClient()
+        const supabase = await syncClient();
+        const { error } = await supabase
           .from("team_invites")
           .insert({ inviter_id: userId, invitee_email: clean });
         if (error) return false;
@@ -729,7 +764,7 @@ export const useDayflowStore = create<DayflowSyncStore>()(
       },
 
       acceptTeamInvite: async (inviteId) => {
-        const supabase = syncClient();
+        const supabase = await syncClient();
         const {
           data: { user },
         } = await supabase.auth.getUser();
@@ -766,7 +801,8 @@ export const useDayflowStore = create<DayflowSyncStore>()(
         const team = get().team;
         const userId = await currentUserId();
         if (!team || !userId) return;
-        const { error } = await syncClient()
+        const supabase = await syncClient();
+        const { error } = await supabase
           .from("team_activities")
           .insert({
             team_id: team.id,
@@ -779,7 +815,8 @@ export const useDayflowStore = create<DayflowSyncStore>()(
 
       pulseTeamPresence: async () => {
         if (!get().team) return;
-        await syncClient().rpc("update_presence", {});
+        const supabase = await syncClient();
+        await supabase.rpc("update_presence", {});
       },
     }),
     {
