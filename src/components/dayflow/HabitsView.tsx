@@ -27,6 +27,7 @@ import { weekOf } from "@/lib/compute";
 import { fmtDuration } from "@/lib/compute";
 import { triggerHaptic, hapticWarn } from "@/lib/haptics";
 import { LiquidGlass } from "@/components/ui/LiquidGlass";
+import { LogoLoop } from "@/components/brand/LogoLoop";
 import { CATEGORY_COLORS, GOAL_FALLBACK_COLORS } from "@/styles/palette";
 import { useToast } from "@/hooks/use-toast";
 
@@ -587,8 +588,8 @@ function WorkoutCard({
           disabled={busy}
           className="df-press df-btn-secondary min-h-11 px-4 rounded-md text-[12.5px] font-semibold flex items-center gap-1.5 disabled:opacity-50"
         >
-          <Sparkles className="h-3.5 w-3.5" />
-          {busy ? "Generating…" : plan ? "Regenerate workout" : "Generate Workout"}
+          {busy ? <LogoLoop size="sm" /> : <Sparkles className="h-3.5 w-3.5" />}
+          {busy ? "thinking…" : plan ? "Regenerate workout" : "Generate Workout"}
         </button>
 
         {/* Primary Log CTA — Liquid Glass T1 surface #2 (PRD §6.2). */}

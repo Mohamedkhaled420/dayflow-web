@@ -248,6 +248,14 @@
     0 2px 6px rgba(226, 96, 47, 0.35);
   --df-logo-border: rgba(255, 255, 255, 0.45);
   --df-logo-dot: #f3854b;
+
+  /* --- Brand mark shading (Phase 6.5) -------------------------
+     Derived from the reference logo render (pixel-diff verified,
+     docs/screenshots/phase6-5/). The ring gradient's tubular
+     shading dip (#1a79eb) exceeds any 2-token color-mix chroma,
+     so it lives here as its own token — components reference it
+     via var(--df-brand-deep), never raw hex. */
+  --df-brand-deep: #1a79eb;
 }
 
 .dark {

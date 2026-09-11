@@ -28,6 +28,7 @@ import {
   Sun,
 } from "lucide-react";
 import { GlassPanel } from "@/components/ui/GlassPanel";
+import { LogoMark } from "@/components/brand/LogoMark";
 import { Segmented } from "@/components/ui/Segmented";
 import { createClient } from "@/utils/supabase/client";
 import { enrollPasskey, passkeysSupported } from "@/lib/passkeys";
@@ -351,7 +352,8 @@ export default function OnboardingPage() {
     return (
       <main className="flex min-h-screen items-center justify-center bg-(--color-surface) p-4 font-sans">
         <GlassPanel className="w-full max-w-md p-6 sm:p-8">
-          <p className="text-xs font-semibold tracking-[0.22em] text-(--color-accent-focus)">
+          <LogoMark size={30} />
+          <p className="mt-3 text-xs font-semibold tracking-[0.22em] text-(--color-accent-focus)">
             DAYFLOW AI
           </p>
           <h1 className="mt-3 text-2xl font-semibold text-(--color-ink)">
@@ -394,7 +396,8 @@ export default function OnboardingPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-(--color-surface) p-4 font-sans">
       <GlassPanel className="w-full max-w-md p-6 sm:p-8">
-        <p className="text-xs font-semibold tracking-[0.22em] text-(--color-accent-focus)">
+        <LogoMark size={30} />
+        <p className="mt-3 text-xs font-semibold tracking-[0.22em] text-(--color-accent-focus)">
           DAYFLOW AI
         </p>
 

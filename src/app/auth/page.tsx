@@ -16,6 +16,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Fingerprint } from "lucide-react";
 import { GlassPanel } from "@/components/ui/GlassPanel";
+import { LogoMark } from "@/components/brand/LogoMark";
 import { Segmented } from "@/components/ui/Segmented";
 import { passkeysServerEnabled, signInWithPasskey } from "@/lib/passkeys";
 import { triggerHaptic } from "@/lib/haptics";
@@ -150,7 +151,8 @@ export default function AuthPage() {
     <main className="flex min-h-screen items-center justify-center p-4">
       <GlassPanel className="w-full max-w-md p-6 sm:p-8">
         <div>
-          <p className="text-xs font-semibold tracking-[0.22em] text-(--color-accent-focus)">
+          <LogoMark size={36} />
+          <p className="mt-3 text-xs font-semibold tracking-[0.22em] text-(--color-accent-focus)">
             DAYFLOW AI
           </p>
           <h1 className="mt-3 text-3xl font-semibold text-(--color-ink)">

@@ -30,6 +30,8 @@ import { useToast } from "@/hooks/use-toast";
 import type { TabId } from "@/components/dayflow/AppShell";
 import { THEME_SWATCHES } from "@/styles/palette";
 import { InstallAppCard } from "@/components/dayflow/InstallAppCard";
+import { LogoLoop } from "@/components/brand/LogoLoop";
+import { LogoMark } from "@/components/brand/LogoMark";
 import { ShortcutsSetupCard } from "@/components/dayflow/ShortcutsSetupCard";
 
 type Section = "profile" | "goals" | "appearance" | "data";
@@ -597,6 +599,7 @@ function DataSection({
   const journalEntries = useDayflowStore((s) => s.journalEntries);
   const lastSyncedAt = useDayflowStore((s) => s.lastSyncedAt);
   const syncError = useDayflowStore((s) => s.syncError);
+  const isSyncing = useDayflowStore((s) => s.isSyncing);
   const [confirmReset, setConfirmReset] = useState(false);
 
   // Full JSON backup of everything the Delta Sync store holds —
@@ -675,8 +678,16 @@ function DataSection({
                 className="w-2 h-2 rounded-full"
                 style={{ background: syncError ? "var(--df-destructive)" : "var(--df-streak)", boxShadow: "0 0 0 2px color-mix(in srgb, var(--df-streak) 30%, transparent)" }}
               />
-              <span className="text-[12.5px] font-semibold" style={{ color: "var(--df-text-primary)" }}>
+              <span className="text-[12.5px] font-semibold flex items-center gap-1.5" style={{ color: "var(--df-text-primary)" }}>
                 Supabase — {syncError ? "sync error (will retry)" : "connected"}
+                {isSyncing && (
+                  <span className="flex items-center gap-1.5">
+                    <LogoLoop size="sm" />
+                    <span className="text-[10.5px] font-medium" style={{ color: "var(--df-text-muted)" }}>
+                      syncing…
+                    </span>
+                  </span>
+                )}
               </span>
             </div>
             <span className="text-[10.5px]" style={{ color: "var(--df-text-muted)" }}>
@@ -777,6 +788,12 @@ function DataSection({
       </SectionCard>
 
       <SectionCard title="About this web build" icon={<Monitor className="h-4 w-4" />} className="mt-4">
+        <div className="mb-3 flex items-center gap-2.5">
+          <LogoMark size={26} />
+          <span className="text-[12.5px] font-semibold" style={{ color: "var(--df-text-primary)" }}>
+            Dayflow AI
+          </span>
+        </div>
         <ul className="flex flex-col gap-1.5">
           {[
             "Timeline, Daily, Weekly, Habits, Journal, and Settings are fully interactive — every log persists to your Supabase account.",

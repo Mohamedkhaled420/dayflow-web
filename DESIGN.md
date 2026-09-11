@@ -122,7 +122,63 @@ Icons: single Lucide family, consistent stroke (1.8 default). Empty states get p
 
 ---
 
-## 5. The 16-Pattern Ban List
+## 5. Brand System (Phase 6.5)
+
+The brand mark is a ribbon "day cycle": a near-complete ring with a single
+gap at ~1:15 holding the sun dot, and an inner hook spiraling off the ring's
+inner edge toward 9 o'clock. It was rebuilt **parametrically** from the
+reference render (never auto-traced) in `public/logo.svg` — the single source
+of truth for every icon surface — and verified with a Chromium pixel-diff
+(≤2% budget, measured **1.78%** at 512px; report in
+`docs/screenshots/phase6-5/`).
+
+**Anatomy** (viewBox 512, center 256,256):
+
+- Ring: centerline R=167, stroke 29, round caps; the two path ends sit at
+  20.7° and 47.3° (clock angles from 12 o'clock), leaving the gap that holds
+  the dot. Drawn as six gradient sub-arcs so the along-path color story maps
+  correctly (a single linear gradient cannot wrap >180°).
+- Sun dot: r=15.5 at 37° on the ring path — the "sun in the day's opening."
+- Inner hook: **a single circular arc** (center ≈ (52, 234.3), r ≈ 101.3)
+  from under the ring band at ~247° to the terminus cap at 269.5°; recovery
+  orange, blending into the ring via a small junction flare.
+- Specular hairline: 3px ink-white bloom along the top arc's outer edge
+  (285°→20°), peaking near 11 o'clock.
+
+**Color** (tokens only in components):
+
+- Principal gradient stops are the §9.1 accents: `--color-accent-hydration`
+  (sky-blue plateau through 12h) → `--color-accent-recovery` (orange through
+  7–9h) on the top arc; `--color-accent-focus` at the bottom arc's gap end.
+- Transition shading reproduces the reference render via `color-mix()`
+  derivations of those tokens (see `src/components/brand/logoGeometry.ts`);
+  the one value that exceeds any two-token mix's chroma — the tubular
+  shading dip `#1a79eb` — lives as `--df-brand-deep` in theme.css.
+- Dot = `--color-accent-recovery`.
+- Monochrome variant: pure `--color-ink` on `--color-surface` where the
+  gradient is not appropriate (e.g. inline text-adjacent contexts).
+
+**Clear space & minimum size:** clear space = 1× dot diameter (31px at
+viewBox 512, i.e. 6% of the mark's width) on all sides; minimum render size
+16px (below that the gap and dot merge — prefer the monochrome dot-only
+fallback).
+
+**Motion:**
+
+- **LogoFormation** — the ONE documented §5.6 exception to the
+  compositor-only rule: a scroll-bound path draw (public landing only, one
+  path set, zero idle cost; springs stiffness 120 / damping 30).
+  `prefers-reduced-motion` renders the mark fully formed with no binding.
+- **LogoLoop** — the indeterminate loader (sm 24 / md 48 / lg 112):
+  a 69% ring arc rotating 360° per 1.4s (transform) + the sun dot blinking
+  (opacity) as the arc passes the gap. Compositor-only. Reduced motion
+  freezes it at 25% rotation with a steady dot; reduced transparency pins
+  the dot opaque. Never mounted inside the dock, inside scroll lists, or as
+  a fullscreen wall (§5.6 / PRD §7).
+
+---
+
+## 6. The 16-Pattern Ban List
 
 Banned from any screen. Audit target: **≤1 trigger per PR** (PRD §5.1).
 

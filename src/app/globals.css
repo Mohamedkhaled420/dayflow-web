@@ -147,6 +147,12 @@ h4 {
 }
 
 @media (prefers-reduced-transparency: reduce) {
+  .df-loop-dot {
+    /* no opacity animation — the dot stays fully opaque */
+    animation: none;
+    opacity: 1;
+  }
+
   .df-material,
   .df-dock {
     background: var(--background);
@@ -325,6 +331,33 @@ h4 {
   animation: df-shimmer 1.6s linear infinite;
 }
 
+/* Brand motion (Phase 6.5) — LogoLoop, the indeterminate loader.
+   Compositor-only: rotation is transform, the dot blink is opacity.
+   69% ring arc + sun dot; 1.4s linear. NEVER inside the dock,
+   scroll lists, or as a fullscreen wall (PRD §7). */
+@keyframes df-loop-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes df-loop-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+.df-loop-rotor {
+  transform-box: view-box;
+  transform-origin: 50% 50%;
+  animation: df-loop-rotate 1.4s linear infinite;
+}
+.df-loop-dot {
+  animation: df-loop-blink 1.4s ease-in-out infinite;
+}
+
 /* Team Mode presence pulse (Phase 3) — transform/opacity ONLY so the
    teammate card stays on its GPU layer (PRD §5.6 motion rules). The
    element re-mounts (key change) to replay the pulse. */
@@ -442,6 +475,14 @@ select {
   }
   .df-pulse,
   .df-tick {
+    animation: none;
+  }
+  .df-loop-rotor {
+    animation: none;
+    /* frozen at 25% rotation — the arc never spins */
+    transform: rotate(90deg);
+  }
+  .df-loop-dot {
     animation: none;
   }
   .df-tick {

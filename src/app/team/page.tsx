@@ -37,6 +37,7 @@ import {
   UserPlus,
   Users,
 } from "lucide-react";
+import { LogoMark } from "@/components/brand/LogoMark";
 import { GlassPanel } from "@/components/ui/GlassPanel";
 import {
   syncClient,
@@ -374,6 +375,7 @@ export default function TeamPage() {
           className="mb-4 inline-flex min-h-11 items-center gap-1.5 rounded-(--radius-pill) px-3 text-sm font-medium text-(--color-ink-muted) transition-opacity duration-(--duration-press) hover:opacity-80"
         >
           <ArrowLeft className="size-4" aria-hidden />
+          <LogoMark size={20} className="-my-1.5" />
           Dayflow
         </Link>
 

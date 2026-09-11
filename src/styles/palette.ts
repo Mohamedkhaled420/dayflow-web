@@ -71,6 +71,17 @@ export const PWA_SURFACE_COLORS = {
 } as const;
 
 /**
+ * Open Graph text colors (Phase 6.5 / B4) — the §9.1 ink tokens
+ * materialized for satori (next/og renders standalone, so CSS
+ * custom properties cannot resolve there). Values mirror
+ * --color-ink / --color-ink-muted 1:1.
+ */
+export const OG_TEXT_COLORS = {
+  ink: "#f0f6fc",
+  inkMuted: "#8b949e",
+} as const;
+
+/**
  * Circadian zone colors (Phase 5 T1c) — DATA colors for the Timeline
  * overlay bands: green Peaks, orange Dip. Same data-color rules as
  * CATEGORY_COLORS above (raw hex allowed only in this file).

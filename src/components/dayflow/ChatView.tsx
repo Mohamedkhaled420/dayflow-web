@@ -27,6 +27,7 @@ import { useDayflowStore } from "@/store/useDayflowStore";
 import { useDayflowData } from "@/lib/viewmodel";
 import { useToast } from "@/hooks/use-toast";
 import { triggerHaptic } from "@/lib/haptics";
+import { LogoLoop } from "@/components/brand/LogoLoop";
 
 const MOODS = [
   { score: 1, label: "Rough", Icon: Frown },
@@ -355,8 +356,8 @@ export function ChatView() {
             disabled={!draft.trim() || asking}
             className="df-press df-btn-secondary min-h-11 px-4 rounded-md text-[12.5px] font-semibold flex items-center gap-1.5 disabled:opacity-40"
           >
-            <Sparkles className="h-3.5 w-3.5" style={{ color: "var(--df-accent)" }} />
-            {asking ? "Asking…" : "Ask Coach"}
+            {asking ? <LogoLoop size="sm" /> : <Sparkles className="h-3.5 w-3.5" style={{ color: "var(--df-accent)" }} />}
+            {asking ? "thinking…" : "Ask Coach"}
           </button>
         </div>
         <p className="text-[10px] mt-1.5 text-center" style={{ color: "var(--df-text-muted)" }}>

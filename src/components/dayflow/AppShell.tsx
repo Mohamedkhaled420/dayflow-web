@@ -11,7 +11,9 @@ import {
   NotebookPen,
   Settings as SettingsIcon,
 } from "lucide-react";
-import { LogoBadge } from "@/components/dayflow/LogoBadge";
+import { LogoMark } from "@/components/brand/LogoMark";
+import { LogoLoop } from "@/components/brand/LogoLoop";
+import { SplashScreen } from "@/components/brand/SplashScreen";
 import { bootDayflowSync, useDayflowStore } from "@/store/useDayflowStore";
 import {
   MorningTriadGate,
@@ -50,9 +52,21 @@ const SettingsView = dynamic(() => import("./SettingsView").then((m) => m.Settin
   loading: ViewSkeleton,
 });
 
-/** Placeholder shown while a lazy view chunk streams in. */
+/** Brand loader shown while a lazy view chunk streams in (Phase 6.5:
+ *  replaces the generic skeleton — md loop, centered, no wall). */
 function ViewSkeleton() {
-  return <BootSkeleton />;
+  return (
+    <div
+      className="flex h-full flex-col items-center justify-center gap-4 p-8"
+      aria-label="Loading view"
+      role="status"
+    >
+      <LogoLoop size="md" label="Loading view" />
+      <p className="text-[11px]" style={{ color: "var(--df-text-muted)" }}>
+        Loading…
+      </p>
+    </div>
+  );
 }
 
 export type TabId = "timeline" | "daily" | "weekly" | "habits" | "chat" | "settings";
@@ -85,6 +99,7 @@ export function AppShell() {
   const reducedMotion = useReducedMotion();
 
   const profileRow = useDayflowStore((s) => s.profile);
+  const isSyncing = useDayflowStore((s) => s.isSyncing);
 
   // Morning Triad gate conditions (PRD §4.9): only when the
   // occupational status is NOT 'employed_structured' and the
@@ -143,7 +158,7 @@ export function AppShell() {
   );
 
   const content = useMemo(() => {
-    if (!ready) return <BootSkeleton />;
+    if (!ready) return <SplashScreen />;
     switch (tab) {
       case "timeline":
         return <TimelineView />;
@@ -170,11 +185,13 @@ export function AppShell() {
 
       <header className="lg:hidden sticky top-0 z-40 flex items-center justify-between px-4 pt-[max(0.65rem,env(safe-area-inset-top))] pb-2.5 df-mobile-header">
         <div className="flex items-center gap-2.5">
-          <LogoBadge size={30} />
-          <div>
+          <LogoMark size={30} />
+          <div className="flex items-center gap-1.5">
             <p className="text-[13px] font-semibold leading-none" style={{ color: "var(--df-text-primary)" }}>Dayflow</p>
-            <p className="mt-1 text-[10px] leading-none" style={{ color: "var(--df-text-muted)" }}>{activeTab.label}</p>
+            {/* Phase 6.5: sync indicator beside the title (never in the dock) */}
+            {isSyncing && <LogoLoop size="sm" />}
           </div>
+          <p className="mt-1 text-[10px] leading-none" style={{ color: "var(--df-text-muted)" }}>{activeTab.label}</p>
         </div>
         <button onClick={() => select("settings")} aria-label="Settings" aria-current={tab === "settings"} className="df-press grid size-9 place-items-center rounded-full border border-white/50 bg-white/45" style={{ color: "var(--df-text-secondary)" }}>
           <SettingsIcon className="size-[17px]" strokeWidth={1.8} />
@@ -185,7 +202,7 @@ export function AppShell() {
         {/* left gutter: logo + vertical sidebar */}
         <aside className="hidden lg:flex w-[80px] shrink-0 flex-col items-center justify-between py-2">
           <div className="df-rise" style={{ animationDelay: "0ms" }}>
-            <LogoBadge size={40} />
+            <LogoMark size={40} />
           </div>
           <nav
             aria-label="Primary"
@@ -272,23 +289,6 @@ export function AppShell() {
           setTab((current) => (current === FOCUS_TAB ? "daily" : current));
         }}
       />
-    </div>
-  );
-}
-
-/** Soft loading state shown while the local data store rehydrates. */
-function BootSkeleton() {
-  return (
-    <div className="h-full flex flex-col items-center justify-center gap-4 p-8" aria-label="Loading your data">
-      <div
-        className="w-10 h-10 rounded-[10px] animate-pulse"
-        style={{ background: "var(--df-control-fill)" }}
-      />
-      <div className="w-48 h-3 rounded-full animate-pulse" style={{ background: "var(--df-chip-fill)" }} />
-      <div className="w-64 h-3 rounded-full animate-pulse" style={{ background: "var(--df-chip-fill)", animationDelay: "120ms" }} />
-      <p className="text-[11px]" style={{ color: "var(--df-text-muted)" }}>
-        Loading your local data…
-      </p>
     </div>
   );
 }

@@ -1,12 +1,23 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#FFB27A"/>
-      <stop offset="55%" stop-color="#F3854B"/>
-      <stop offset="100%" stop-color="#E0602F"/>
-    </linearGradient>
-  </defs>
-  <circle cx="32" cy="32" r="30" fill="url(#g)" stroke="rgba(255,255,255,0.45)" stroke-width="2"/>
-  <path d="M12 32.5 C12 19.8 21.2 10 32 10 C42.4 10 52 19.2 52 31.2 C52 40.8 45.2 46.4 37.2 46.4 L34.4 46.4 C31.8 46.4 30 44.4 30 42 C30 39.8 31.8 38 34 38 L40.4 38 C44.2 38 46.8 35.4 46.8 31.6 C46.8 24.2 40.4 18.4 32 18.4 C22 18.4 16.4 25.2 16.4 32.5 C16.4 40.1 22 46.4 31.2 47.2 L43 49.8 C45.4 50.2 47 52.2 46.6 54.6 C46.2 56.8 44.2 58.4 42 58.2 L30 56.6 C17 54.8 12 44.8 12 32.5 Z" fill="#fff"/>
-  <circle cx="32" cy="32" r="5.2" fill="#F3854B"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Dayflow AI mark">
+<defs>
+<linearGradient id="gTop1" gradientUnits="userSpaceOnUse" x1="315.03" y1="99.78" x2="111.37" y2="172.5"><stop offset="0.0%" stop-color="#38bdf8"/><stop offset="24.0%" stop-color="#38bdf8"/><stop offset="83.1%" stop-color="#38bdf8"/><stop offset="100.0%" stop-color="#75adc3"/></linearGradient>
+<linearGradient id="gTop2" gradientUnits="userSpaceOnUse" x1="111.37" y1="172.5" x2="99.07" y2="313.12"><stop offset="0.0%" stop-color="#75adc3"/><stop offset="29.5%" stop-color="#aba18e"/><stop offset="60.3%" stop-color="#df8f52"/><stop offset="90.5%" stop-color="#fa8536"/><stop offset="100.0%" stop-color="#f0883e"/></linearGradient>
+<linearGradient id="gBot1" gradientUnits="userSpaceOnUse" x1="378.73" y1="142.75" x2="374.09" y2="374.09"><stop offset="0.0%" stop-color="#58a6ff"/><stop offset="48.6%" stop-color="#4195f5"/><stop offset="100.0%" stop-color="#1a79eb"/></linearGradient>
+<linearGradient id="gBot2" gradientUnits="userSpaceOnUse" x1="374.09" y1="374.09" x2="256" y2="423"><stop offset="0.0%" stop-color="#1a79eb"/><stop offset="100.0%" stop-color="#49b5ea"/></linearGradient>
+<linearGradient id="gBot3" gradientUnits="userSpaceOnUse" x1="256" y1="423" x2="160.21" y2="392.8"><stop offset="-0.0%" stop-color="#49b5ea"/><stop offset="42.7%" stop-color="#98a39d"/><stop offset="63.0%" stop-color="#b39e83"/><stop offset="100.0%" stop-color="#f0883e"/></linearGradient>
+<linearGradient id="gBot4" gradientUnits="userSpaceOnUse" x1="160.21" y1="392.8" x2="99.07" y2="313.12"><stop offset="-0.0%" stop-color="#f0883e"/><stop offset="100.0%" stop-color="#f0883e"/></linearGradient>
+<linearGradient id="gSpec" gradientUnits="userSpaceOnUse" x1="85.51" y1="210.32" x2="316.37" y2="90.14"><stop offset="0.0%" stop-color="#f0f6fc" stop-opacity="0"/><stop offset="13.6%" stop-color="#f0f6fc" stop-opacity="0.62"/><stop offset="47.0%" stop-color="#f0f6fc" stop-opacity="0.9"/><stop offset="64.7%" stop-color="#f0f6fc" stop-opacity="0.88"/><stop offset="81.3%" stop-color="#f0f6fc" stop-opacity="0.5"/><stop offset="100.0%" stop-color="#f0f6fc" stop-opacity="0"/></linearGradient>
+<filter id="fSpec" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="1.2"/></filter>
+<linearGradient id="gLens" gradientUnits="userSpaceOnUse" x1="119.32" y1="304.4" x2="112.41" y2="276.18"><stop offset="-0.0%" stop-color="#fa8536" stop-opacity="0"/><stop offset="30.4%" stop-color="#fa8536" stop-opacity="0.95"/><stop offset="65.2%" stop-color="#fa8536" stop-opacity="0.95"/><stop offset="100.0%" stop-color="#fa8536" stop-opacity="0"/></linearGradient>
+</defs>
+  <path d="M 102.66 322.05 A 101.33 101.33 0 0 0 151 256.92" stroke="#f0883e" stroke-width="29" fill="none" stroke-linecap="round"/>
+  <path d="M 112.25 306.91 A 152.5 152.5 0 0 1 104.98 277.22 L 131.72 273.47 Q 130.04 278.3 128.35 283.13 Q 125.93 287.94 123.5 292.75 Q 120.29 297.62 117.07 302.49 Q 120.08 302.78 123.09 303.07 Z" fill="url(#gLens)" stroke="none"/>
+  <path d="M 315.03 99.78 A 167 167 0 0 0 111.37 172.5" stroke="url(#gTop1)" stroke-width="29" fill="none" stroke-linecap="round"/>
+  <path d="M 111.37 172.5 A 167 167 0 0 0 99.07 313.12" stroke="url(#gTop2)" stroke-width="29" fill="none" stroke-linecap="round"/>
+  <path d="M 378.73 142.75 A 167 167 0 0 1 374.09 374.09" stroke="url(#gBot1)" stroke-width="29" fill="none" stroke-linecap="round"/>
+  <path d="M 374.09 374.09 A 167 167 0 0 1 256 423" stroke="url(#gBot2)" stroke-width="29" fill="none" stroke-linecap="round"/>
+  <path d="M 256 423 A 167 167 0 0 1 160.21 392.8" stroke="url(#gBot3)" stroke-width="29" fill="none" stroke-linecap="round"/>
+  <path d="M 160.21 392.8 A 167 167 0 0 1 99.07 313.12" stroke="url(#gBot4)" stroke-width="29" fill="none" stroke-linecap="round"/>
+  <circle cx="355.06" cy="124.54" r="15.5" fill="#f0883e"/>
+  <path d="M 85.51 210.32 A 176.5 176.5 0 0 1 316.37 90.14" stroke="url(#gSpec)" stroke-width="3" fill="none" stroke-linecap="round" filter="url(#fSpec)"/>
 </svg>

@@ -5,6 +5,8 @@ import { NextResponse, type NextRequest } from "next/server";
 // Route protection + onboarding gate (Phase 2 / PRD §4.1)
 // ------------------------------------------------------------
 // - Unauthenticated users are sent to /auth (v0 behavior).
+//   EXCEPTION (Phase 6.5): an unauthenticated GET / passes
+//   through to the public marketing landing (brand formation).
 // - Authenticated users without a completed onboarding survey are
 //   sent to /onboarding. Completion = profiles.chronobiology carries
 //   `naturalWakeTime`, a key written ONLY by the survey — the
@@ -44,9 +46,16 @@ export async function middleware(request: NextRequest) {
 
   if (!user) {
     if (!isAuthRoute) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/auth";
-      return NextResponse.redirect(url);
+      // Phase 6.5: unauthenticated GET / serves the public landing
+      // page; every other protected route (and non-GET verbs) still
+      // bounce to /auth.
+      const isPublicLanding =
+        pathname === "/" && request.method === "GET";
+      if (!isPublicLanding) {
+        const url = request.nextUrl.clone();
+        url.pathname = "/auth";
+        return NextResponse.redirect(url);
+      }
     }
     return response;
   }
@@ -92,5 +101,10 @@ export const config = {
   // apple-touch-icon.png, icons/*, logo.svg, robots.txt, …) — the
   // browser fetches several of those WITHOUT session cookies (install
   // prompt, service worker script), and a 307 would break both.
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|.*\\..*).*)"],
+  // Next metadata routes carry no extension (opengraph-image,
+  // twitter-image) and are fetched by link-preview crawlers with no
+  // session at all, so they are excluded explicitly.
+  matcher: [
+    "/((?!api|_next/static|_next/image|favicon.ico|opengraph-image|twitter-image|apple-icon|.*\\..*).*)",
+  ],
 };
