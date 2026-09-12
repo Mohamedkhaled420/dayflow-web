@@ -1,15 +1,21 @@
 "use client";
 
 // ============================================================
-// Dayflow AI — Background Paths (Phase 8)
+// Dayflow AI — Background Paths (Phase 8 — 2026-09 perf fix)
 // ------------------------------------------------------------
-// Ported from the BackgroundPaths reference component to
-// motion/react + Dayflow token discipline (dayflow/no-raw-colors:
-// stroke color rides currentColor, the wrapper color comes from
-// the PRD §9.1 token layer). Mounted ONLY on /auth — the
-// unauthenticated doorway. The authenticated app keeps its
-// performance budget: no infinite path/blur animations anywhere
-// past login (the historical screenshot-capture stall).
+// Decorative flowing-path backdrop for the auth surface,
+// layered behind the GlassPanel (absolute inset-0,
+// pointer-events-none, aria-hidden). Strokes ride currentColor
+// at LOW opacity: --color-ink (near-white) on the §9.1 dark
+// surface, so the lines read as faint light filaments.
+//
+// PERF: the original port animated 72 paths with infinite
+// pathLength/pathOffset loops — stroke-geometry animations
+// recalc on the main thread every frame and made the auth
+// page jank badly (the same failure family as the historical
+// screenshot-capture stall). The paths now draw in ONCE
+// (staggered, ~2.5s total, no repeat) and settle statically:
+// the visual is preserved, the idle cost is zero.
 // prefers-reduced-motion renders the paths fully drawn, static.
 // ============================================================
 
@@ -63,16 +69,13 @@ function FloatingPaths({ position, reduced }: FloatingPathsProps) {
             stroke="currentColor"
             strokeWidth={path.width}
             strokeOpacity={0.1 + path.id * 0.03}
-            initial={{ pathLength: 0.3, opacity: 0.6 }}
-            animate={{
-              pathLength: 1,
-              opacity: [0.3, 0.6, 0.3],
-              pathOffset: [0, 1, 0],
-            }}
+            initial={{ pathLength: 0.25, opacity: 0.5 }}
+            animate={{ pathLength: 1, opacity: 0.3 + path.id * 0.01 }}
             transition={{
-              duration: 20 + Math.random() * 10,
-              repeat: Number.POSITIVE_INFINITY,
-              ease: "linear",
+              // One-time staggered draw — no repeat, no idle cost.
+              duration: 2.2,
+              delay: (path.id % 12) * 0.12,
+              ease: "easeOut",
             }}
           />
         )
@@ -82,12 +85,8 @@ function FloatingPaths({ position, reduced }: FloatingPathsProps) {
 }
 
 /**
- * Decorative flowing-path backdrop for the auth surface. Layer
- * it behind the GlassPanel (absolute inset-0, pointer-events
- * none, aria-hidden) — it carries no content. Strokes ride
- * currentColor at LOW opacity: --color-ink (near-white) on the
- * §9.1 dark surface, so the lines read as faint light filaments
- * (a dark stroke color would vanish against #0e1117).
+ * Auth-surface backdrop: the two path families draw in once on
+ * mount, then rest. No infinite animations (auth perf budget).
  */
 export function BackgroundPaths() {
   const reduced = useReducedMotion() ?? false;

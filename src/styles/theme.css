@@ -167,7 +167,8 @@
   --df-card-time: #757471;
 
   --df-hour-label: #757471;
-  --df-hour-line: rgba(0, 0, 0, 0.07);
+  --df-hour-label-future: #9c9b98;
+  --df-hour-line: rgba(0, 0, 0, 0.11);
 
   --df-right-panel-fill: #fbfbfa;
   --df-right-panel-border: #e9e9e7;
@@ -251,6 +252,12 @@
   --df-sync-ok: #1f883d;
   --df-sync-pending: #d29922;
   --df-sync-error: #e03e3e;
+  /* Composer glow (2026-09): the journal/chat composer lights
+     up the moment the user starts typing — accent ring + soft
+     outer halo, plus a gentle breathe while typing. */
+  --df-composer-glow-ring: color-mix(in srgb, #2383e2 22%, transparent);
+  --df-composer-glow-halo: color-mix(in srgb, #2383e2 30%, transparent);
+  --df-composer-glow-border: color-mix(in srgb, #2383e2 55%, transparent);
   /* STATIC aurora tint — never animated inside the app
      (perf budget: no infinite blur/path animations). */
   --df-chat-aurora: radial-gradient(
@@ -350,7 +357,8 @@
   --df-card-time: #b1b1af;
 
   --df-hour-label: #d4d4d2;
-  --df-hour-line: rgba(255, 255, 255, 0.09);
+  --df-hour-label-future: #8f8f8d;
+  --df-hour-line: rgba(255, 255, 255, 0.13);
 
   --df-right-panel-fill: #1f1f1f;
   --df-right-panel-border: #2f2f2f;
@@ -421,6 +429,10 @@
   --df-sync-ok: #57ab5a;
   --df-sync-pending: #e3b341;
   --df-sync-error: #f85149;
+  /* Composer glow (dark). */
+  --df-composer-glow-ring: color-mix(in srgb, #379eff 26%, transparent);
+  --df-composer-glow-halo: color-mix(in srgb, #379eff 32%, transparent);
+  --df-composer-glow-border: color-mix(in srgb, #379eff 60%, transparent);
   --df-chat-aurora: radial-gradient(
     120% 90% at 50% 115%,
     rgba(35, 131, 226, 0.22),

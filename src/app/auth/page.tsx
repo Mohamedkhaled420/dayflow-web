@@ -1,15 +1,23 @@
 "use client";
 
 // ============================================================
-// Dayflow AI — auth page (Phase 2 restyle, Phase 5 passkeys)
+// Dayflow AI — auth page (Phase 2 restyle, Phase 5 passkeys
+// — 2026-09 UX fix)
 // ------------------------------------------------------------
-// v0's logic is preserved 1:1 (mode state machine, Supabase sign-in /
-// sign-up / Google OAuth, signup profile bootstrap, pending + error
-// + message states). Phase 5 T4 adds the passkey path (Amendment #17):
-// "Continue with Face ID" sits above the other options, and the
-// password form is REVEALED by the fallback chain — passkeys
-// unavailable, disabled server-side, cancelled, or failed all land
-// there. Never a dead end.
+// v0's logic is preserved 1:1 (mode state machine, Supabase
+// sign-in / sign-up / Google OAuth, signup profile bootstrap,
+// pending + error + message states). Phase 5 T4 adds the
+// passkey path (Amendment #17).
+//
+// 2026-09 fix: the password form is now ALWAYS visible.
+// Previously it hid itself whenever the server-side passkey
+// probe succeeded — a first-time visitor with no enrolled
+// passkey landed on a page whose only primary action was
+// "Continue with Face ID", with the actual form tucked behind
+// a fallback link. The passkey button still sits ABOVE the
+// form when available, and the fallback chain (cancelled /
+// failed ceremony reveals an inline error) still applies —
+// but there is never a dead end, and no form flash on load.
 // ============================================================
 
 import { FormEvent, useEffect, useState } from "react";
@@ -31,11 +39,10 @@ export default function AuthPage() {
   const [message, setMessage] = useState("");
   const [pending, setPending] = useState(false);
 
-  // Passkey surface state (T4). The password form starts REVEALED on
-  // browsers without passkey support; on capable browsers it waits
-  // behind "Use email and password instead" until the fallback fires.
+  // Passkey surface state (T4): the password form is ALWAYS
+  // visible (2026-09 fix); the passkey button renders above it
+  // only on capable browsers when the server feature is on.
   const [passkeyAvailable, setPasskeyAvailable] = useState(false);
-  const [showPasswordForm, setShowPasswordForm] = useState(true);
   const [passkeyBusy, setPasskeyBusy] = useState(false);
 
   useEffect(() => {
@@ -43,7 +50,6 @@ export default function AuthPage() {
     void passkeysServerEnabled().then((enabled) => {
       if (cancelled) return;
       setPasskeyAvailable(enabled);
-      setShowPasswordForm(!enabled);
     });
     return () => {
       cancelled = true;
@@ -127,9 +133,9 @@ export default function AuthPage() {
       router.replace("/");
       router.refresh();
     } catch (e) {
-      // MANDATORY fallback chain: cancelled ceremony, no credential,
-      // or server refusal — always land on the password form.
-      setShowPasswordForm(true);
+      // Fallback chain (Amendment #17): cancelled ceremony, no
+      // credential, or server refusal — the password form is
+      // already on screen; surface an inline error instead.
       setError(
         e instanceof Error && e.message === "Passkey cancelled"
           ? ""
@@ -188,7 +194,7 @@ export default function AuthPage() {
           />
         </div>
 
-        {/* Passkey first (Amendment #17): above every other option. */}
+        {/* Passkey first (Amendment #17): above the form when available. */}
         {passkeyAvailable && (
           <button
             type="button"
@@ -203,18 +209,15 @@ export default function AuthPage() {
           </button>
         )}
 
-        {passkeyAvailable && !showPasswordForm && (
-          <button
-            type="button"
-            onClick={() => setShowPasswordForm(true)}
-            className="mt-4 min-h-11 w-full rounded-(--radius-pill) px-4 text-sm font-medium text-(--color-ink-muted) transition-colors hover:bg-(--color-surface-subtle)"
-          >
-            Use email and password instead
-          </button>
+        {passkeyAvailable && (
+          <div className="my-5 flex items-center gap-3 text-xs text-(--color-ink-faint)">
+            <span className="h-px flex-1 bg-(--hairline)" />
+            or with email
+            <span className="h-px flex-1 bg-(--hairline)" />
+          </div>
         )}
 
-        {showPasswordForm && (
-        <form className="mt-6 flex flex-col gap-4" onSubmit={submit}>
+        <form className={passkeyAvailable ? "flex flex-col gap-4" : "mt-6 flex flex-col gap-4"} onSubmit={submit}>
           <label className="flex flex-col gap-2">
             <span className="text-sm font-medium text-(--color-ink-muted)">Email</span>
             <input
@@ -256,7 +259,6 @@ export default function AuthPage() {
             {pending ? "Please wait…" : mode === "sign-in" ? "Continue" : "Create account"}
           </button>
         </form>
-        )}
 
         <div className="my-6 flex items-center gap-3 text-xs text-(--color-ink-faint)">
           <span className="h-px flex-1 bg-(--hairline)" />

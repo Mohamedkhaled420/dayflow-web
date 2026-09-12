@@ -1,15 +1,27 @@
 "use client";
 
 // ============================================================
-// Dayflow AI — Journal rich-text composer (Phase 8, decision 1)
+// Dayflow AI — Journal rich-text composer (Phase 8, decision 1
+// — 2026-09 glow + progressive toolbar rework)
 // ------------------------------------------------------------
-// Full-featured entry editor for the Journal view, ported from
-// the glassmorphic rich-text reference and re-skinned to the
-// Notion-quiet token system. Powered by document.execCommand
-// (deprecated but dependency-free and supported by every target
-// browser — Safari/Chrome/Firefox all execute the formatting
-// subset used here). Output HTML is stored via addJournalEntry
-// and ALWAYS re-rendered through sanitizeJournalHtml().
+// Full-featured entry editor for the Journal view, powered by
+// document.execCommand (deprecated but dependency-free and
+// supported by every target browser). Output HTML is stored via
+// addJournalEntry and ALWAYS re-rendered through
+// sanitizeJournalHtml().
+//
+// 2026-09 rework:
+//   GLOW — the composer lights up the moment the user starts
+//   typing (user-requested): a focus ring while empty-focused,
+//   and a full accent glow (ring + halo + gentle breathe) once
+//   there is content. Rides .df-composer* classes in globals.css
+//   (compositor-friendly: the breathe animates a pseudo-element's
+//   opacity only).
+//   PROGRESSIVE TOOLBAR — the 16 formatting controls collapsed
+//   out of sight until the composer is focused (grid-template-
+//   rows 0fr -> 1fr, no CLS). Idle state reads as a clean chat
+//   box instead of a wall of tiny buttons.
+//
 // Fullscreen mode is an immersive surface: it requests the
 // mobile dock to hide (Rule B, useDockHideRequest) and floats
 // above sheets (z-70), below toasts (z-100).
@@ -90,6 +102,8 @@ export function JournalComposer({
   const lastEmitted = useRef<string>(value);
   const [fullscreen, setFullscreen] = useState(false);
   const [stats, setStats] = useState({ words: 0, chars: 0 });
+  // Glow ladder: focused (ring) -> typing (full glow + breathe).
+  const [focused, setFocused] = useState(false);
 
   useDockHideRequest("editor-fullscreen", fullscreen);
 
@@ -152,57 +166,71 @@ export function JournalComposer({
   };
 
   const empty = stats.chars === 0;
+  const typing = !empty;
+  const glowClass = typing
+    ? "df-composer df-composer-typing"
+    : focused
+      ? "df-composer df-composer-focus"
+      : "df-composer";
 
   const toolbar = (
     <div
-      className="flex flex-wrap items-center gap-0.5 px-2 py-1.5"
-      style={{ borderBottom: "0.5px solid var(--df-chip-border)" }}
+      className="df-composer-toolbar"
       role="toolbar"
       aria-label="Formatting"
     >
-      {[...HISTORY_TOOLS, ...INLINE_TOOLS, ...BLOCK_TOOLS].map((tool) => (
-        <button
-          key={tool.label}
-          type="button"
-          onClick={() => exec(tool)}
-          aria-label={tool.label}
-          title={tool.label}
-          className="df-press grid h-7 w-7 place-items-center rounded-md"
-          style={{ color: "var(--df-text-secondary)" }}
+      <div>
+        <div
+          className="flex flex-wrap items-center gap-0.5 px-2 py-1.5"
+          style={{ borderBottom: "0.5px solid var(--df-chip-border)" }}
         >
-          <tool.Icon className="h-3.5 w-3.5" strokeWidth={2} />
-        </button>
-      ))}
-      <button
-        type="button"
-        onClick={insertLink}
-        aria-label="Insert link"
-        title="Insert link"
-        className="df-press grid h-7 w-7 place-items-center rounded-md"
-        style={{ color: "var(--df-text-secondary)" }}
-      >
-        <Link2 className="h-3.5 w-3.5" strokeWidth={2} />
-      </button>
-      <span
-        className="mx-1 hidden h-4 w-px sm:block"
-        style={{ background: "var(--df-chip-border)" }}
-        aria-hidden="true"
-      />
-      <button
-        type="button"
-        onClick={() => setFullscreen((v) => !v)}
-        aria-label={fullscreen ? "Exit fullscreen editor" : "Expand editor to fullscreen"}
-        title={fullscreen ? "Exit fullscreen (Esc)" : "Fullscreen"}
-        aria-pressed={fullscreen}
-        className="df-press ml-auto grid h-7 w-7 place-items-center rounded-md"
-        style={{ color: "var(--df-text-secondary)" }}
-      >
-        {fullscreen ? (
-          <Minimize2 className="h-3.5 w-3.5" strokeWidth={2} />
-        ) : (
-          <Maximize2 className="h-3.5 w-3.5" strokeWidth={2} />
-        )}
-      </button>
+          {[...HISTORY_TOOLS, ...INLINE_TOOLS, ...BLOCK_TOOLS].map((tool) => (
+            <button
+              key={tool.label}
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => exec(tool)}
+              aria-label={tool.label}
+              title={tool.label}
+              className="df-press grid h-7 w-7 place-items-center rounded-md"
+              style={{ color: "var(--df-text-secondary)" }}
+            >
+              <tool.Icon className="h-3.5 w-3.5" strokeWidth={2} />
+            </button>
+          ))}
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={insertLink}
+            aria-label="Insert link"
+            title="Insert link"
+            className="df-press grid h-7 w-7 place-items-center rounded-md"
+            style={{ color: "var(--df-text-secondary)" }}
+          >
+            <Link2 className="h-3.5 w-3.5" strokeWidth={2} />
+          </button>
+          <span
+            className="mx-1 hidden h-4 w-px sm:block"
+            style={{ background: "var(--df-chip-border)" }}
+            aria-hidden="true"
+          />
+          <button
+            type="button"
+            onClick={() => setFullscreen((v) => !v)}
+            aria-label={fullscreen ? "Exit fullscreen editor" : "Expand editor to fullscreen"}
+            title={fullscreen ? "Exit fullscreen (Esc)" : "Fullscreen"}
+            aria-pressed={fullscreen}
+            className="df-press ml-auto grid h-7 w-7 place-items-center rounded-md"
+            style={{ color: "var(--df-text-secondary)" }}
+          >
+            {fullscreen ? (
+              <Minimize2 className="h-3.5 w-3.5" strokeWidth={2} />
+            ) : (
+              <Maximize2 className="h-3.5 w-3.5" strokeWidth={2} />
+            )}
+          </button>
+        </div>
+      </div>
     </div>
   );
 
@@ -227,6 +255,7 @@ export function JournalComposer({
         spellCheck
         onInput={emit}
         onBlur={emit}
+        onFocus={() => setFocused(true)}
         onKeyDown={onKeyDown}
         className="df-prose min-h-[84px] flex-1 px-3 py-2.5 text-[13px] leading-relaxed outline-none"
         style={{ color: "var(--df-text-primary)", overflowY: "auto" }}
@@ -248,13 +277,17 @@ export function JournalComposer({
 
   const card = (
     <div
-      className={`flex flex-col overflow-hidden ${
+      className={`relative flex flex-col overflow-hidden transition-shadow ${
         fullscreen ? "h-full" : ""
-      }`}
+      } ${glowClass}`}
+      onBlur={(e) => {
+        // Focus leaves the whole card (not just moves between its
+        // own children) → drop the ring.
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) setFocused(false);
+      }}
       style={{
         background: "var(--df-input-fill)",
-        border: "0.5px solid var(--df-input-border)",
-        borderRadius: "var(--df-radius-control)",
+        borderRadius: "10px",
       }}
     >
       {toolbar}

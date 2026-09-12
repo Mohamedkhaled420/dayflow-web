@@ -325,67 +325,73 @@ export function ChatView() {
             ))}
           </div>
 
-          {/* mood picker */}
-          <div className="mb-2 flex items-center gap-1.5" role="radiogroup" aria-label="Mood for this entry">
-            {MOODS.map((m) => {
-              const active = mood === m.score;
-              return (
-                <button
-                  key={m.score}
-                  type="button"
-                  role="radio"
-                  aria-checked={active}
-                  aria-label={m.label}
-                  onClick={() => setMood(m.score)}
-                  className="df-press grid min-h-11 min-w-11 place-items-center rounded-full"
-                  style={{
-                    background: active ? "var(--df-chat-soft-fill)" : "transparent",
-                    border: active
-                      ? "1.5px solid color-mix(in srgb, var(--df-accent) 55%, transparent)"
-                      : "1.5px solid transparent",
-                  }}
-                >
-                  <m.Icon
-                    className="h-5 w-5"
-                    style={{ color: active ? "var(--df-accent)" : "var(--df-text-muted)" }}
-                  />
-                </button>
-              );
-            })}
-          </div>
-
-          {/* rich-text composer (decision 1) */}
+          {/* rich-text composer (decision 1) — glows on typing */}
           <JournalComposer
             value={draft}
             onChange={setDraft}
             onSubmit={() => void saveEntry()}
           />
 
+          {/* action row — mood for the entry, then save / ask */}
           <div className="mt-2 flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => void saveEntry()}
-              disabled={!draftText || saving}
-              className="df-press df-btn-primary min-h-11 flex items-center gap-1.5 rounded-md px-4 text-[12.5px] font-semibold disabled:opacity-40"
+            <div
+              className="flex items-center gap-0.5"
+              role="radiogroup"
+              aria-label="Mood for this entry"
             >
-              <NotebookPen className="h-3.5 w-3.5" />
-              {saving ? "Saving…" : "Save entry"}
-            </button>
-            <button
-              type="button"
-              onClick={() => void askCoach(draftText)}
-              disabled={!draftText || asking}
-              aria-busy={asking}
-              aria-label={asking ? "Coach is thinking" : "Ask the coach about this"}
-              className="df-press df-btn-secondary min-h-11 flex items-center gap-1.5 rounded-md px-4 text-[12.5px] font-semibold disabled:opacity-40"
-            >
-              {asking ? (
-                <LogoLoop size="sm" />
-              ) : (
-                <Sparkles className="h-3.5 w-3.5" style={{ color: "var(--df-accent)" }} />
-              )}
-              {asking ? "thinking…" : "Ask Coach"}
-            </button>
+              {MOODS.map((m) => {
+                const active = mood === m.score;
+                return (
+                  <button
+                    key={m.score}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    aria-label={m.label}
+                    onClick={() => setMood(m.score)}
+                    className="df-press grid size-10 place-items-center rounded-full"
+                    style={{
+                      background: active ? "var(--df-chat-soft-fill)" : "transparent",
+                      border: active
+                        ? "1.5px solid color-mix(in srgb, var(--df-accent) 55%, transparent)"
+                        : "1.5px solid transparent",
+                    }}
+                  >
+                    <m.Icon
+                      className="h-[18px] w-[18px]"
+                      style={{ color: active ? "var(--df-accent)" : "var(--df-text-muted)" }}
+                    />
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="ml-auto flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => void saveEntry()}
+                disabled={!draftText || saving}
+                className="df-press df-btn-primary min-h-11 flex items-center gap-1.5 rounded-md px-4 text-[12.5px] font-semibold disabled:opacity-40"
+              >
+                <NotebookPen className="h-3.5 w-3.5" />
+                {saving ? "Saving…" : "Save entry"}
+              </button>
+              <button
+                type="button"
+                onClick={() => void askCoach(draftText)}
+                disabled={!draftText || asking}
+                aria-busy={asking}
+                aria-label={asking ? "Coach is thinking" : "Ask the coach about this"}
+                className="df-press df-btn-secondary min-h-11 flex items-center gap-1.5 rounded-md px-4 text-[12.5px] font-semibold disabled:opacity-40"
+              >
+                {asking ? (
+                  <LogoLoop size="sm" />
+                ) : (
+                  <Sparkles className="h-3.5 w-3.5" style={{ color: "var(--df-accent)" }} />
+                )}
+                {asking ? "thinking…" : "Ask Coach"}
+              </button>
+            </div>
           </div>
           <p className="mt-1.5 text-center text-[10px]" style={{ color: "var(--df-text-muted)" }}>
             Entries stay owner-only (RLS). Ask Coach sends your{" "}

@@ -191,6 +191,85 @@ h4 {
   background: var(--df-chat-aurora);
 }
 
+/* ============================================================
+   Composer glow (2026-09) — the journal/chat composer lights
+   up the moment the user starts typing.
+   .df-composer        : resting card (hairline border)
+   .df-composer-focus  : focused (soft ring, no halo)
+   .df-composer-typing : has content — full glow (ring + halo
+                         + accent border) with a gentle breathe
+                         on a pseudo-element (opacity-only key-
+                         frames ride the compositor; the card
+                         itself never repaints per frame).
+   ============================================================ */
+.df-composer {
+  border: 0.5px solid var(--df-input-border);
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+.df-composer-focus {
+  border-color: var(--df-composer-glow-border);
+  box-shadow: 0 0 0 3px var(--df-composer-glow-ring);
+}
+.df-composer-typing {
+  border-color: var(--df-composer-glow-border);
+  box-shadow: 0 0 0 3px var(--df-composer-glow-ring),
+    0 8px 28px var(--df-composer-glow-halo);
+}
+.df-composer-typing::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: 0 0 22px var(--df-composer-glow-halo);
+  animation: df-composer-breathe 2.6s ease-in-out infinite;
+}
+@keyframes df-composer-breathe {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Progressive formatting toolbar — hidden until the composer
+   is focused, then fades/slides in. Grid height keeps the
+   layout stable while collapsing (no CLS on surrounding
+   content). */
+.df-composer-toolbar {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.24s ease;
+}
+.df-composer-toolbar > div {
+  overflow: hidden;
+  min-height: 0;
+}
+.df-composer-typing .df-composer-toolbar,
+.df-composer-focus .df-composer-toolbar {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .df-composer,
+  .df-composer-focus,
+  .df-composer-typing {
+    transition: none;
+  }
+  .df-composer-typing::after {
+    animation: none;
+    opacity: 0.8;
+  }
+  .df-composer-toolbar {
+    transition: none;
+  }
+}
+
 /* Journal rich-text rendering (Phase 8 decision 1): entries
    are stored as sanitized HTML and rendered through this
    minimal, token-driven prose layer. */
@@ -598,6 +677,70 @@ select {
   }
 }
 
+/* ============================================================
+   Timeline responsive rules (2026-09 fix).
+   The timeline's mobile/desktop split now matches the app
+   shell's lg breakpoint (1024px) — the mobile dock, mobile
+   header, and right rail all switch there. Previously these
+   rules keyed off 639px while the shell keyed off lg, so
+   tablets (640-1023px) rendered the mobile header + dock
+   AROUND a desktop timeline, and ≥1024px stacked BOTH the
+   mobile event list and the desktop grid (double content).
+   The list/grid visibility itself now rides Tailwind lg:
+   classes on the JSX (lg:hidden / hidden lg:block).
+   ============================================================ */
+@media (max-width: 1023px) {
+  .df-timeline-header {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem 0.75rem;
+  }
+
+  .df-timeline-header > :first-child {
+    grid-column: 1 / -1;
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .df-timeline-header > :first-child > button:nth-child(2) {
+    flex: 1;
+    justify-content: center;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .df-timeline-header > :nth-child(2) {
+    margin-left: 0;
+    justify-self: start;
+  }
+
+  .df-timeline-header > :nth-child(3) {
+    justify-self: end;
+  }
+
+  .df-timeline-header > :nth-child(3) button:last-child {
+    display: none;
+  }
+
+  .df-timeline-filters {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding: 0 1rem 0.75rem;
+    scrollbar-width: none;
+  }
+
+  .df-timeline-filters::-webkit-scrollbar {
+    display: none;
+  }
+
+  .df-timeline-filters > button {
+    flex: 0 0 auto;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .df-rise,
   .df-generating {
@@ -663,13 +806,9 @@ select {
     max-width: 100%;
   }
 
-  .df-desktop-timeline {
-    display: none;
-  }
-
-  .df-mobile-event-list {
-    display: block;
-  }
+  /* (df-desktop-timeline / df-mobile-event-list visibility is
+     handled by Tailwind lg: classes on the JSX since the 2026-09
+     breakpoint fix — see the 1023px block above.) */
 
   .df-mobile-header {
     background: color-mix(in srgb, var(--df-window-bg) 88%, transparent);
@@ -685,56 +824,6 @@ select {
 
   .df-mobile-dock {
     bottom: max(0.5rem, env(safe-area-inset-bottom));
-  }
-
-  .df-timeline-header {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 0.75rem;
-    padding: 0.75rem 1rem 0.75rem;
-  }
-
-  .df-timeline-header > :first-child {
-    grid-column: 1 / -1;
-    justify-content: space-between;
-    width: 100%;
-  }
-
-  .df-timeline-header > :first-child > button:nth-child(2) {
-    flex: 1;
-    justify-content: center;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .df-timeline-header > :nth-child(2) {
-    margin-left: 0;
-    justify-self: start;
-  }
-
-  .df-timeline-header > :nth-child(3) {
-    justify-self: end;
-  }
-
-  .df-timeline-header > :nth-child(3) button:last-child {
-    display: none;
-  }
-
-  .df-timeline-filters {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    padding: 0 1rem 0.75rem;
-    scrollbar-width: none;
-  }
-
-  .df-timeline-filters::-webkit-scrollbar {
-    display: none;
-  }
-
-  .df-timeline-filters > button {
-    flex: 0 0 auto;
   }
 
   .df-daily-view {

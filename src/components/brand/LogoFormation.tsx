@@ -1,31 +1,38 @@
 "use client";
 
 // ============================================================
-// Dayflow AI — LogoFormation (Phase 6.5 / B2)
+// Dayflow AI — LogoFormation (Phase 6.5 / B2 — 2026-09 fix)
 // ------------------------------------------------------------
-// Scroll-driven draw-on of the brand mark, mounted on the public
-// landing route inside a 220vh runway. pathLength is bound to a
-// spring-smoothed scroll progress (stiffness 120, damping 30):
+// The mark draws itself ONCE on mount over ~1.8s and the hero
+// copy is always visible (entrance tied to the same timeline):
 //
 //   0%  – 55% : top arc + inner hook draw
 //   35% – 90% : bottom arc draws (overlaps the top)
 //   85% –100% : sun dot pops in (scale 0 -> 1)
 //   90% –100% : specular hairline fades in (opacity 0 -> 0.9)
+//   15% – 55% : hero copy fades in and rises
 //
-// §5.6 exception (documented in DESIGN.md): this is the ONE
-// scroll-bound animation in the product — a single path draw with
-// zero idle cost; everything else stays compositor-only.
+// WHY NOT SCROLL-DRIVEN (the Phase 6.5 design): the formation
+// used useScroll({ container: document.body }), which silently
+// died when Phase 8 (F-2) switched html/body overflow-x from
+// hidden to clip — clip deliberately does NOT create a scroll
+// container, so body.scrollTop stayed 0 forever and the landing
+// rendered as an empty screen of dots, before AND after
+// scrolling. Even with correct tracking, a 220vh runway meant
+// the first viewport showed no product copy at all. A one-time
+// mount animation keeps the brand moment, works without any
+// scroll, and has zero idle cost once complete.
 //
-// prefers-reduced-motion: the fully formed mark renders with no
-// scroll binding at all.
+// prefers-reduced-motion: the fully formed mark + copy render
+// statically with no animation at all.
 // ============================================================
 
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo } from "react";
 import {
+  animate,
   motion,
+  useMotionValue,
   useReducedMotion,
-  useScroll,
-  useSpring,
   useTransform,
   type MotionValue,
 } from "motion/react";
@@ -46,42 +53,39 @@ import {
   TOP_ARC_2,
 } from "./logoGeometry";
 
+/** Total draw time for the formation (seconds). */
+const FORMATION_DURATION = 1.8;
+const FORMATION_EASE: [number, number, number, number] = [0.65, 0, 0.35, 1];
+
 export function LogoFormation({
   children,
 }: {
-  /** Sticky-layer content (headline, CTA) rendered beside the mark. */
+  /** Hero content (headline, CTA) rendered beside the mark. */
   children?: React.ReactNode;
 }) {
   const reduced = useReducedMotion();
-  const runway = useRef<HTMLDivElement>(null);
-  // globals.css sets overflow-x:hidden on BOTH html and body, which
-  // makes <body> the scroll container (the viewport never scrolls —
-  // the app views rely on this too). Motion's useScroll defaults to
-  // window tracking, so the formation must track body explicitly.
-  // A memoized getter object satisfies useScroll's RefObject shape
-  // without touching refs during render (React Compiler lint).
-  const scrollContainer = useMemo(
-    () => ({
-      get current() {
-        return typeof document === "undefined" ? null : document.body;
-      },
-    }),
-    [],
-  );
-  const { scrollYProgress } = useScroll({
-    container: scrollContainer as unknown as React.RefObject<HTMLElement>,
-    target: runway,
-    offset: ["start start", "end end"],
-  });
-  const progress = useSpring(scrollYProgress, { stiffness: 120, damping: 30 });
+
+  // One shared timeline: 0 -> 1 over FORMATION_DURATION on mount.
+  // (No scroll binding — see the header comment for the history.)
+  const progress = useMotionValue(0);
+
+  useEffect(() => {
+    if (reduced) return;
+    const controls = animate(progress, 1, {
+      duration: FORMATION_DURATION,
+      ease: FORMATION_EASE,
+    });
+    return () => controls.stop();
+  }, [progress, reduced]);
 
   const topPath = useTransform(progress, [0, 0.55], [0, 1]);
   const bottomPath = useTransform(progress, [0.35, 0.9], [0, 1]);
   const dotScale = useTransform(progress, [0.85, 1], [0, 1]);
   const specular = useTransform(progress, [0.9, 1], [0, 0.9]);
   const lens = useTransform(progress, [0.5, 0.62], [0, 1]);
-  const copyOpacity = useTransform(progress, [0.12, 0.4], [0, 1]);
-  const copyY = useTransform(progress, [0.12, 0.4], [24, 0]);
+  // Copy leads the ring: readable within ~0.5s of load.
+  const copyOpacity = useTransform(progress, [0.15, 0.5], [0, 1]);
+  const copyY = useTransform(progress, [0.15, 0.5], [24, 0]);
 
   if (reduced) {
     return (
@@ -97,14 +101,14 @@ export function LogoFormation({
   }
 
   return (
-    <div ref={runway} className="relative h-[220vh]">
-      <div className="sticky top-0 flex min-h-screen flex-col items-center justify-center gap-10 px-6 py-16">
+    <div className="relative">
+      <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-10 px-6 py-16">
         <svg
           viewBox="0 0 512 512"
           fill="none"
           style={{ width: "min(64vw, 44vh)", height: "auto" }}
           role="img"
-          aria-label="Dayflow AI mark drawing itself as you scroll"
+          aria-label="Dayflow AI mark drawing itself"
         >
           <defs>
             <linearGradient

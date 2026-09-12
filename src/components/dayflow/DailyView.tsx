@@ -247,10 +247,12 @@ export function DailyView() {
                 ))}
               </div>
               <div
-                className="mt-3 flex items-center gap-1.5 text-[10px]"
+                className="mt-3 flex items-center gap-2 text-[10px]"
                 style={{ color: "var(--df-text-muted)" }}
               >
-                <span className="ml-[110px]">water</span>
+                {/* mirrors the row structure (110px label + gap) so the
+                    swatch column-aligns with the slot grid */}
+                <span className="w-[110px] shrink-0 pr-1 text-right">water</span>
                 <span
                   className="h-3 w-3 rounded-[2px]"
                   style={{

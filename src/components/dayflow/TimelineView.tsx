@@ -128,12 +128,13 @@ export function TimelineView() {
   );
 
   // auto-scroll to a sensible anchor (now on today, wake time otherwise).
-  // On phones the timeline is page-flow (fully expanded), so scroll the
-  // window instead of the container.
+  // On phones/tablets the timeline is page-flow (fully expanded), so scroll the
+  // window instead of the container. (1023px matches the app shell's lg
+  // mobile/desktop split — the mobile dock and header use the same line.)
   useEffect(() => {
     const el = scrollRef.current;
     if (!el || mode !== "day") return;
-    const isMobile = window.matchMedia("(max-width: 639px)").matches;
+    const isMobile = window.matchMedia("(max-width: 1023px)").matches;
     const anchor = isMobile ? 5 * 60 + 30 : dayOffset === 0 ? nowMinutes() - 120 : 5 * 60 + 30;
     const scrollTop = Math.max(0, anchor * PX_PER_MIN - (isMobile ? 12 : 60));
     if (el.scrollHeight > el.clientHeight + 8) {
@@ -179,18 +180,28 @@ export function TimelineView() {
   const quickWater = () => {
     triggerHaptic();
     // Optimistic toast on the expected total — the Delta Sync store
-    // appends locally first, then fires the Supabase insert.
-    void addHydrationLog({ amount_ml: profile.waterGlassMl });
-    toast({
-      title: "Glass logged",
-      description: `${profile.waterGlassMl} ml · ${waterTotal(data.water, dateKey) + profile.waterGlassMl} ml today`,
+    // appends locally first, then fires the Supabase insert. The toast
+    // only claims success when a row actually landed (2026-09 fix: a
+    // dead session used to no-op silently while still toasting).
+    void addHydrationLog({ amount_ml: profile.waterGlassMl }).then((id) => {
+      if (id) {
+        toast({
+          title: "Glass logged",
+          description: `${profile.waterGlassMl} ml · ${waterTotal(data.water, dateKey) + profile.waterGlassMl} ml today`,
+        });
+      } else {
+        toast({
+          title: "Water didn't log",
+          description: "Your session looks expired — reload the app and try again.",
+        });
+      }
     });
   };
 
   return (
-    <div className="flex flex-col lg:flex-row h-full">
+    <div className="flex flex-col lg:flex-row h-full min-h-0">
       {/* ------- timeline column ------- */}
-      <div className="flex-1 min-w-0 flex flex-col">
+      <div className="flex-1 min-w-0 min-h-0 flex flex-col">
         <header className="df-timeline-header px-4 sm:px-5 pt-4 pb-2.5 flex flex-wrap items-center gap-x-2 gap-y-2">
           <div className="flex items-center gap-1.5">
             <NavArrow dir="prev" disabled={dayOffset <= -13} onClick={() => go(-1)} />
@@ -349,33 +360,47 @@ export function TimelineView() {
               className="relative z-40 mx-4 sm:mx-5 mb-3 rounded-lg p-3 backdrop-blur-xl saturate-180 w-[266px]"
             >
               <div className="grid grid-cols-7 gap-1.5">
-                {buildCalendarDays().map((d) => (
-                  <button
-                    key={d.dayNum}
-                    disabled={d.offset > 0}
-                    onClick={() => {
-                      setDayOffset(d.offset);
-                      setSelectedId(null);
-                      setShowCalendar(false);
-                    }}
-                    className="df-press h-8 rounded-md text-[12px] font-medium disabled:opacity-30"
-                    style={
-                      d.offset === dayOffset
-                        ? {
-                            background: "var(--df-primary-btn-fill)",
-                            color: "var(--df-white)",
-                            boxShadow: "inset 0 0 0 1.5px var(--df-primary-btn-border)",
-                          }
-                        : {
-                            background: "var(--df-chip-fill)",
-                            border: "0.5px solid var(--df-chip-border)",
-                            color: "var(--df-text-primary)",
-                          }
-                    }
+                {["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].map((d) => (
+                  <span
+                    key={d}
+                    className="h-5 text-center text-[9.5px] font-bold uppercase tracking-wide"
+                    style={{ color: "var(--df-text-muted)" }}
+                    aria-hidden="true"
                   >
-                    {d.dayNum}
-                  </button>
+                    {d}
+                  </span>
                 ))}
+                {buildCalendarDays().map((d, i) =>
+                  d.placeholder ? (
+                    <span key={`pad-${i}`} aria-hidden="true" />
+                  ) : (
+                    <button
+                      key={d.dayNum}
+                      disabled={d.offset > 0}
+                      onClick={() => {
+                        setDayOffset(d.offset);
+                        setSelectedId(null);
+                        setShowCalendar(false);
+                      }}
+                      className="df-press h-8 rounded-md text-[12px] font-medium disabled:opacity-30"
+                      style={
+                        d.offset === dayOffset
+                          ? {
+                              background: "var(--df-primary-btn-fill)",
+                              color: "var(--df-white)",
+                              boxShadow: "inset 0 0 0 1.5px var(--df-primary-btn-border)",
+                            }
+                          : {
+                              background: "var(--df-chip-fill)",
+                              border: "0.5px solid var(--df-chip-border)",
+                              color: "var(--df-text-primary)",
+                            }
+                      }
+                    >
+                      {d.dayNum}
+                    </button>
+                  )
+                )}
               </div>
             </motion.div>
           )}
@@ -389,10 +414,24 @@ export function TimelineView() {
             glassMl={profile.waterGlassMl}
             isToday={dayOffset === 0}
             selectedId={selectedId}
+            selected={selected}
+            dateKey={dateKey}
             zones={timelineZones}
             onSelect={(id) => {
               hapticSelect();
               setSelectedId((cur) => (cur === id ? null : id));
+            }}
+            onEdit={() => selected && setDialog({ open: true, event: selected })}
+            onDelete={async () => {
+              if (!selected) return;
+              hapticWarn();
+              setSelectedId(null);
+              if (selected.categoryId === "sleep") {
+                await deleteSleepLog(selected.id);
+              } else {
+                await deleteWorkoutLog(selected.id);
+              }
+              toast({ title: "Block deleted", description: selected.title });
             }}
             onMove={async (event, newStart, newEnd) => {
               // Drag-to-reschedule: persist through the Delta Sync
@@ -424,7 +463,8 @@ export function TimelineView() {
         style={{ background: "var(--df-right-panel-divider)" }}
       />
 
-      {/* ------- right inspector ------- */}
+      {/* ------- right inspector (desktop only — mobile gets the
+          detail + summary inside the timeline scroll flow) ------- */}
       {selected ? (
         <EventDetailPanel
           event={selected}
@@ -439,12 +479,12 @@ export function TimelineView() {
             }
             toast({ title: "Block deleted", description: selected.title });
           }}
-          className="lg:w-[300px] xl:w-[320px] shrink-0 border-t lg:border-t-0"
+          className="hidden lg:flex lg:w-[300px] xl:w-[320px] shrink-0 border-t lg:border-t-0"
         />
       ) : (
         <DaySummaryPanel
           dateKey={dateKey}
-          className="lg:w-[300px] xl:w-[320px] shrink-0 border-t lg:border-t-0"
+          className="hidden lg:flex lg:w-[300px] xl:w-[320px] shrink-0 border-t lg:border-t-0"
         />
       )}
 
@@ -575,8 +615,12 @@ function DayTimeline({
   glassMl,
   isToday,
   selectedId,
+  selected,
+  dateKey,
   zones,
   onSelect,
+  onEdit,
+  onDelete,
   onMove,
   scrollRef,
 }: {
@@ -585,8 +629,12 @@ function DayTimeline({
   glassMl: number;
   isToday: boolean;
   selectedId: string | null;
+  selected: TrackEvent | null;
+  dateKey: string;
   zones: TimelineZone[];
   onSelect: (id: string) => void;
+  onEdit: () => void;
+  onDelete: () => void;
   onMove: (event: TrackEvent, newStart: string, newEnd: string) => void;
   scrollRef: React.RefObject<HTMLDivElement | null>;
 }) {
@@ -648,21 +696,29 @@ function DayTimeline({
 
   return (
     <>
-      <div className="df-mobile-event-list df-scroll flex-1 overflow-y-auto px-4 pb-32" role="list" aria-label="Day timeline">
-        {events.length === 0 ? (
-          <div className="df-card mt-3 p-5 text-center">
-            <p className="text-[13px] font-semibold" style={{ color: "var(--df-text-primary)" }}>Nothing tracked yet</p>
-            <p className="mt-1 text-[11.5px]" style={{ color: "var(--df-text-secondary)" }}>Tap Log above to add sleep or a workout.</p>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-2 pt-1">
-            {events.map((event) => {
+      {/* ------- MOBILE / TABLET (< lg): one scroll flow —
+          event list, selected block detail, then the day
+          summary (goals, hydration, stats) — everything
+          reachable, nothing clipped under the fixed-height
+          app shell (2026-09 fix: the summary used to stack
+          below the fold with overflow:hidden ancestors and
+          was unreachable, which made water logging feel
+          broken on phones). ------- */}
+      <div className="df-scroll flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 pb-[calc(96px+env(safe-area-inset-bottom))] pt-1 lg:hidden">
+        <div className="df-mobile-event-list flex flex-col gap-2" role="list" aria-label="Day timeline">
+          {events.length === 0 ? (
+            <div className="df-card mt-3 p-5 text-center">
+              <p className="text-[13px] font-semibold" style={{ color: "var(--df-text-primary)" }}>Nothing tracked yet</p>
+              <p className="mt-1 text-[11.5px]" style={{ color: "var(--df-text-secondary)" }}>Tap Log above to add sleep or a workout.</p>
+            </div>
+          ) : (
+            events.map((event) => {
               const cat = categoryById(LOGGABLE_CATEGORIES, event.categoryId);
               return (
                 <button
                   key={event.id}
                   onClick={() => onSelect(event.id)}
-                  className="df-mobile-event df-card flex min-h-16 w-full items-center gap-3 px-3 py-2.5 text-left df-press"
+                  className="df-mobile-event df-card df-lift flex min-h-16 w-full items-center gap-3 px-3 py-2.5 text-left df-press"
                   style={{ outline: selectedId === event.id ? "1.5px solid var(--df-accent)" : "none" }}
                   aria-pressed={selectedId === event.id}
                   aria-label={`${event.title}, ${cat.name}, ${fmtRange(event)}, ${fmtDuration(eventDuration(event))}`}
@@ -678,13 +734,30 @@ function DayTimeline({
                   <span className="shrink-0 text-[10.5px] font-semibold tabular-nums" style={{ color: "var(--df-text-secondary)" }}>{fmtDuration(eventDuration(event))}</span>
                 </button>
               );
-            })}
+            })
+          )}
+        </div>
+
+        {/* selected block detail — inline, above the summary */}
+        {selected && (
+          <div className="df-card p-4" aria-label="Block details">
+            <EventDetailPanel
+              event={selected}
+              onEdit={onEdit}
+              onDelete={onDelete}
+              variant="embedded"
+            />
           </div>
         )}
+
+        {/* day summary — goals, hydration quick-log, stats */}
+        <DaySummaryContent dateKey={dateKey} />
       </div>
+
+      {/* ------- DESKTOP (≥ lg): proportional 24h grid ------- */}
       <div
         ref={scrollRef}
-        className="df-desktop-timeline df-scroll df-edge-fade flex-1 overflow-y-auto px-4 pb-8 sm:px-5"
+        className="df-desktop-timeline df-scroll df-edge-fade hidden flex-1 overflow-y-auto px-4 pb-8 sm:px-5 lg:block"
         role="list"
         aria-label="Day timeline"
       >
@@ -705,7 +778,10 @@ function DayTimeline({
           ))}
         </div>
 
-        {/* hour labels every 2 hours */}
+        {/* hour labels every 2 hours — future hours dim to a
+            READABLE future tone (2026-09 fix: they previously used
+            the 7%-alpha grid-line token as a text color and were
+            invisible on the white surface) */}
         <div aria-hidden="true">
           {hourLines
             .filter((h) => h % 2 === 0 && h < 24)
@@ -715,7 +791,10 @@ function DayTimeline({
                 className="absolute right-[calc(100%-44px)] text-[11px] font-medium tabular-nums"
                 style={{
                   top: h * 60 * PX_PER_MIN - 8,
-                  color: isToday && h * 60 > nowMin ? "var(--df-hour-line)" : "var(--df-text-muted)",
+                  color:
+                    isToday && h * 60 > nowMin
+                      ? "var(--df-hour-label-future)"
+                      : "var(--df-hour-label)",
                 }}
               >
                 {h === 0 ? "12 AM" : h < 12 ? `${h} AM` : h === 12 ? "12 PM" : `${h - 12} PM`}
@@ -1027,10 +1106,33 @@ function WeekTimeline({ dateKey }: { dateKey: string }) {
 
 /* ---------------- right panel: day summary ---------------- */
 
+/**
+ * Desktop right-rail wrapper. Mobile renders the same content
+ * inside the timeline scroll flow (DaySummaryContent) — the
+ * aside styling only applies here.
+ */
 function DaySummaryPanel({ dateKey, className }: { dateKey: string; className?: string }) {
+  return (
+    <aside
+      className={`df-scroll overflow-y-auto px-4 py-4 ${className ?? ""}`}
+      aria-label="Day summary"
+      style={{
+        background: "var(--df-right-panel-fill)",
+        borderLeft: "0.5px solid var(--df-right-panel-border)",
+      }}
+    >
+      <DaySummaryContent dateKey={dateKey} />
+    </aside>
+  );
+}
+
+/** Goals + hydration + stats + donut — shared by the desktop
+ *  right rail and the mobile scroll flow. */
+function DaySummaryContent({ dateKey }: { dateKey: string }) {
   const data = useDayflowData();
   const addHydrationLog = useDayflowStore((s) => s.addHydrationLog);
   const deleteHydrationLog = useDayflowStore((s) => s.deleteHydrationLog);
+  const { toast } = useToast();
   const goals = useMemo(() => goalsForDay(data, dateKey), [data, dateKey]);
   const totals = useMemo(() => categoryTotals(data.events, dateKey), [data.events, dateKey]);
   const donutSlices = useMemo(
@@ -1050,18 +1152,20 @@ function DaySummaryPanel({ dateKey, className }: { dateKey: string; className?: 
 
   const logWater = () => {
     triggerHaptic();
-    void addHydrationLog({ amount_ml: data.profile.waterGlassMl });
+    // 2026-09 fix: toast reflects what actually happened — a dead
+    // session no-ops in the store and must not claim success.
+    void addHydrationLog({ amount_ml: data.profile.waterGlassMl }).then((id) => {
+      if (!id) {
+        toast({
+          title: "Water didn't log",
+          description: "Your session looks expired — reload the app and try again.",
+        });
+      }
+    });
   };
 
   return (
-    <aside
-      className={`df-scroll overflow-y-auto px-4 py-4 ${className ?? ""}`}
-      aria-label="Day summary"
-      style={{
-        background: "var(--df-right-panel-fill)",
-        borderLeft: "0.5px solid var(--df-right-panel-border)",
-      }}
-    >
+    <div aria-label="Day summary">
       <h2
         className="text-[15px] font-bold tracking-tight"
         style={{ color: "var(--df-text-primary)" }}
@@ -1242,7 +1346,7 @@ function DaySummaryPanel({ dateKey, className }: { dateKey: string; className?: 
           </ul>
         </div>
       </section>
-    </aside>
+    </div>
   );
 }
 
@@ -1267,20 +1371,36 @@ function StatCard({ label, value }: { label: string; value: string }) {
 
 /* ---------------- right panel: event detail ---------------- */
 
+/**
+ * Block detail. variant="panel" (default) renders the desktop
+ * right-rail aside; variant="embedded" renders borderless for
+ * the mobile inline card (no scroll container, no side fill).
+ */
 function EventDetailPanel({
   event,
   onEdit,
   onDelete,
   className,
+  variant = "panel",
 }: {
   event: TrackEvent;
   onEdit: () => void;
   onDelete: () => void;
   className?: string;
+  variant?: "panel" | "embedded";
 }) {
   const data = useDayflowData();
   const cat = categoryById(data.categories, event.categoryId);
   const dur = eventDuration(event);
+  const embedded = variant === "embedded";
+
+  if (embedded) {
+    return (
+      <div aria-label="Block details">
+        <DetailBody event={event} cat={cat} dur={dur} onEdit={onEdit} onDelete={onDelete} />
+      </div>
+    );
+  }
 
   return (
     <aside
@@ -1291,6 +1411,27 @@ function EventDetailPanel({
         borderLeft: "0.5px solid var(--df-right-panel-border)",
       }}
     >
+      <DetailBody event={event} cat={cat} dur={dur} onEdit={onEdit} onDelete={onDelete} />
+    </aside>
+  );
+}
+
+function DetailBody({
+  event,
+  cat,
+  dur,
+  onEdit,
+  onDelete,
+}: {
+  event: TrackEvent;
+  cat: { name: string; colorHex: string };
+  dur: number;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+
+  return (
+    <div>
       <div className="flex items-center gap-2">
         <span
           className="w-2.5 h-2.5 rounded-full shrink-0"
@@ -1383,7 +1524,7 @@ function EventDetailPanel({
         })}
         {isOvernight(event) && " (night before)"}
       </p>
-    </aside>
+    </div>
   );
 }
 
@@ -1396,10 +1537,13 @@ function buildCalendarDays() {
   const startDow = (first.getDay() + 6) % 7; // Monday-first
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   const today = now.getDate();
-  const cells: { offset: number; dayNum: number }[] = [];
-  for (let i = 0; i < startDow; i++) cells.push({ offset: 99, dayNum: 0 });
+  // Placeholders stay in the grid (2026-09 fix: they used to be
+  // filtered out, so the 1st always landed in column 1 and every
+  // month's weekday alignment was wrong).
+  const cells: { offset: number; dayNum: number; placeholder: boolean }[] = [];
+  for (let i = 0; i < startDow; i++) cells.push({ offset: 99, dayNum: 0, placeholder: true });
   for (let d = 1; d <= daysInMonth; d++) {
-    cells.push({ offset: d - today, dayNum: d });
+    cells.push({ offset: d - today, dayNum: d, placeholder: false });
   }
-  return cells.filter((c) => c.dayNum > 0);
+  return cells;
 }

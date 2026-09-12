@@ -9,8 +9,10 @@ import { DiaChrome } from "@/components/dayflow/DiaChatShell";
 // ============================================================
 // Dayflow AI — landing hero (client, Phase 6.5 / B2 — Phase 8)
 // ------------------------------------------------------------
-// The 220vh runway lives in LogoFormation; this layer supplies
-// the sticky copy ("Open Dayflow" CTA) and the below-the-fold
+// LogoFormation draws the mark once on mount (2026-09 fix: the
+// old scroll-driven runway died with the F-2 overflow-x:clip
+// change and left an empty first screen); this layer supplies
+// the hero copy ("Open Dayflow" CTA) and the below-the-fold
 // closing section. Token colors only.
 //
 // Phase 8 (dogfooding marketing): the hero CTA is the ONE
@@ -26,10 +28,8 @@ import { DiaChrome } from "@/components/dayflow/DiaChatShell";
 export function LandingHero() {
   return (
     <main className="df-window w-full min-h-[100dvh]">
-      {/* NOTE: no overflow-x-hidden here — an overflow ancestor between
-          the sticky layer and the body scrollport would defeat
-          position:sticky (the formation would scroll away instead of
-          holding while the runway passes). */}
+      {/* NOTE: no overflow-x-hidden here — an overflow ancestor
+          would clip the sticky positioning contexts below. */}
       <LogoFormation>
         <div className="flex max-w-md flex-col items-center gap-6 text-center">
           <div>
