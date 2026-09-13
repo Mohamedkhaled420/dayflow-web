@@ -102,6 +102,17 @@ function totalChars(messages: GroqMessage[]): number {
  * drop the oldest non-system messages until the estimate fits the
  * budget, finally truncating any single runaway message.
  */
+function withOutputRules(mode: CoachMode, messages: GroqMessage[]): GroqMessage[] {
+  const rule = mode === "workout"
+    ? " Reply in plain prose only where applicable, with no preamble or reasoning narration. Output ONLY the JSON object — no thinking text and no code fences."
+    : " Reply in ≤120 words of plain prose. No headers, no preamble, no reasoning narration.";
+  return messages.map((message) =>
+    message.role === "system"
+      ? { ...message, content: `${message.content}${rule}` }
+      : message
+  );
+}
+
 function capMessages(messages: GroqMessage[]): GroqMessage[] {
   const userIndexes = messages
     .map((m, i) => (m.role === "user" ? i : -1))
@@ -241,7 +252,7 @@ async function generateWithFallback(
 ): Promise<CoachReply> {
   // TPM discipline happens once, before the cascade: every hop
   // receives the SAME capped prompt (Amendment #16).
-  const capped = capMessages(messages);
+  const capped = capMessages(withOutputRules(mode, messages));
   for (const step of ROUTES[mode]) {
     try {
       const text = await callGroq({
@@ -251,6 +262,7 @@ async function generateWithFallback(
         // Graded effort rides ONLY the hops the amendment annotates;
         // callGroq drops the field for any non-capable model.
         reasoningEffort: step.reasoningEffort,
+        maxTokens: step.reasoningEffort ? 2048 : 1536,
         signal: AbortSignal.timeout(HOP_TIMEOUT_MS),
       });
       if (!text.trim()) continue; // empty completion → next model
@@ -298,7 +310,7 @@ function streamCoachAnswer(
         }
       };
       try {
-        const capped = capMessages(messages);
+        const capped = capMessages(withOutputRules(mode, messages));
         for (const step of ROUTES[mode]) {
           try {
             const { model, response } = await callGroqStream({
@@ -306,6 +318,7 @@ function streamCoachAnswer(
               model: step.model,
               json: step.json,
               reasoningEffort: step.reasoningEffort,
+              maxTokens: step.reasoningEffort ? 2048 : 1536,
               signal: AbortSignal.timeout(HOP_TIMEOUT_MS),
             });
             let full = "";

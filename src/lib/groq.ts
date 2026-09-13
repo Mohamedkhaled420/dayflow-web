@@ -11,6 +11,7 @@
 // ============================================================
 
 import { GROQ_MODELS } from "./groq-models";
+import { stripReasoning } from "./coach-text";
 
 export type GroqModel = (typeof GROQ_MODELS)[keyof typeof GROQ_MODELS];
 
@@ -67,7 +68,7 @@ export async function callGroq(opts: CallGroqOptions): Promise<string> {
     model: opts.model,
     messages: opts.messages,
     temperature: opts.temperature ?? 0.7,
-    max_completion_tokens: opts.maxTokens ?? 1024,
+    max_completion_tokens: opts.maxTokens ?? (opts.reasoningEffort ? 2048 : 1536),
   };
   if (opts.json) body.response_format = { type: "json_object" };
 
@@ -94,7 +95,13 @@ export async function callGroq(opts: CallGroqOptions): Promise<string> {
   }
 
   const data = await res.json();
-  return data.choices?.[0]?.message?.content ?? "";
+  const msg = data.choices?.[0]?.message;
+  const content = stripReasoning(msg?.content ?? "");
+  const finish = data.choices?.[0]?.finish_reason;
+  if (!content || (finish === "length" && content.length < 200)) {
+    throw new GroqError(503, "empty or truncated answer after reasoning strip");
+  }
+  return content;
 }
 
 // ---------------------------------------------------------------
@@ -122,7 +129,7 @@ export async function callGroqStream(
     model: opts.model,
     messages: opts.messages,
     temperature: opts.temperature ?? 0.7,
-    max_completion_tokens: opts.maxTokens ?? 1024,
+    max_completion_tokens: opts.maxTokens ?? (opts.reasoningEffort ? 2048 : 1536),
     stream: true,
   };
   if (opts.json) body.response_format = { type: "json_object" };
