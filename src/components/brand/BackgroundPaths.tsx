@@ -13,8 +13,8 @@
 // pathLength/pathOffset loops — stroke-geometry animations
 // recalc on the main thread every frame and made the auth
 // page jank badly (the same failure family as the historical
-// screenshot-capture stall). The paths now draw in ONCE
-// (staggered, ~2.5s total, no repeat) and settle statically:
+// screenshot-capture stall). The paths now enter once with
+// compositor-friendly opacity/transform motion, then settle:
 // the visual is preserved, the idle cost is zero.
 // prefers-reduced-motion renders the paths fully drawn, static.
 // ============================================================
@@ -65,18 +65,25 @@ function FloatingPaths({ position, reduced }: FloatingPathsProps) {
         ))
       ) : (
         <motion.g
-          initial={{ opacity: 0, transform: "translateY(10px)" }}
-          animate={{ opacity: 1, transform: "translateY(0px)" }}
-          transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-          style={{ transformBox: "fill-box", transformOrigin: "center" }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.45, ease: "easeOut" }}
         >
           {paths.map((path) => (
-            <path
+            <motion.path
               key={path.id}
               d={path.d}
+              initial={{ opacity: 0, x: -72, y: 42 }}
+              animate={{ opacity: 1, x: 0, y: 0 }}
+              transition={{
+                duration: 1.05,
+                delay: path.id * 0.018,
+                ease: [0.22, 1, 0.36, 1],
+              }}
               stroke="currentColor"
               strokeWidth={path.width}
               strokeOpacity={0.1 + path.id * 0.03}
+              style={{ transformBox: "fill-box", transformOrigin: "center" }}
             />
           ))}
         </motion.g>
