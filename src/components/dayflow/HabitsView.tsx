@@ -28,6 +28,7 @@ import { fmtDuration } from "@/lib/compute";
 import { triggerHaptic, hapticWarn } from "@/lib/haptics";
 import { LiquidGlass } from "@/components/ui/LiquidGlass";
 import { LogoLoop } from "@/components/brand/LogoLoop";
+import { stripReasoning } from "@/lib/coach-text";
 import { CATEGORY_COLORS, GOAL_FALLBACK_COLORS } from "@/styles/palette";
 import { useToast } from "@/hooks/use-toast";
 
@@ -555,10 +556,11 @@ function WorkoutCard({
       // answers plain text (Groq key unset / cascade exhausted), the
       // dedicated "plan didn't validate" branch stays reachable
       // instead of falling into the generic network-catch.
-      const raw = payload.text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+      // FIX: Strip any think blocks from legacy/coach responses before parsing (follow-up #4)
+      const rawCleaned = stripReasoning(payload.text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, ""));
       let json: unknown;
       try {
-        json = JSON.parse(raw);
+        json = JSON.parse(rawCleaned);
       } catch {
         setError("The plan didn't validate — ask again for a cleaner one.");
         return;

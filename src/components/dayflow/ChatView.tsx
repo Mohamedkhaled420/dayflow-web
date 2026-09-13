@@ -47,6 +47,7 @@ import {
 } from "@/components/dayflow/DiaChatShell";
 import { JournalComposer } from "@/components/dayflow/JournalComposer";
 import { journalHtmlToText, sanitizeJournalHtml } from "@/lib/journal-html";
+import { stripReasoning } from "@/lib/coach-text";
 
 const MOODS = [
   { score: 1, label: "Rough", Icon: Frown },
@@ -685,7 +686,7 @@ export function ChatView() {
 
         {visibleTurns.map((t) => (
           <Bubble key={t.id} role={t.role === "user" ? "user" : "coach"} source={t.source}>
-            {t.content}
+            {t.role === "coach" ? stripReasoning(t.content) : t.content}
           </Bubble>
         ))}
 
@@ -694,7 +695,7 @@ export function ChatView() {
             delta lands */}
         {asking && liveReply !== null && (
           <Bubble role="coach" streaming>
-            {liveReply}
+            {stripReasoning(liveReply)}
           </Bubble>
         )}
 

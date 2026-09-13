@@ -64,6 +64,18 @@ function getMaxTokens(opts: CallGroqOptions): number {
   return opts.reasoningEffort && opts.reasoningEffort !== 'none' ? 2048 : 1536;
 }
 
+/**
+ * Strip think blocks from text (case-insensitive, supports <think> and <thinking> variants).
+ * Used for non-streaming responses.
+ */
+function stripThinkBlocks(text: string): string {
+  // First pass: Remove complete think blocks (non-greedy, case-insensitive)
+  let cleaned = text.replace(/<(think|thinking)\s*>[\s\S]*?<\/(think|thinking)\s*>/gi, '');
+  // Second pass: Remove unclosed/truncated think blocks at end of string
+  cleaned = cleaned.replace(/<(think|thinking)\s*>[\s\S]*$/i, '');
+  return cleaned.trim();
+}
+
 export async function callGroq(opts: CallGroqOptions): Promise<string> {
   if (!process.env.GROQ_API_KEY) {
     // 503 is a retry-class failure for the route cascade: the coach
@@ -107,10 +119,13 @@ export async function callGroq(opts: CallGroqOptions): Promise<string> {
   const content = data.choices?.[0]?.message?.content ?? "";
   
   // FIX: Strip think blocks from non-streaming responses (v0 audit #1)
-  const stripped = content
-    .replace(/<think>[\s\S]*?<\/think>/gi, "")
-    .replace(/<think>[\s\S]*$/i, "") // unclosed (truncated)
-    .trim();
+  const stripped = stripThinkBlocks(content);
+
+  // FIX: Guard against truncation due to token limits (follow-up #3)
+  const finishReason = data.choices?.[0]?.finish_reason as string | undefined;
+  if (finishReason === 'length' && stripped.length < 200) {
+    throw new GroqError(503, `truncated answer after reasoning strip (${stripped.length} chars)`);
+  }
 
   if (!stripped) {
     throw new GroqError(503, "empty answer after reasoning strip");
@@ -171,8 +186,10 @@ export async function callGroqStream(
  * Parse an SSE body into text deltas. Yields only content chunks;
  * network/parse errors surface as exceptions to the caller.
  * 
- * FIX: Stateful tracking of <think> blocks across streaming deltas
- * (v0 audit #1: regex on individual chunks fails when tags span multiple deltas)
+ * FIX: Stateful tracking of think blocks across streaming deltas with:
+ * - Holdback buffer for tags split across deltas (e.g., "<thi" + "nk>")
+ * - Case-insensitive matching for , <thinking>, variants
+ * - Flush remaining buffer at stream end if not in think block
  */
 export async function* sseDeltas(
   response: Response
@@ -180,49 +197,90 @@ export async function* sseDeltas(
   const reader = response.body!.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
-  let inThinkBlock = false; // Stateful tracking across deltas
+  let pending = ""; // Holdback buffer for split tags
+  let inThinkBlock = false;
+  
+  // Tag patterns (case-insensitive)
+  const THINK_OPEN = /<(think|thinking)\s*>/gi;
+  const THINK_CLOSE = /<\/(think|thinking)\s*>/gi;
+  
+  /**
+   * Calculate holdback length: longest suffix of `text` that is a proper prefix of `tag`
+   */
+  function getHoldbackLength(text: string, tag: string): number {
+    const maxHold = Math.min(text.length, tag.length - 1);
+    for (let len = maxHold; len > 0; len--) {
+      const suffix = text.slice(-len);
+      if (tag.startsWith(suffix)) {
+        return len;
+      }
+    }
+    return 0;
+  }
   
   try {
     for (;;) {
       const { done, value } = await reader.read();
-      if (done) break;
+      if (done) {
+        // Flush any remaining pending buffer if not in think block
+        if (!inThinkBlock && pending.length > 0) {
+          yield pending;
+        }
+        break;
+      }
+      
       buffer += decoder.decode(value, { stream: true });
-      // SSE events are separated by a blank line.
+      
       let sep: number;
       while ((sep = buffer.indexOf("\n\n")) !== -1) {
         const rawEvent = buffer.slice(0, sep);
         buffer = buffer.slice(sep + 2);
+        
         for (const line of rawEvent.split("\n")) {
           if (!line.startsWith("data:")) continue;
           const data = line.slice(5).trim();
           if (!data || data === "[DONE]") continue;
+          
           try {
             const parsed = JSON.parse(data) as {
               choices?: { delta?: { content?: string } }[];
             };
             const delta = parsed.choices?.[0]?.delta?.content;
             if (delta) {
-              // Stateful strip: track <think> blocks across deltas
+              // Append to pending buffer
+              pending += delta;
+              
+              // Determine which tag we're looking for
+              const targetTag = inThinkBlock ? "</think>" : "<think>";
+              const holdLen = getHoldbackLength(pending, targetTag);
+              
+              // Process safe prefix, keep potentially-split suffix in pending
+              const safePrefix = holdLen > 0 ? pending.slice(0, -holdLen) : pending;
+              pending = holdLen > 0 ? pending.slice(-holdLen) : "";
+              
+              // Stateful strip on safe prefix
               let clean = "";
-              let remaining = delta;
+              let remaining = safePrefix;
               
               while (remaining.length > 0) {
                 if (inThinkBlock) {
-                  // Look for closing </think>
-                  const closeIdx = remaining.indexOf("</think>");
-                  if (closeIdx !== -1) {
+                  // Look for closing tag (case-insensitive)
+                  THINK_CLOSE.lastIndex = 0;
+                  const closeMatch = THINK_CLOSE.exec(remaining);
+                  if (closeMatch) {
                     inThinkBlock = false;
-                    remaining = remaining.slice(closeIdx + 8); // skip </think>
+                    remaining = remaining.slice(closeMatch.index + closeMatch[0].length);
                   } else {
-                    break; // entire delta is inside think block, discard
+                    break; // inside think block, discard
                   }
                 } else {
-                  // Look for opening <think>
-                  const openIdx = remaining.indexOf("<think>");
-                  if (openIdx !== -1) {
-                    clean += remaining.slice(0, openIdx);
+                  // Look for opening tag (case-insensitive)
+                  THINK_OPEN.lastIndex = 0;
+                  const openMatch = THINK_OPEN.exec(remaining);
+                  if (openMatch) {
+                    clean += remaining.slice(0, openMatch.index);
                     inThinkBlock = true;
-                    remaining = remaining.slice(openIdx + 7); // skip <think>
+                    remaining = remaining.slice(openMatch.index + openMatch[0].length);
                   } else {
                     clean += remaining;
                     remaining = "";
@@ -233,8 +291,7 @@ export async function* sseDeltas(
               if (clean) yield clean;
             }
           } catch {
-            // Malformed keep-alive/comment fragments — skip rather
-            // than kill a healthy stream.
+            // Malformed keep-alive/comment fragments — skip
           }
         }
       }
