@@ -54,6 +54,16 @@ export interface CallGroqOptions {
   signal?: AbortSignal;
 }
 
+/**
+ * Calculate max completion tokens based on reasoning effort.
+ * FIX: Bump token budget for reasoning models to prevent truncation (v0 audit #1).
+ */
+function getMaxTokens(opts: CallGroqOptions): number {
+  if (opts.maxTokens) return opts.maxTokens;
+  // Reasoning models need more tokens for think blocks + response
+  return opts.reasoningEffort && opts.reasoningEffort !== 'none' ? 2048 : 1536;
+}
+
 export async function callGroq(opts: CallGroqOptions): Promise<string> {
   if (!process.env.GROQ_API_KEY) {
     // 503 is a retry-class failure for the route cascade: the coach
@@ -67,7 +77,7 @@ export async function callGroq(opts: CallGroqOptions): Promise<string> {
     model: opts.model,
     messages: opts.messages,
     temperature: opts.temperature ?? 0.7,
-    max_completion_tokens: opts.maxTokens ?? 1024,
+    max_completion_tokens: getMaxTokens(opts),
   };
   if (opts.json) body.response_format = { type: "json_object" };
 
@@ -94,7 +104,18 @@ export async function callGroq(opts: CallGroqOptions): Promise<string> {
   }
 
   const data = await res.json();
-  return data.choices?.[0]?.message?.content ?? "";
+  const content = data.choices?.[0]?.message?.content ?? "";
+  
+  // FIX: Strip think blocks from non-streaming responses (v0 audit #1)
+  const stripped = content
+    .replace(/<think>[\s\S]*?<\/think>/gi, "")
+    .replace(/<think>[\s\S]*$/i, "") // unclosed (truncated)
+    .trim();
+
+  if (!stripped) {
+    throw new GroqError(503, "empty answer after reasoning strip");
+  }
+  return stripped;
 }
 
 // ---------------------------------------------------------------
@@ -122,7 +143,7 @@ export async function callGroqStream(
     model: opts.model,
     messages: opts.messages,
     temperature: opts.temperature ?? 0.7,
-    max_completion_tokens: opts.maxTokens ?? 1024,
+    max_completion_tokens: getMaxTokens(opts),
     stream: true,
   };
   if (opts.json) body.response_format = { type: "json_object" };
@@ -149,6 +170,9 @@ export async function callGroqStream(
 /**
  * Parse an SSE body into text deltas. Yields only content chunks;
  * network/parse errors surface as exceptions to the caller.
+ * 
+ * FIX: Stateful tracking of <think> blocks across streaming deltas
+ * (v0 audit #1: regex on individual chunks fails when tags span multiple deltas)
  */
 export async function* sseDeltas(
   response: Response
@@ -156,6 +180,8 @@ export async function* sseDeltas(
   const reader = response.body!.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
+  let inThinkBlock = false; // Stateful tracking across deltas
+  
   try {
     for (;;) {
       const { done, value } = await reader.read();
@@ -176,9 +202,35 @@ export async function* sseDeltas(
             };
             const delta = parsed.choices?.[0]?.delta?.content;
             if (delta) {
-              // FIX: Strip <think>...</think> tags from streaming deltas
-              const cleanDelta = delta.replace(/<think>[\s\S]*?<\/think>/g, '');
-              if (cleanDelta) yield cleanDelta;
+              // Stateful strip: track <think> blocks across deltas
+              let clean = "";
+              let remaining = delta;
+              
+              while (remaining.length > 0) {
+                if (inThinkBlock) {
+                  // Look for closing </think>
+                  const closeIdx = remaining.indexOf("</think>");
+                  if (closeIdx !== -1) {
+                    inThinkBlock = false;
+                    remaining = remaining.slice(closeIdx + 8); // skip </think>
+                  } else {
+                    break; // entire delta is inside think block, discard
+                  }
+                } else {
+                  // Look for opening <think>
+                  const openIdx = remaining.indexOf("<think>");
+                  if (openIdx !== -1) {
+                    clean += remaining.slice(0, openIdx);
+                    inThinkBlock = true;
+                    remaining = remaining.slice(openIdx + 7); // skip <think>
+                  } else {
+                    clean += remaining;
+                    remaining = "";
+                  }
+                }
+              }
+              
+              if (clean) yield clean;
             }
           } catch {
             // Malformed keep-alive/comment fragments — skip rather
