@@ -53,8 +53,8 @@ function FloatingPaths({ position, reduced }: FloatingPathsProps) {
       aria-hidden="true"
       focusable="false"
     >
-      {paths.map((path) =>
-        reduced ? (
+      {reduced ? (
+        paths.map((path) => (
           <path
             key={path.id}
             d={path.d}
@@ -62,23 +62,24 @@ function FloatingPaths({ position, reduced }: FloatingPathsProps) {
             strokeWidth={path.width}
             strokeOpacity={0.22}
           />
-        ) : (
-          <motion.path
-            key={path.id}
-            d={path.d}
-            stroke="currentColor"
-            strokeWidth={path.width}
-            strokeOpacity={0.1 + path.id * 0.03}
-            initial={{ pathLength: 0.25, opacity: 0.5 }}
-            animate={{ pathLength: 1, opacity: 0.3 + path.id * 0.01 }}
-            transition={{
-              // One-time staggered draw — no repeat, no idle cost.
-              duration: 2.2,
-              delay: (path.id % 12) * 0.12,
-              ease: "easeOut",
-            }}
-          />
-        )
+        ))
+      ) : (
+        <motion.g
+          initial={{ opacity: 0, transform: "translateY(10px)" }}
+          animate={{ opacity: 1, transform: "translateY(0px)" }}
+          transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+          style={{ transformBox: "fill-box", transformOrigin: "center" }}
+        >
+          {paths.map((path) => (
+            <path
+              key={path.id}
+              d={path.d}
+              stroke="currentColor"
+              strokeWidth={path.width}
+              strokeOpacity={0.1 + path.id * 0.03}
+            />
+          ))}
+        </motion.g>
       )}
     </svg>
   );
