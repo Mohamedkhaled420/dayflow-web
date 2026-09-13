@@ -2,10 +2,10 @@
   "name": "dayflow-web",
   "version": "1.0.0",
   "private": true,
-  "description": "Dayflow web — a private, customizable life tracker for fitness, work, sleep, water, and food. Timeline, daily recap, weekly review, habit streaks, and journal chat.",
+  "description": "Dayflow web \u2014 a private, customizable life tracker for fitness, work, sleep, water, and food. Timeline, daily recap, weekly review, habit streaks, and journal chat.",
   "scripts": {
     "dev": "next dev",
-    "build": "node scripts/check-raw-colors.mjs && eslint . && next build",
+    "build": "node scripts/check-raw-colors.mjs && eslint . && next build && node scripts/patch-error-html.mjs",
     "start": "next start",
     "lint": "eslint .",
     "check:colors": "node scripts/check-raw-colors.mjs"

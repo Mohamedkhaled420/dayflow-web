@@ -73,6 +73,15 @@ const eslintConfig = [
     },
   },
   {
+    // Crash-page exemption (DESIGN.md §1.3): global-error.tsx renders when
+    // the root layout — and with it globals.css / theme.css — is gone. It
+    // must be fully self-contained, so design tokens cannot be used there.
+    files: ["src/app/global-error.tsx"],
+    rules: {
+      "dayflow/no-raw-colors": "off",
+    },
+  },
+  {
     rules: {
       // TypeScript rules
       "@typescript-eslint/no-explicit-any": "off",
