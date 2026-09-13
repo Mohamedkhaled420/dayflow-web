@@ -11,7 +11,6 @@
 // ============================================================
 
 import { GROQ_MODELS } from "./groq-models";
-import { stripReasoning } from "./coach-text";
 
 export type GroqModel = (typeof GROQ_MODELS)[keyof typeof GROQ_MODELS];
 
@@ -51,8 +50,6 @@ export interface CallGroqOptions {
   /** Graded effort — attached ONLY for capable models (all four are). */
   reasoningEffort?: ReasoningEffort;
   maxTokens?: number;
-  /** Abort/timeout signal for the upstream fetch (v0 audit #5). */
-  signal?: AbortSignal;
 }
 
 export async function callGroq(opts: CallGroqOptions): Promise<string> {
@@ -68,7 +65,7 @@ export async function callGroq(opts: CallGroqOptions): Promise<string> {
     model: opts.model,
     messages: opts.messages,
     temperature: opts.temperature ?? 0.7,
-    max_completion_tokens: opts.maxTokens ?? (opts.reasoningEffort ? 2048 : 1536),
+    max_completion_tokens: opts.maxTokens ?? 1024,
   };
   if (opts.json) body.response_format = { type: "json_object" };
 
@@ -87,7 +84,6 @@ export async function callGroq(opts: CallGroqOptions): Promise<string> {
       Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
     },
     body: JSON.stringify(body),
-    signal: opts.signal,
   });
 
   if (!res.ok) {
@@ -95,102 +91,5 @@ export async function callGroq(opts: CallGroqOptions): Promise<string> {
   }
 
   const data = await res.json();
-  const msg = data.choices?.[0]?.message;
-  const content = stripReasoning(msg?.content ?? "");
-  const finish = data.choices?.[0]?.finish_reason;
-  if (!content || (finish === "length" && content.length < 200)) {
-    throw new GroqError(503, "empty or truncated answer after reasoning strip");
-  }
-  return content;
-}
-
-// ---------------------------------------------------------------
-// Streaming (v0 audit #1: the coach felt frozen while Groq
-// generated). Raw SSE pass-through — the route layer owns the
-// client-facing event protocol; this function only guarantees
-// "the upstream accepted the request" so the cascade can commit.
-// ---------------------------------------------------------------
-
-export interface CallGroqStreamResult {
-  model: GroqModel;
-  response: Response;
-}
-
-export async function callGroqStream(
-  opts: CallGroqOptions
-): Promise<CallGroqStreamResult> {
-  if (!process.env.GROQ_API_KEY) {
-    // Same retry-class semantics as callGroq: missing key → the
-    // cascade advances and finally lands on the algorithmic floor.
-    throw new GroqError(503, "GROQ_API_KEY is not configured");
-  }
-
-  const body: Record<string, unknown> = {
-    model: opts.model,
-    messages: opts.messages,
-    temperature: opts.temperature ?? 0.7,
-    max_completion_tokens: opts.maxTokens ?? (opts.reasoningEffort ? 2048 : 1536),
-    stream: true,
-  };
-  if (opts.json) body.response_format = { type: "json_object" };
-  if (opts.reasoningEffort && REASONING_CAPABLE.has(opts.model)) {
-    body.reasoning_effort = opts.reasoningEffort;
-  }
-
-  const res = await fetch(GROQ_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
-    },
-    body: JSON.stringify(body),
-    signal: opts.signal,
-  });
-
-  if (!res.ok || !res.body) {
-    throw new GroqError(res.status, await res.text().catch(() => ""));
-  }
-  return { model: opts.model, response: res };
-}
-
-/**
- * Parse an SSE body into text deltas. Yields only content chunks;
- * network/parse errors surface as exceptions to the caller.
- */
-export async function* sseDeltas(
-  response: Response
-): AsyncGenerator<string> {
-  const reader = response.body!.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  try {
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      // SSE events are separated by a blank line.
-      let sep: number;
-      while ((sep = buffer.indexOf("\n\n")) !== -1) {
-        const rawEvent = buffer.slice(0, sep);
-        buffer = buffer.slice(sep + 2);
-        for (const line of rawEvent.split("\n")) {
-          if (!line.startsWith("data:")) continue;
-          const data = line.slice(5).trim();
-          if (!data || data === "[DONE]") continue;
-          try {
-            const parsed = JSON.parse(data) as {
-              choices?: { delta?: { content?: string } }[];
-            };
-            const delta = parsed.choices?.[0]?.delta?.content;
-            if (delta) yield delta;
-          } catch {
-            // Malformed keep-alive/comment fragments — skip rather
-            // than kill a healthy stream.
-          }
-        }
-      }
-    }
-  } finally {
-    reader.releaseLock();
-  }
+  return data.choices?.[0]?.message?.content ?? "";
 }

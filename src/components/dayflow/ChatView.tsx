@@ -47,7 +47,6 @@ import {
 } from "@/components/dayflow/DiaChatShell";
 import { JournalComposer } from "@/components/dayflow/JournalComposer";
 import { journalHtmlToText, sanitizeJournalHtml } from "@/lib/journal-html";
-import { stripReasoning } from "@/lib/coach-text";
 
 const MOODS = [
   { score: 1, label: "Rough", Icon: Frown },
@@ -88,103 +87,10 @@ const SYSTEM_PROMPTS: Record<DiaCoachMode, string> = {
     "You are Dayflow's strength & conditioning coach in conversation — practical, warm, brief. Ground every suggestion in the user's logged sessions; favor progression, recovery, and one concrete next step. Never give medical advice.",
 };
 
-/** Asked when the user taps Ask Coach with an empty composer —
- *  the coach is useful without new text (v0 audit #6). */
-const DEFAULT_QUESTIONS: Record<DiaCoachMode, string> = {
-  journal: "What patterns do you see across my recent entries?",
-  workout: "How should I train today, given my recent workouts?",
-};
-
-/** Stable route codes → friendly copy (v0 audit #3). */
-const CODE_MESSAGES: Record<string, string> = {
-  RATE_LIMITED: "You're asking quickly — give the coach a minute before trying again.",
-  INVALID_SESSION: "Sign in again — your session expired.",
-  INVALID_REQUEST: "That didn't look right — try rephrasing.",
-  COACH_UNAVAILABLE: "The coach couldn't be reached. Try again in a moment.",
-};
-
-const GENERIC_UNREACHABLE =
-  "The coach couldn't be reached. Try again in a moment.";
-
-/** Whole-request client timeout (v0 audit #5) — the route also
- *  enforces a per-hop upstream timeout server-side. */
-const CLIENT_TIMEOUT_MS = 60_000;
-
-/** Coach chat persists on-device only (localStorage, capped) — the
- *  browser shell keeps its conversation across reloads without any
- *  new server table (v0 audit #9; privacy: same owner-device model
- *  as the Delta Sync IndexedDB cache). */
-const TURNS_STORAGE_KEY = "dayflow.coach.turns.v1";
-const MAX_PERSISTED_TURNS = 60;
-
 interface CoachTurn {
   id: number;
   role: "user" | "coach";
   content: string;
-  /** Conversations are per coach context (Qwen #3 / v0 #8): the
-   *  journal coach and the training coach never share a thread. */
-  mode: DiaCoachMode;
-  /** Algorithmic-floor answers are labeled honestly (v0 #16). */
-  source?: "ai" | "fallback";
-}
-
-interface SSEReadResult {
-  full: string;
-  source: "ai" | "fallback";
-  errorCode: string | null;
-}
-
-/** Read the route's SSE answer stream, painting throttled progress. */
-async function readCoachSSE(
-  body: ReadableStream<Uint8Array>,
-  onProgress: (fullSoFar: string) => void
-): Promise<SSEReadResult> {
-  const reader = body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  let full = "";
-  let source: "ai" | "fallback" = "ai";
-  let errorCode: string | null = null;
-  let lastPaint = 0;
-
-  const handleEvent = (data: string) => {
-    let evt: { type?: string; text?: string; source?: string; code?: string };
-    try {
-      evt = JSON.parse(data);
-    } catch {
-      return; // keep-alive fragments
-    }
-    if (evt.type === "meta" && evt.source === "fallback") source = "fallback";
-    else if (evt.type === "delta" && typeof evt.text === "string") {
-      full += evt.text;
-      const now = Date.now();
-      if (now - lastPaint > 60) {
-        lastPaint = now;
-        onProgress(full);
-      }
-    } else if (evt.type === "error" && evt.code) {
-      errorCode = evt.code;
-    }
-  };
-
-  try {
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      let sep: number;
-      while ((sep = buffer.indexOf("\n\n")) !== -1) {
-        const rawEvent = buffer.slice(0, sep);
-        buffer = buffer.slice(sep + 2);
-        for (const line of rawEvent.split("\n")) {
-          if (line.startsWith("data:")) handleEvent(line.slice(5).trim());
-        }
-      }
-    }
-  } finally {
-    reader.releaseLock();
-  }
-  return { full, source, errorCode };
 }
 
 export function ChatView() {
@@ -203,69 +109,11 @@ export function ChatView() {
   const [asking, setAsking] = useState(false);
   const [coachError, setCoachError] = useState<string | null>(null);
   const [mode, setMode] = useState<DiaCoachMode>("journal");
-  /** Streaming coach text while it arrives (null = not streaming). */
-  const [liveReply, setLiveReply] = useState<string | null>(null);
   /** null = live at the newest entry; n = history pointer into
    *  the newest-first entries array (browser-style navigation). */
   const [historyCursor, setHistoryCursor] = useState<number | null>(null);
   const [online, setOnline] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
-  /** False until the localStorage restore has run — the save
-   *  effect must NEVER fire before it (otherwise its empty-turns
-   *  removeItem wipes storage before the restore can read it). */
-  const [turnsHydrated, setTurnsHydrated] = useState(false);
-
-  // Restore on-device coach history (v0 #9) — best-effort, deferred
-  // to a microtask so the effect body performs no synchronous
-  // setState (react-hooks/set-state-in-effect) and hydration's first
-  // paint stays deterministic; corrupted storage starts fresh.
-  useEffect(() => {
-    let cancelled = false;
-    queueMicrotask(() => {
-      if (cancelled) return;
-      try {
-        const raw = localStorage.getItem(TURNS_STORAGE_KEY);
-        if (raw) {
-          const saved = JSON.parse(raw) as CoachTurn[];
-          if (Array.isArray(saved) && saved.length > 0) {
-            setCoachTurns(
-              saved
-                .filter(
-                  (t) =>
-                    t &&
-                    typeof t.content === "string" &&
-                    (t.mode === "journal" || t.mode === "workout")
-                )
-                .slice(-MAX_PERSISTED_TURNS)
-            );
-          }
-        }
-      } catch {
-        // corrupted storage — start fresh
-      } finally {
-        setTurnsHydrated(true);
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!turnsHydrated) return;
-    try {
-      if (coachTurns.length === 0) {
-        localStorage.removeItem(TURNS_STORAGE_KEY);
-        return;
-      }
-      localStorage.setItem(
-        TURNS_STORAGE_KEY,
-        JSON.stringify(coachTurns.slice(-MAX_PERSISTED_TURNS))
-      );
-    } catch {
-      // quota exceeded — persistence is best-effort
-    }
-  }, [coachTurns, turnsHydrated]);
 
   // Newest first for the reading list; coach context wants the
   // last-3 in chronological order.
@@ -310,18 +158,9 @@ export function ChatView() {
       top: scrollRef.current.scrollHeight,
       behavior: "smooth",
     });
-  }, [entries.length, coachTurns.length, liveReply, asking, historyCursor]);
+  }, [entries.length, coachTurns.length, asking, historyCursor]);
 
   const draftText = journalHtmlToText(draft).trim();
-
-  // The visible conversation is per coach context (Qwen #3 / v0 #8):
-  // switching journal ↔ training switches threads; refresh re-runs
-  // the last question OF THE CURRENT context, so answers can never
-  // drift into the wrong coach.
-  const visibleTurns = useMemo(
-    () => coachTurns.filter((t) => t.mode === mode),
-    [coachTurns, mode]
-  );
 
   const saveEntry = async () => {
     if (!draftText || saving) return;
@@ -337,46 +176,21 @@ export function ChatView() {
   };
 
   const askCoach = async (question: string, repeat = false) => {
-    if (asking) return;
-    // An empty composer still means a question — the mode default
-    // asks about existing entries/sessions (v0 audit #6).
-    const q = question.trim() || DEFAULT_QUESTIONS[mode];
+    if (!question || asking) return;
     setAsking(true);
     setCoachError(null);
-    let optimisticId: number | null = null;
     if (!repeat) {
-      const turnId = Date.now();
-      optimisticId = turnId;
-      setCoachTurns((t) => [
-        ...t,
-        { id: turnId, role: "user", content: q, mode },
-      ]);
-      // The draft is deliberately NOT cleared yet — it is only
-      // cleared once a coach answer lands (v0 audit #2: a failed
-      // request must never eat unsent writing).
+      setCoachTurns((t) => [...t, { id: Date.now(), role: "user", content: question }]);
+      setDraft("");
     }
-    // Failure reverts the optimistic bubble so a retry doesn't
-    // duplicate the question; the draft stays for one-tap retry.
-    const fail = (message: string) => {
-      setCoachError(message);
-      if (optimisticId !== null) {
-        setCoachTurns((t) => t.filter((turn) => turn.id !== optimisticId));
-      }
-    };
     try {
-      // Amendment #12: live session JWT on the Bearer. A missing
-      // token first triggers ONE silent refresh before giving up
-      // (Qwen #2 / v0 #17) — expired-at-rest sessions recover.
+      // Amendment #12: live session JWT on the Bearer.
       const { createClient } = await import("@/utils/supabase/client");
       const supabase = createClient();
       const { data: sessionData } = await supabase.auth.getSession();
-      let token = sessionData.session?.access_token ?? null;
+      const token = sessionData.session?.access_token;
       if (!token) {
-        const { data: refreshed } = await supabase.auth.refreshSession();
-        token = refreshed.session?.access_token ?? null;
-      }
-      if (!token) {
-        fail(CODE_MESSAGES.INVALID_SESSION);
+        setCoachError("Sign in again — your session expired.");
         return;
       }
       // Context (§10.1 prompt discipline; the route re-caps at
@@ -397,9 +211,7 @@ export function ChatView() {
               }`,
             }));
       // Omnibar mode maps to the route's conversational modes:
-      // journal → journal (reasoning), workout → coaching. The
-      // structured workout JSON cascade is HabitsView's generator,
-      // not this conversational surface.
+      // journal → journal (reasoning), workout → coaching.
       const apiMode = mode === "journal" ? "journal" : "coaching";
       const res = await fetch("/api/ai/coach", {
         method: "POST",
@@ -409,90 +221,36 @@ export function ChatView() {
           messages: [
             { role: "system", content: SYSTEM_PROMPTS[mode] },
             ...context,
-            { role: "user", content: q },
+            { role: "user", content: question },
           ],
-          stream: true,
         }),
-        signal: AbortSignal.timeout(CLIENT_TIMEOUT_MS),
       });
       if (!res.ok) {
-        const payload = (await res.json().catch(() => null)) as {
-          error?: string;
-          code?: string;
-        } | null;
-        fail(
-          (payload?.code && CODE_MESSAGES[payload.code]) ||
-            payload?.error ||
-            `Coach unavailable (HTTP ${res.status}).`
-        );
+        setCoachError(`Coach unavailable (HTTP ${res.status}).`);
         return;
       }
-      const contentType = res.headers.get("content-type") ?? "";
-      if (contentType.includes("text/event-stream") && res.body) {
-        // Streamed answer (v0 #1): text paints as it arrives.
-        const { full, source, errorCode } = await readCoachSSE(res.body, setLiveReply);
-        if (errorCode) {
-          fail(CODE_MESSAGES[errorCode] ?? GENERIC_UNREACHABLE);
-          return;
-        }
-        if (!full.trim()) {
-          fail("The coach had nothing to say.");
-          return;
-        }
-        setLiveReply(null);
-        setCoachTurns((t) => [
-          ...t,
-          { id: Date.now() + 1, role: "coach", content: full, mode, source },
-        ]);
-        if (!repeat) setDraft("");
-        return;
-      }
-      const payload = (await res.json()) as {
-        text?: string;
-        error?: string;
-        code?: string;
-        source?: "ai" | "fallback";
-      };
+      const payload = (await res.json()) as { text?: string; error?: string };
       if (payload.error || !payload.text) {
-        fail(
-          (payload.code && CODE_MESSAGES[payload.code]) ||
-            (payload.error ?? "The coach had nothing to say.")
-        );
+        setCoachError(payload.error ?? "The coach had nothing to say.");
         return;
       }
       setCoachTurns((t) => [
         ...t,
-        {
-          id: Date.now() + 1,
-          role: "coach",
-          content: payload.text!,
-          mode,
-          source: payload.source,
-        },
+        { id: Date.now() + 1, role: "coach", content: payload.text! },
       ]);
-      if (!repeat) setDraft("");
-    } catch (e) {
-      if (
-        e instanceof DOMException &&
-        (e.name === "AbortError" || e.name === "TimeoutError")
-      ) {
-        fail("The coach took too long — try again in a moment.");
-      } else {
-        fail(GENERIC_UNREACHABLE);
-      }
+    } catch {
+      setCoachError("The coach couldn't be reached. Try again in a moment.");
     } finally {
       setAsking(false);
-      setLiveReply(null);
     }
   };
 
-  /** Refresh control: re-run the last coach answer (decision 3) —
-   *  always within the CURRENT coach context. */
+  /** Refresh control: re-run the last coach answer (decision 3). */
   const rerunCoach = () => {
-    const lastQuestion = [...visibleTurns].reverse().find((t) => t.role === "user");
+    const lastQuestion = [...coachTurns].reverse().find((t) => t.role === "user");
     if (lastQuestion) void askCoach(lastQuestion.content, true);
   };
-  const lastUserQuestion = [...visibleTurns].reverse().find((t) => t.role === "user");
+  const lastUserQuestion = [...coachTurns].reverse().find((t) => t.role === "user");
   const refreshDisabled = asking || !lastUserQuestion;
 
   /** Browser-style history navigation over the entries list. */
@@ -517,15 +275,6 @@ export function ChatView() {
   const applyPreset = (preset: (typeof PRESETS)[number]) => {
     hapticSelect();
     setMode(preset.mode);
-    // Qwen #5: never silently destroy writing in progress — the
-    // preset only fills an empty (or identical) draft, otherwise
-    // the user explicitly confirms the swap.
-    if (draftText && draftText !== preset.prompt) {
-      const replace = window.confirm(
-        "Replace your current draft with this prompt?"
-      );
-      if (!replace) return;
-    }
     setDraft(preset.prompt);
   };
 
@@ -630,15 +379,9 @@ export function ChatView() {
               <button
                 type="button"
                 onClick={() => void askCoach(draftText)}
-                disabled={asking}
+                disabled={!draftText || asking}
                 aria-busy={asking}
-                aria-label={
-                  asking
-                    ? "Coach is thinking"
-                    : draftText
-                      ? "Ask the coach about this"
-                      : "Ask the coach about your recent entries"
-                }
+                aria-label={asking ? "Coach is thinking" : "Ask the coach about this"}
                 className="df-press df-btn-secondary min-h-11 flex items-center gap-1.5 rounded-md px-4 text-[12.5px] font-semibold disabled:opacity-40"
               >
                 {asking ? (
@@ -652,8 +395,7 @@ export function ChatView() {
           </div>
           <p className="mt-1.5 text-center text-[10px]" style={{ color: "var(--df-text-muted)" }}>
             Entries stay owner-only (RLS). Ask Coach sends your{" "}
-            {mode === "journal" ? "last 3 entries" : "last 3 workouts"} for context; coach
-            chat history stays on this device.
+            {mode === "journal" ? "last 3 entries" : "last 3 workouts"} for context.
           </p>
         </div>
       }
@@ -672,34 +414,24 @@ export function ChatView() {
           Journal — private to your account, never shared with your team.
         </p>
 
-        {entries.length === 0 && visibleTurns.length === 0 && (
+        {entries.length === 0 && coachTurns.length === 0 && (
           <div className="df-card mt-3 p-5 text-center">
             <p className="text-[13px] font-semibold" style={{ color: "var(--df-text-primary)" }}>
               Nothing written yet
             </p>
             <p className="mt-1 text-[11.5px]" style={{ color: "var(--df-text-secondary)" }}>
-              Hi {firstName} — write the first entry below, or tap Ask Coach to reflect on
-              how things have been going.
+              Hi {firstName} — write the first entry below, then ask your coach about it.
             </p>
           </div>
         )}
 
-        {visibleTurns.map((t) => (
-          <Bubble key={t.id} role={t.role === "user" ? "user" : "coach"} source={t.source}>
-            {t.role === "coach" ? stripReasoning(t.content) : t.content}
+        {coachTurns.map((t) => (
+          <Bubble key={t.id} role={t.role === "user" ? "user" : "coach"}>
+            {t.content}
           </Bubble>
         ))}
 
-        {/* streaming answer — text paints as it arrives (v0 #1);
-            the animated dots only cover the wait before the first
-            delta lands */}
-        {asking && liveReply !== null && (
-          <Bubble role="coach" streaming>
-            {stripReasoning(liveReply)}
-          </Bubble>
-        )}
-
-        {asking && liveReply === null && (
+        {asking && (
           <div className="df-generating h-[34px] max-w-[60%] rounded-lg" aria-label="Coach is thinking">
             <div className="flex h-full items-center gap-1.5 px-4">
               {[0, 1, 2].map((i) => (
@@ -794,17 +526,7 @@ export function ChatView() {
   );
 }
 
-function Bubble({
-  role,
-  source,
-  streaming,
-  children,
-}: {
-  role: "user" | "coach";
-  source?: "ai" | "fallback";
-  streaming?: boolean;
-  children: string;
-}) {
+function Bubble({ role, children }: { role: "user" | "coach"; children: string }) {
   const isUser = role === "user";
   return (
     <motion.div
@@ -832,24 +554,7 @@ function Bubble({
         style={{ color: "var(--df-text-primary)" }}
       >
         {children}
-        {streaming && (
-          <span
-            aria-hidden="true"
-            className="ml-0.5 inline-block h-[13px] w-[2px] align-[-2px]"
-            style={{ background: "var(--df-accent)" }}
-          />
-        )}
       </p>
-      {/* honest labeling (v0 #16): the algorithmic floor is quick
-          local guidance, not a Groq answer — say so, quietly */}
-      {!isUser && source === "fallback" && (
-        <p
-          className="mt-1.5 text-[9.5px] font-semibold uppercase tracking-wide"
-          style={{ color: "var(--df-text-muted)" }}
-        >
-          Quick guidance · coach offline
-        </p>
-      )}
     </motion.div>
   );
 }

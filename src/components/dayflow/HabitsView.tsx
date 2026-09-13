@@ -30,7 +30,6 @@ import { LiquidGlass } from "@/components/ui/LiquidGlass";
 import { LogoLoop } from "@/components/brand/LogoLoop";
 import { CATEGORY_COLORS, GOAL_FALLBACK_COLORS } from "@/styles/palette";
 import { useToast } from "@/hooks/use-toast";
-import { stripReasoning } from "@/lib/coach-text";
 
 // ---------- streak math (habit_logs consecutive days) ----------
 
@@ -489,17 +488,11 @@ function WorkoutCard({
     setError(null);
     setPlan(null);
     try {
-      // Auth per Amendment #12: live session JWT rides the Bearer. A
-      // missing token first triggers ONE silent refresh before giving
-      // up (Qwen #2 / v0 #17) — expired-at-rest sessions recover.
+      // Auth per Amendment #12: live session JWT rides the Bearer.
       const { createClient } = await import("@/utils/supabase/client");
       const supabase = createClient();
       const { data } = await supabase.auth.getSession();
-      let token = data.session?.access_token ?? null;
-      if (!token) {
-        const { data: refreshed } = await supabase.auth.refreshSession();
-        token = refreshed.session?.access_token ?? null;
-      }
+      const token = data.session?.access_token;
       if (!token) {
         setError("Sign in again — your session expired.");
         return;
@@ -528,25 +521,12 @@ function WorkoutCard({
             },
           ],
         }),
-        // v0 audit #5: never leave the UI spinning on a stalled
-        // upstream — the route also enforces a server-side timeout.
-        signal: AbortSignal.timeout(60_000),
       });
       if (!res.ok) {
-        const errPayload = (await res.json().catch(() => null)) as {
-          error?: string;
-          code?: string;
-        } | null;
-        setError(
-          errPayload?.error ?? `Coach unavailable (HTTP ${res.status}). Try again in a moment.`
-        );
+        setError(`Coach unavailable (HTTP ${res.status}). Try again in a moment.`);
         return;
       }
-      const payload = (await res.json()) as {
-        text?: string;
-        error?: string;
-        source?: "ai" | "fallback";
-      };
+      const payload = (await res.json()) as { text?: string; error?: string };
       if (payload.error || !payload.text) {
         setError(payload.error ?? "Coach returned an empty plan.");
         return;
@@ -556,7 +536,7 @@ function WorkoutCard({
       // answers plain text (Groq key unset / cascade exhausted), the
       // dedicated "plan didn't validate" branch stays reachable
       // instead of falling into the generic network-catch.
-      const raw = stripReasoning(payload.text).replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+      const raw = payload.text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
       let json: unknown;
       try {
         json = JSON.parse(raw);
@@ -566,14 +546,7 @@ function WorkoutCard({
       }
       const parsed = WorkoutPlanSchema.safeParse(json);
       if (!parsed.success) {
-        // Qwen #6: say WHAT failed, so a retry has a chance.
-        const issues = parsed.error.issues
-          .slice(0, 2)
-          .map((i) => `${i.path.join(".") || "plan"}: ${i.message}`)
-          .join("; ");
-        setError(
-          `The plan didn't validate (${issues}). Ask again for a cleaner one.`
-        );
+        setError("The plan didn't validate — ask again for a cleaner one.");
         return;
       }
       setPlan(parsed.data);
