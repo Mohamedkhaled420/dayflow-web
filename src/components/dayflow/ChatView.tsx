@@ -13,6 +13,7 @@
 //   refresh         → re-run the last coach answer
 //   omnibar         → coach context + privacy (click to switch
 //                     journal ↔ training; 🔒 = owner-only RLS)
+//   sticky note     → Coach Notes panel (badge = saved count)
 // Entries are written through the Delta Sync store exactly as
 // before (journal_entries, owner-only RLS); the composer is now
 // RICH TEXT (decision 1) whose HTML is stored in content and
@@ -21,11 +22,16 @@
 // context) or mode coaching with the training system prompt
 // when the omnibar is on coach://workout (Amendment #12 Bearer
 // auth; cascade + algorithmic floor live server-side).
+// Coach replies render as MARKDOWN through the escaping
+// allowlist renderer (no literal asterisks), and their
+// actionable tail (trailing NOTE/LOG protocol lines, stripped
+// by the route) lands in the Coach Notes panel — one tap writes
+// water/workout/sleep/journal through the real stores.
 // a11y: the flow is role="log" + aria-live="polite"; asking
 // sets aria-busy and a visually-hidden live region (A-5).
 // ============================================================
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "motion/react";
 import {
   Frown,
@@ -34,6 +40,7 @@ import {
   NotebookPen,
   Smile,
   Sparkles,
+  StickyNote,
 } from "lucide-react";
 import { useDayflowStore } from "@/store/useDayflowStore";
 import { useDayflowData } from "@/lib/viewmodel";
@@ -47,6 +54,15 @@ import {
 } from "@/components/dayflow/DiaChatShell";
 import { JournalComposer } from "@/components/dayflow/JournalComposer";
 import { journalHtmlToText, sanitizeJournalHtml } from "@/lib/journal-html";
+import { renderCoachMarkdown } from "@/lib/coach-markdown";
+import {
+  coerceCoachAction,
+  type CoachLogAction,
+} from "@/lib/coach-protocol";
+import {
+  CoachNotesSheet,
+  type CoachNote,
+} from "@/components/dayflow/CoachNotesSheet";
 
 const MOODS = [
   { score: 1, label: "Rough", Icon: Frown },
@@ -116,6 +132,11 @@ const CLIENT_TIMEOUT_MS = 60_000;
 const TURNS_STORAGE_KEY = "dayflow.coach.turns.v1";
 const MAX_PERSISTED_TURNS = 60;
 
+/** Coach Notes (the actionable tail of replies + offered logs)
+ *  persist on-device beside the turns — same privacy model. */
+const NOTES_STORAGE_KEY = "dayflow.coach.notes.v1";
+const MAX_PERSISTED_NOTES = 40;
+
 interface CoachTurn {
   id: number;
   role: "user" | "coach";
@@ -125,15 +146,23 @@ interface CoachTurn {
   mode: DiaCoachMode;
   /** Algorithmic-floor answers are labeled honestly (v0 #16). */
   source?: "ai" | "fallback";
+  /** Actionable tail the route stripped out of `content` and
+   *  routed to the Coach Notes panel instead. */
+  note?: string | null;
+  actions?: CoachLogAction[];
 }
 
 interface SSEReadResult {
   full: string;
   source: "ai" | "fallback";
   errorCode: string | null;
+  note: string | null;
+  actions: CoachLogAction[];
 }
 
-/** Read the route's SSE answer stream, painting throttled progress. */
+/** Read the route's SSE answer stream, painting throttled progress
+ *  and collecting the note/action events the route parsed off the
+ *  reply's trailing NOTE/LOG protocol lines. */
 async function readCoachSSE(
   body: ReadableStream<Uint8Array>,
   onProgress: (fullSoFar: string) => void
@@ -144,10 +173,12 @@ async function readCoachSSE(
   let full = "";
   let source: "ai" | "fallback" = "ai";
   let errorCode: string | null = null;
+  let note: string | null = null;
+  const actions: CoachLogAction[] = [];
   let lastPaint = 0;
 
   const handleEvent = (data: string) => {
-    let evt: { type?: string; text?: string; source?: string; code?: string };
+    let evt: { type?: string; text?: string; source?: string; code?: string; action?: unknown };
     try {
       evt = JSON.parse(data);
     } catch {
@@ -161,6 +192,11 @@ async function readCoachSSE(
         lastPaint = now;
         onProgress(full);
       }
+    } else if (evt.type === "note" && typeof evt.text === "string") {
+      note = evt.text; // last NOTE wins (route contract: one line)
+    } else if (evt.type === "action") {
+      const action = coerceCoachAction(evt.action);
+      if (action) actions.push(action);
     } else if (evt.type === "error" && evt.code) {
       errorCode = evt.code;
     }
@@ -183,13 +219,38 @@ async function readCoachSSE(
   } finally {
     reader.releaseLock();
   }
-  return { full, source, errorCode };
+  return { full, source, errorCode, note, actions };
+}
+
+/** Validate a restored Coach Note from localStorage — every action
+ *  re-passes coerceCoachAction so corrupted or hostile storage can
+ *  never produce a bogus store write. */
+function reviveCoachNote(raw: unknown): CoachNote | null {
+  if (!raw || typeof raw !== "object") return null;
+  const n = raw as Record<string, unknown>;
+  if (typeof n.id !== "number" || typeof n.text !== "string") return null;
+  const actions = Array.isArray(n.actions)
+    ? n.actions.map(coerceCoachAction).filter((a): a is CoachLogAction => a !== null)
+    : [];
+  return {
+    id: n.id,
+    text: n.text.slice(0, 240),
+    mode: n.mode === "workout" ? "workout" : "journal",
+    createdAt: typeof n.createdAt === "string" ? n.createdAt : new Date().toISOString(),
+    actions,
+    appliedIdx: Array.isArray(n.appliedIdx)
+      ? n.appliedIdx.filter((i): i is number => typeof i === "number")
+      : [],
+  };
 }
 
 export function ChatView() {
   const journalEntries = useDayflowStore((s) => s.journalEntries);
   const workoutLogs = useDayflowStore((s) => s.workoutLogs);
   const addJournalEntry = useDayflowStore((s) => s.addJournalEntry);
+  const addHydrationLog = useDayflowStore((s) => s.addHydrationLog);
+  const addWorkoutLog = useDayflowStore((s) => s.addWorkoutLog);
+  const addSleepLog = useDayflowStore((s) => s.addSleepLog);
   const isSyncing = useDayflowStore((s) => s.isSyncing);
   const syncError = useDayflowStore((s) => s.syncError);
   const data = useDayflowData();
@@ -208,11 +269,18 @@ export function ChatView() {
    *  the newest-first entries array (browser-style navigation). */
   const [historyCursor, setHistoryCursor] = useState<number | null>(null);
   const [online, setOnline] = useState(true);
+  /** Coach Notes — the actionable tail of coach replies, surfaced
+   *  AWAY from the chat flow (panel + chrome badge). */
+  const [notes, setNotes] = useState<CoachNote[]>([]);
+  const [notesOpen, setNotesOpen] = useState(false);
+  /** "noteId:idx" of the log action currently being written. */
+  const [applyingAction, setApplyingAction] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   /** False until the localStorage restore has run — the save
    *  effect must NEVER fire before it (otherwise its empty-turns
    *  removeItem wipes storage before the restore can read it). */
   const [turnsHydrated, setTurnsHydrated] = useState(false);
+  const [notesHydrated, setNotesHydrated] = useState(false);
 
   // Restore on-device coach history (v0 #9) — best-effort, deferred
   // to a microtask so the effect body performs no synchronous
@@ -265,6 +333,53 @@ export function ChatView() {
       // quota exceeded — persistence is best-effort
     }
   }, [coachTurns, turnsHydrated]);
+
+  // Coach Notes restore — same deferred pattern as the turns so
+  // hydration's first paint stays deterministic; every restored
+  // note re-validates through reviveCoachNote.
+  useEffect(() => {
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      try {
+        const raw = localStorage.getItem(NOTES_STORAGE_KEY);
+        if (raw) {
+          const saved = JSON.parse(raw) as unknown[];
+          if (Array.isArray(saved) && saved.length > 0) {
+            setNotes(
+              saved
+                .map(reviveCoachNote)
+                .filter((n): n is CoachNote => n !== null)
+                .slice(0, MAX_PERSISTED_NOTES)
+            );
+          }
+        }
+      } catch {
+        // corrupted storage — start fresh
+      } finally {
+        setNotesHydrated(true);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!notesHydrated) return;
+    try {
+      if (notes.length === 0) {
+        localStorage.removeItem(NOTES_STORAGE_KEY);
+        return;
+      }
+      localStorage.setItem(
+        NOTES_STORAGE_KEY,
+        JSON.stringify(notes.slice(0, MAX_PERSISTED_NOTES))
+      );
+    } catch {
+      // quota exceeded — persistence is best-effort
+    }
+  }, [notes, notesHydrated]);
 
   // Newest first for the reading list; coach context wants the
   // last-3 in chronological order.
@@ -321,6 +436,89 @@ export function ChatView() {
     () => coachTurns.filter((t) => t.mode === mode),
     [coachTurns, mode]
   );
+
+  /** A coach answer landed with an actionable tail — record it in
+   *  the Coach Notes panel (never in the chat flow itself). */
+  const addCoachNote = (
+    turnId: number,
+    note: string | null,
+    actions: CoachLogAction[]
+  ) => {
+    if (note === null && actions.length === 0) return;
+    setNotes((n) => [
+      {
+        id: turnId,
+        text: note ?? "Suggested from your chat",
+        mode,
+        createdAt: new Date().toISOString(),
+        actions,
+        appliedIdx: [],
+      },
+      ...n,
+    ].slice(0, MAX_PERSISTED_NOTES));
+  };
+
+  /** Write a coach-suggested log through the REAL store — coach
+   *  proposes, the user disposes (one explicit tap, same pattern
+   *  as the HabitsView workout generator). */
+  const applyNoteAction = async (note: CoachNote, idx: number) => {
+    const action = note.actions[idx];
+    if (!action) return;
+    const key = `${note.id}:${idx}`;
+    if (applyingAction) return;
+    setApplyingAction(key);
+    try {
+      let id: string | null = null;
+      let description = "";
+      switch (action.kind) {
+        case "water": {
+          const ml = action.amountMl ?? 250;
+          id = await addHydrationLog({ amount_ml: ml });
+          description = `${ml} ml added to today's water`;
+          break;
+        }
+        case "workout": {
+          const type = action.activity ?? "Workout";
+          id = await addWorkoutLog({
+            type,
+            duration_minutes: action.durationMinutes ?? null,
+          });
+          description = `${type} logged for today`;
+          break;
+        }
+        case "sleep": {
+          const mins = action.durationMinutes ?? 480;
+          id = await addSleepLog({ sleep_minutes: mins });
+          description = `${Math.floor(mins / 60)}h ${mins % 60}m of sleep logged`;
+          break;
+        }
+        case "journal": {
+          id = await addJournalEntry({ content: action.summary ?? "" });
+          description = "Journal entry saved";
+          break;
+        }
+      }
+      if (id === null) {
+        toast({
+          title: "Couldn't log that",
+          description: "It didn't save — try again in a moment.",
+        });
+        return;
+      }
+      setNotes((all) =>
+        all.map((n) =>
+          n.id === note.id ? { ...n, appliedIdx: [...n.appliedIdx, idx] } : n
+        )
+      );
+      toast({ title: "Logged from chat", description });
+    } finally {
+      setApplyingAction(null);
+    }
+  };
+
+  const dismissNote = (note: CoachNote) => {
+    setNotes((all) => all.filter((n) => n.id !== note.id));
+  };
 
   const saveEntry = async () => {
     if (!draftText || saving) return;
@@ -428,21 +626,28 @@ export function ChatView() {
       }
       const contentType = res.headers.get("content-type") ?? "";
       if (contentType.includes("text/event-stream") && res.body) {
-        // Streamed answer (v0 #1): text paints as it arrives.
-        const { full, source, errorCode } = await readCoachSSE(res.body, setLiveReply);
+        // Streamed answer (v0 #1): text paints as it arrives; the
+        // route strips the trailing NOTE/LOG protocol lines and
+        // sends them as structured events instead.
+        const { full, source, errorCode, note, actions } = await readCoachSSE(
+          res.body,
+          setLiveReply
+        );
         if (errorCode) {
           fail(CODE_MESSAGES[errorCode] ?? GENERIC_UNREACHABLE);
           return;
         }
-        if (!full.trim()) {
+        if (!full.trim() && note === null && actions.length === 0) {
           fail("The coach had nothing to say.");
           return;
         }
         setLiveReply(null);
+        const turnId = Date.now() + 1;
         setCoachTurns((t) => [
           ...t,
-          { id: Date.now() + 1, role: "coach", content: full, mode, source },
+          { id: turnId, role: "coach", content: full, mode, source, note, actions },
         ]);
+        addCoachNote(turnId, note, actions);
         if (!repeat) setDraft("");
         return;
       }
@@ -451,6 +656,8 @@ export function ChatView() {
         error?: string;
         code?: string;
         source?: "ai" | "fallback";
+        note?: string | null;
+        actions?: CoachLogAction[];
       };
       if (payload.error || !payload.text) {
         fail(
@@ -459,16 +666,25 @@ export function ChatView() {
         );
         return;
       }
+      // Non-streamed envelope: the route already stripped the
+      // NOTE/LOG tail out of `text` and returned it structured.
+      const cleanActions = (payload.actions ?? [])
+        .map(coerceCoachAction)
+        .filter((a): a is CoachLogAction => a !== null);
+      const turnId = Date.now() + 1;
       setCoachTurns((t) => [
         ...t,
         {
-          id: Date.now() + 1,
+          id: turnId,
           role: "coach",
           content: payload.text!,
           mode,
           source: payload.source,
+          note: payload.note ?? null,
+          actions: cleanActions,
         },
       ]);
+      addCoachNote(turnId, payload.note ?? null, cleanActions);
       if (!repeat) setDraft("");
     } catch (e) {
       if (
@@ -531,22 +747,25 @@ export function ChatView() {
   const firstName = data.profile.name.split(" ")[0];
 
   return (
-    <DiaChatShell
-      sync={sync}
-      mode={mode}
-      onModeChange={cycleMode}
-      onBack={goBack}
-      backDisabled={backDisabled}
-      onForward={goForward}
-      forwardDisabled={forwardDisabled}
-      onRefresh={rerunCoach}
-      refreshDisabled={refreshDisabled}
-      historyPosition={
-        historyCursor !== null && entries.length > 0
-          ? `${historyCursor + 1} / ${entries.length}`
-          : undefined
-      }
-      footer={
+    <div className="relative flex h-full min-h-0 flex-col">
+      <DiaChatShell
+        sync={sync}
+        mode={mode}
+        onModeChange={cycleMode}
+        onBack={goBack}
+        backDisabled={backDisabled}
+        onForward={goForward}
+        forwardDisabled={forwardDisabled}
+        onRefresh={rerunCoach}
+        refreshDisabled={refreshDisabled}
+        onOpenNotes={() => setNotesOpen(true)}
+        notesCount={notes.length}
+        historyPosition={
+          historyCursor !== null && entries.length > 0
+            ? `${historyCursor + 1} / ${entries.length}`
+            : undefined
+        }
+        footer={
         <div
           className="px-4 pb-[calc(0.75rem+max(0px,var(--keyboard-height,0px)))] pt-2 sm:px-6"
         >
@@ -636,7 +855,9 @@ export function ChatView() {
                     ? "Coach is thinking"
                     : draftText
                       ? "Ask the coach about this"
-                      : "Ask the coach about your recent entries"
+                      : mode === "journal"
+                        ? "Ask the coach about your recent entries"
+                        : "Ask the coach about your recent workouts"
                 }
                 className="df-press df-btn-secondary min-h-11 flex items-center gap-1.5 rounded-md px-4 text-[12.5px] font-semibold disabled:opacity-40"
               >
@@ -651,8 +872,8 @@ export function ChatView() {
           </div>
           <p className="mt-1.5 text-center text-[10px]" style={{ color: "var(--df-text-muted)" }}>
             Entries stay owner-only (RLS). Ask Coach sends your{" "}
-            {mode === "journal" ? "last 3 entries" : "last 3 workouts"} for context; coach
-            chat history stays on this device.
+            {mode === "journal" ? "last 3 entries" : "last 3 workouts"} for context; chat history,
+            Coach Notes, and their one-tap logs stay on this device until you apply them.
           </p>
         </div>
       }
@@ -684,9 +905,31 @@ export function ChatView() {
         )}
 
         {visibleTurns.map((t) => (
-          <Bubble key={t.id} role={t.role === "user" ? "user" : "coach"} source={t.source}>
-            {t.content}
-          </Bubble>
+          <Fragment key={t.id}>
+            <Bubble role={t.role === "user" ? "user" : "coach"} source={t.source}>
+              {t.content}
+            </Bubble>
+            {/* the actionable tail landed in Coach Notes, not in
+                the bubble — point at it without flooding the chat */}
+            {t.role === "coach" && (t.note || (t.actions?.length ?? 0) > 0) && (
+              <button
+                type="button"
+                onClick={() => {
+                  hapticSelect();
+                  setNotesOpen(true);
+                }}
+                aria-label="Open Coach Notes — this reply saved a takeaway there"
+                className="df-press df-chip -mt-1.5 flex h-7 shrink-0 items-center gap-1.5 self-start rounded-full px-2.5 text-[10.5px] font-medium"
+              >
+                <StickyNote
+                  className="h-3 w-3"
+                  style={{ color: "var(--df-accent)" }}
+                  aria-hidden="true"
+                />
+                Saved to Coach Notes
+              </button>
+            )}
+          </Fragment>
         ))}
 
         {/* streaming answer — text paints as it arrives (v0 #1);
@@ -789,7 +1032,23 @@ export function ChatView() {
           );
         })}
       </div>
-    </DiaChatShell>
+      </DiaChatShell>
+
+      {/* Coach Notes — the dedicated surface for the coach's
+          actionable tail (notes + one-tap logs), OUTSIDE the chat
+          box so it never drowns in the conversation. */}
+      <CoachNotesSheet
+        open={notesOpen}
+        onClose={() => setNotesOpen(false)}
+        notes={notes}
+        onApply={(note, idx) => {
+          void applyNoteAction(note, idx);
+        }}
+        onDismiss={dismissNote}
+        onClearAll={() => setNotes([])}
+        applyingIdx={applyingAction}
+      />
+    </div>
   );
 }
 
@@ -826,19 +1085,31 @@ function Bubble({
             }
       }
     >
-      <p
-        className="text-[13px] leading-[1.5] whitespace-pre-wrap"
-        style={{ color: "var(--df-text-primary)" }}
-      >
-        {children}
-        {streaming && (
-          <span
-            aria-hidden="true"
-            className="ml-0.5 inline-block h-[13px] w-[2px] align-[-2px]"
-            style={{ background: "var(--df-accent)" }}
-          />
-        )}
-      </p>
+      {isUser ? (
+        <p
+          className="text-[13px] leading-[1.5] whitespace-pre-wrap"
+          style={{ color: "var(--df-text-primary)" }}
+        >
+          {children}
+        </p>
+      ) : (
+        // Coach replies arrive as markdown (bold, lists, code…) —
+        // rendered through the escaping allowlist renderer so the
+        // user sees formatting, never literal asterisks ("stars").
+        <div
+          className="df-prose text-[13px]"
+          style={{ color: "var(--df-text-primary)" }}
+        >
+          <div dangerouslySetInnerHTML={{ __html: renderCoachMarkdown(children) }} />
+          {streaming && (
+            <span
+              aria-hidden="true"
+              className="ml-0.5 inline-block h-[13px] w-[2px] align-[-2px]"
+              style={{ background: "var(--df-accent)" }}
+            />
+          )}
+        </div>
+      )}
       {/* honest labeling (v0 #16): the algorithmic floor is quick
           local guidance, not a Groq answer — say so, quietly */}
       {!isUser && source === "fallback" && (
