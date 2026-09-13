@@ -175,7 +175,11 @@ export async function* sseDeltas(
               choices?: { delta?: { content?: string } }[];
             };
             const delta = parsed.choices?.[0]?.delta?.content;
-            if (delta) yield delta;
+            if (delta) {
+              // FIX: Strip <think>...</think> tags from streaming deltas
+              const cleanDelta = delta.replace(/<think>[\s\S]*?<\/think>/g, '');
+              if (cleanDelta) yield cleanDelta;
+            }
           } catch {
             // Malformed keep-alive/comment fragments — skip rather
             // than kill a healthy stream.
