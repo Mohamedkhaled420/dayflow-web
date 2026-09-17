@@ -273,7 +273,7 @@ function MealCaptureForm({ onClose, dateKey }: { onClose: () => void; dateKey?: 
       )}
 
       {step === "pick" && (
-        <div className="mt-4 grid gap-2">
+        <div className="mt-4 grid grid-cols-1 gap-2">
           <PickCard
             icon={<Camera className="h-5 w-5" />}
             title="Snap a photo"

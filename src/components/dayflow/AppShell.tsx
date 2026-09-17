@@ -262,10 +262,12 @@ export function AppShell() {
           fullscreen journal editor. The transform rides the style
           prop (LiquidGlass's inline translateZ(0) base would beat a
           CSS class). Rule C: the 88px reservation on the panel
-          never changes, so CLS stays 0. */}
+          never changes, so CLS stays 0. Bottom offset (incl. the
+          home-indicator safe area) is owned by the .df-mobile-dock
+          CSS rule — single safe-area authority. */}
       <LiquidGlass
         filterCss="url(#lg-dock) blur(18px) saturate(1.7)"
-        className="df-mobile-dock lg:hidden fixed inset-x-3 bottom-2 z-50"
+        className="df-mobile-dock lg:hidden fixed inset-x-3 z-50"
         style={{
           background: "var(--df-mobile-nav-fill)",
           border: "0.5px solid var(--df-chip-border)",
@@ -283,7 +285,7 @@ export function AppShell() {
       >
         <nav
           aria-label="Mobile primary"
-          className="flex items-center justify-around px-1.5 pb-[max(0.35rem,env(safe-area-inset-bottom))] pt-1.5"
+          className="flex items-center justify-around px-1.5 pb-1.5 pt-1.5"
         >
           {TABS.filter((item) => item.id !== "settings").map((t) => (
             <DockItem

@@ -509,9 +509,11 @@ function CalorieRing({ consumed, target }: { consumed: number; target: number })
       <div className="absolute inset-0 grid place-items-center text-center pointer-events-none">
         <div>
           <div className="text-[17px] font-bold leading-none tabular-nums" style={{ color: "var(--df-summary-value)" }}>
-            {Math.max(0, target - consumed)}
+            {/* Over budget, the useful number is HOW FAR over (1014),
+                not a clamped 0 — "0 over" reads as broken. */}
+            {over ? Math.round(consumed - target) : Math.max(0, target - consumed)}
           </div>
-          <div className="text-[9.5px] font-semibold uppercase tracking-wide mt-1" style={{ color: "var(--df-text-muted)" }}>
+          <div className="text-[9.5px] font-semibold uppercase tracking-wide mt-1" style={{ color: over ? "var(--df-destructive-text)" : "var(--df-text-muted)" }}>
             {over ? "over" : "kcal left"}
           </div>
         </div>
