@@ -91,6 +91,17 @@ export const CIRCADIAN_COLORS = {
   dip: "#F59E0B",
 } as const;
 
+/**
+ * Nutrition macro colors (Phase 9) — DATA colors for the DailyView
+ * nutrition card bars. Calorie ring uses the meals category amber;
+ * macros get distinct hues so the three bars never read as one.
+ */
+export const MACRO_COLORS = {
+  protein: "#FF706B",
+  carbs: "#56CFEE",
+  fat: "#B984FF",
+} as const;
+
 /** Convenience: every fallback used by the goals layer (lib/compute). */
 export const GOAL_FALLBACK_COLORS: Record<
   GoalProgress["key"],
