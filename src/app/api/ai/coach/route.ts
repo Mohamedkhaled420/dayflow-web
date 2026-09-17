@@ -25,10 +25,13 @@
 // COACH_UNAVAILABLE — with short human copy. Upstream Groq bodies
 // are logged server-side only, never returned.
 //
-// Response envelope: { text, source: "ai" | "fallback", model? } so
-// the UI can label algorithmic-floor answers honestly (v0 audit
-// #16). Streaming clients (stream: true, non-workout modes) get
-// SSE: meta → delta* → done | error.
+// Response envelope: { text, note?, actions?, source: "ai" |
+// "fallback", model? } so the UI can label algorithmic-floor
+// answers honestly (v0 audit #16) and route the coach's
+// actionable tail (NOTE/LOG lines, stripped from `text`) into
+// the Coach Notes panel. Streaming clients (stream: true,
+// non-workout modes) get SSE: meta → delta* → note? → action* →
+// done | error.
 // ============================================================
 
 import { cookies } from "next/headers";
@@ -45,6 +48,11 @@ import {
   type GroqModel,
   type ReasoningEffort,
 } from "@/lib/groq";
+import {
+  ProtocolStreamFilter,
+  parseCoachProtocol,
+  type CoachProtocolEvent,
+} from "@/lib/coach-protocol";
 
 export const runtime = "nodejs";
 
@@ -196,6 +204,35 @@ function crisisSuffixFor(mode: CoachMode, messages: GroqMessage[]): string {
   return lastUser && CRISIS_PATTERN.test(lastUser.content) ? CRISIS_SUFFIX : "";
 }
 
+// ---------- coach reply protocol (notes + log actions) ----------
+// Conversational modes append machine-readable trailing lines the
+// route strips from the visible chat and re-emits as structured
+// events (see src/lib/coach-protocol.ts). The workout JSON mode
+// and recap never see this addendum.
+
+const PROTOCOL_SYSTEM_ADDENDUM = [
+  "Reply format contract (the app parses this — follow it exactly):",
+  "End your reply with ONE final line in exactly this form:",
+  "NOTE: <one short, concrete next step the user can take today>",
+  "The NOTE line is routed to the user's Coach Notes panel and is never shown in the chat — do not repeat it in the reply text.",
+  "When the user mentions something they want recorded or tracked (e.g. \"log 500ml of water\", \"I just ran 30 minutes\", \"slept 7 hours\", \"journal this\"), also append one line per item, in exactly one of these forms:",
+  "LOG WATER: <amount> ml",
+  "LOG WORKOUT: <activity> · <duration> min",
+  "LOG SLEEP: <duration> min",
+  "LOG JOURNAL: <one-sentence summary of what to save>",
+  "Only add a LOG line when the user clearly asked to record or track it — never invent logs, and never log for past days the user did not mention.",
+  "Keep the rest of the reply free of lines starting with NOTE: or LOG.",
+].join("\n");
+
+/** Modes whose replies carry the NOTE/LOG trailing protocol. */
+const PROTOCOL_MODES: ReadonlySet<CoachMode> = new Set(["journal", "coaching"]);
+
+function withProtocolAddendum(mode: CoachMode, messages: GroqMessage[]): GroqMessage[] {
+  return PROTOCOL_MODES.has(mode)
+    ? [{ role: "system", content: PROTOCOL_SYSTEM_ADDENDUM }, ...messages]
+    : messages;
+}
+
 // Amendment #12: validate the request body BEFORE any Groq call.
 const CoachRequestSchema = z.object({
   mode: z.enum(["journal", "workout", "recap", "coaching"]),
@@ -284,9 +321,10 @@ function sseEvent(obj: unknown): Uint8Array {
  */
 function streamCoachAnswer(
   mode: CoachMode,
-  messages: GroqMessage[],
+  rawMessages: GroqMessage[],
   ctx: { streak?: number; hydrationPct?: number } = {}
 ): Response {
+  const messages = withProtocolAddendum(mode, rawMessages);
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const suffix = crisisSuffixFor(mode, messages);
@@ -310,15 +348,31 @@ function streamCoachAnswer(
             });
             let full = "";
             let firstDelta = true;
+            // NOTE/LOG trailing lines are stripped from the visible
+            // stream and re-emitted as structured note/action events.
+            const filter = new ProtocolStreamFilter();
+            const emitEvents = (events: CoachProtocolEvent[]) => {
+              for (const evt of events) safeEnqueue(sseEvent(evt));
+            };
             for await (const delta of sseDeltas(response)) {
               if (firstDelta) {
                 safeEnqueue(sseEvent({ type: "meta", source: "ai", model }));
                 firstDelta = false;
               }
-              full += delta;
-              safeEnqueue(sseEvent({ type: "delta", text: delta }));
+              const out = filter.push(delta);
+              if (out.delta) {
+                full += out.delta;
+                safeEnqueue(sseEvent({ type: "delta", text: out.delta }));
+              }
+              emitEvents(out.events);
             }
-            if (firstDelta) {
+            const tail = filter.finish();
+            if (tail.delta) {
+              full += tail.delta;
+              safeEnqueue(sseEvent({ type: "delta", text: tail.delta }));
+            }
+            emitEvents(tail.events);
+            if (!filter.produced) {
               // Accepted but produced no content — treat as a hop
               // failure so the next model gets a chance.
               throw new GroqError(502, "empty stream");
@@ -443,10 +497,18 @@ export async function POST(req: Request) {
       return streamCoachAnswer(mode, messages, ctx ?? {});
     }
 
-    const reply = await generateWithFallback(mode, messages, ctx ?? {});
+    // NOTE/LOG trailing protocol rides the conversational cascade
+    // only — the workout JSON and recap envelopes stay untouched.
+    const protocolMessages = withProtocolAddendum(mode, messages);
+    const reply = await generateWithFallback(mode, protocolMessages, ctx ?? {});
     const suffix = crisisSuffixFor(mode, messages);
+    const parsedProtocol = PROTOCOL_MODES.has(mode)
+      ? parseCoachProtocol(reply.text)
+      : { text: reply.text, note: null, actions: [] };
     return Response.json({
-      text: suffix ? reply.text + suffix : reply.text,
+      text: suffix ? parsedProtocol.text + suffix : parsedProtocol.text,
+      note: parsedProtocol.note,
+      actions: parsedProtocol.actions,
       source: reply.source,
       model: reply.model,
     });

@@ -22,7 +22,7 @@
 // ============================================================
 
 import type { ReactNode } from "react";
-import { ArrowLeft, ArrowRight, Lock, RotateCw } from "lucide-react";
+import { ArrowLeft, ArrowRight, Lock, RotateCw, StickyNote } from "lucide-react";
 
 export type DiaSyncState = "ok" | "pending" | "error";
 export type DiaCoachMode = "journal" | "workout";
@@ -81,6 +81,11 @@ export interface DiaChromeProps {
   refreshDisabled?: boolean;
   /** Where you are in the journal history (e.g. "3 / 12"). */
   historyPosition?: string;
+  /** Open the Coach Notes panel (the coach's takeaways live
+   *  there, outside the chat flow). Omit on static frames. */
+  onOpenNotes?: () => void;
+  /** Pending Coach Notes count for the chrome badge. */
+  notesCount?: number;
 }
 
 /**
@@ -100,6 +105,8 @@ export function DiaChrome({
   onRefresh,
   refreshDisabled = true,
   historyPosition,
+  onOpenNotes,
+  notesCount = 0,
 }: DiaChromeProps) {
   const meta = SYNC_META[sync];
   const statusLabel = syncLabel ?? meta.label;
@@ -175,6 +182,39 @@ export function DiaChrome({
       >
         <RotateCw className="h-3.5 w-3.5" strokeWidth={2} />
       </ChromeIconButton>
+
+      {/* Coach Notes — the actionable tail of coach replies,
+          surfaced AWAY from the chat flow (badge = unactioned
+          notes). Hidden on static landing frames. */}
+      {onOpenNotes && (
+        <button
+          type="button"
+          onClick={onOpenNotes}
+          aria-label={
+            notesCount > 0
+              ? `Open Coach Notes — ${notesCount} saved`
+              : "Open Coach Notes"
+          }
+          title="Coach Notes — the coach's takeaways and suggested logs"
+          className="df-press relative grid h-7 w-7 shrink-0 place-items-center rounded-md"
+          style={{ color: "var(--df-text-secondary)" }}
+        >
+          <StickyNote className="h-3.5 w-3.5" strokeWidth={2} />
+          {notesCount > 0 && (
+            <span
+              className="absolute -right-1 -top-1 grid h-[14px] min-w-[14px] place-items-center rounded-full px-[3px] text-[8.5px] font-bold tabular-nums"
+              style={{
+                background: "var(--df-accent)",
+                color: "var(--df-primary-btn-text)",
+                border: "1.5px solid var(--df-chrome-fill)",
+              }}
+              aria-hidden="true"
+            >
+              {notesCount > 9 ? "9+" : notesCount}
+            </span>
+          )}
+        </button>
+      )}
 
       {/* omnibar = mode + privacy */}
       {onModeChange ? (

@@ -19,6 +19,13 @@ export type ReasoningEffort = "none" | "low" | "medium" | "high";
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 
+/** Base URL is env-overridable so the sandbox can point the full
+ *  cascade + SSE pipeline at a local mock Groq (scripts/mock-groq.mjs)
+ *  — production behavior is unchanged when GROQ_BASE_URL is unset. */
+function groqUrl(): string {
+  return process.env.GROQ_BASE_URL ?? GROQ_URL;
+}
+
 // All four routed IDs accept reasoning_effort (verified 2026-09-11).
 const REASONING_CAPABLE: ReadonlySet<GroqModel> = new Set([
   GROQ_MODELS.gptOss120b,
@@ -89,7 +96,7 @@ export async function callGroq(opts: CallGroqOptions): Promise<string> {
     body.reasoning_effort = opts.reasoningEffort;
   }
 
-  const res = await fetch(GROQ_URL, {
+  const res = await fetch(groqUrl(), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -151,7 +158,7 @@ export async function callGroqStream(
     body.reasoning_effort = opts.reasoningEffort;
   }
 
-  const res = await fetch(GROQ_URL, {
+  const res = await fetch(groqUrl(), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -170,9 +177,15 @@ export async function callGroqStream(
 /**
  * Parse an SSE body into text deltas. Yields only content chunks;
  * network/parse errors surface as exceptions to the caller.
- * 
- * FIX: Stateful tracking of <think> blocks across streaming deltas
- * (v0 audit #1: regex on individual chunks fails when tags span multiple deltas)
+ *
+ * FIX (stateful carry): upstream tokenizers split text ANYWHERE, so
+ * both think tags can arrive cut in half ("ILDuc" + "i>", or
+ * "ilda..." split across deltas). Without the carry buffer below,
+ * a split closing tag is never matched, the stream stays inside the
+ * think block forever, and the WHOLE reply is silently eaten (found
+ * by pointing the cascade at a hostile local mock that splits the
+ * closing tag across two deltas); a split opening tag leaks raw
+ * reasoning into the visible chat instead.
  */
 export async function* sseDeltas(
   response: Response
@@ -180,8 +193,53 @@ export async function* sseDeltas(
   const reader = response.body!.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
-  let inThinkBlock = false; // Stateful tracking across deltas
-  
+  const OPEN = "<" + "think" + ">";
+  const CLOSE = "</" + "think" + ">";
+  let inThinkBlock = false;
+  let carry = "";
+
+  /** Strip think tags from one upstream delta; returns the visible
+   *  text ("" when the delta was pure reasoning). */
+  const stripDelta = (delta: string): string => {
+    let buf = carry + delta;
+    carry = "";
+    let text = "";
+    for (;;) {
+      if (buf === "") return text;
+      if (inThinkBlock) {
+        const closeIdx = buf.indexOf(CLOSE);
+        if (closeIdx !== -1) {
+          inThinkBlock = false;
+          buf = buf.slice(closeIdx + CLOSE.length);
+          continue;
+        }
+        // No full closing tag — park a possible partial-tag tail.
+        const keep = Math.min(CLOSE.length - 1, buf.length);
+        carry = keep > 0 ? buf.slice(buf.length - keep) : "";
+        return text;
+      }
+      const openIdx = buf.indexOf(OPEN);
+      if (openIdx !== -1) {
+        text += buf.slice(0, openIdx);
+        inThinkBlock = true;
+        buf = buf.slice(openIdx + OPEN.length);
+        continue;
+      }
+      // No opening tag — but the tail might be a partial opening
+      // tag; hold the longest such suffix for the next delta.
+      let keep = 0;
+      for (let k = Math.min(OPEN.length - 1, buf.length); k > 0; k--) {
+        if (OPEN.startsWith(buf.slice(buf.length - k))) {
+          keep = k;
+          break;
+        }
+      }
+      text += buf.slice(0, buf.length - keep);
+      carry = keep > 0 ? buf.slice(buf.length - keep) : "";
+      return text;
+    }
+  };
+
   try {
     for (;;) {
       const { done, value } = await reader.read();
@@ -202,34 +260,7 @@ export async function* sseDeltas(
             };
             const delta = parsed.choices?.[0]?.delta?.content;
             if (delta) {
-              // Stateful strip: track <think> blocks across deltas
-              let clean = "";
-              let remaining = delta;
-              
-              while (remaining.length > 0) {
-                if (inThinkBlock) {
-                  // Look for closing </think>
-                  const closeIdx = remaining.indexOf("</think>");
-                  if (closeIdx !== -1) {
-                    inThinkBlock = false;
-                    remaining = remaining.slice(closeIdx + 8); // skip </think>
-                  } else {
-                    break; // entire delta is inside think block, discard
-                  }
-                } else {
-                  // Look for opening <think>
-                  const openIdx = remaining.indexOf("<think>");
-                  if (openIdx !== -1) {
-                    clean += remaining.slice(0, openIdx);
-                    inThinkBlock = true;
-                    remaining = remaining.slice(openIdx + 7); // skip <think>
-                  } else {
-                    clean += remaining;
-                    remaining = "";
-                  }
-                }
-              }
-              
+              const clean = stripDelta(delta);
               if (clean) yield clean;
             }
           } catch {
@@ -239,6 +270,11 @@ export async function* sseDeltas(
         }
       }
     }
+    // Stream ended: the carry was real content after all (it never
+    // completed into a tag) — flush it. Inside an UNCLOSED think
+    // block it is truncated reasoning: drop it, matching callGroq.
+    if (carry && !inThinkBlock) yield carry;
+    carry = "";
   } finally {
     reader.releaseLock();
   }
