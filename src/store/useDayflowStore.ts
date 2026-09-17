@@ -44,6 +44,7 @@ export type HydrationLogRow = Tables<"hydration_logs"> & SyncFlag;
 export type WorkoutLogRow = Tables<"workout_logs"> & SyncFlag;
 export type SleepLogRow = Tables<"sleep_logs"> & SyncFlag;
 export type JournalEntryRow = Tables<"journal_entries"> & SyncFlag;
+export type MealLogRow = Tables<"meal_logs"> & SyncFlag;
 export type TeamRow = Tables<"teams">;
 export type TeamActivityRow = Tables<"team_activities">;
 export type TeamInviteRow = Tables<"team_invites">;
@@ -141,6 +142,7 @@ export interface DayflowSyncState {
   workoutLogs: WorkoutLogRow[];
   sleepLogs: SleepLogRow[];
   journalEntries: JournalEntryRow[];
+  mealLogs: MealLogRow[];
   /** Team slice (Phase 3) — in-memory only, never persisted. */
   team: TeamRow | null;
   teamActivities: TeamActivityRow[];
@@ -198,6 +200,22 @@ export interface DayflowSyncActions {
     mood_score?: number | null;
   }) => Promise<string | null>;
 
+  // ---------- meals (Phase 9 Nutrition) ----------
+  /** Log a meal row — optimistic; estimate already confirmed by the user. */
+  addMealLog: (input: {
+    name: string;
+    calories: number;
+    protein_g?: number | null;
+    carbs_g?: number | null;
+    fat_g?: number | null;
+    source?: string;
+    logged_at?: string;
+  }) => Promise<string | null>;
+  /** Update a meal row (fix name / kcal / macros) — optimistic, reverts on failure. */
+  updateMealLog: (id: string, patch: Partial<TablesUpdate<"meal_logs">>) => Promise<boolean>;
+  /** Remove a meal row — optimistic, restores on failure. */
+  deleteMealLog: (id: string) => Promise<boolean>;
+
   // ---------- log mutations (Phase 5 T0: timeline editing/drag) ----------
   /** Update a sleep row (duration / wake time) — optimistic, reverts on failure. */
   updateSleepLog: (id: string, patch: Partial<TablesUpdate<"sleep_logs">>) => Promise<boolean>;
@@ -234,6 +252,7 @@ const initialState = (): DayflowSyncState => ({
   workoutLogs: [],
   sleepLogs: [],
   journalEntries: [],
+  mealLogs: [],
   team: null,
   teamActivities: [],
   incomingInvites: [],
@@ -293,6 +312,7 @@ async function retryPendingRows(
     workoutLogs: [] as string[],
     sleepLogs: [] as string[],
     journalEntries: [] as string[],
+    mealLogs: [] as string[],
   };
 
   for (const row of get().habits.filter((r) => r.pending_sync)) {
@@ -325,6 +345,11 @@ async function retryPendingRows(
     const { error } = await supabase.from("journal_entries").upsert(payload, { onConflict: "id" });
     if (!error) cleared.journalEntries.push(row.id);
   }
+  for (const row of get().mealLogs.filter((r) => r.pending_sync)) {
+    const { pending_sync, ...payload } = row;
+    const { error } = await supabase.from("meal_logs").upsert(payload, { onConflict: "id" });
+    if (!error) cleared.mealLogs.push(row.id);
+  }
 
   const clear = <T extends { id: string; pending_sync?: boolean }>(
     rows: T[],
@@ -341,6 +366,7 @@ async function retryPendingRows(
     workoutLogs: clear(get().workoutLogs, cleared.workoutLogs),
     sleepLogs: clear(get().sleepLogs, cleared.sleepLogs),
     journalEntries: clear(get().journalEntries, cleared.journalEntries),
+    mealLogs: clear(get().mealLogs, cleared.mealLogs),
   });
 }
 
@@ -485,6 +511,16 @@ export const useDayflowStore = create<DayflowSyncStore>()(
           else if (data) {
             pulled.journalEntries = mergeById(get().journalEntries, data);
             newest = maxIso(newest, maxRowTimestamp(data, "created_at"));
+          }
+        }
+        {
+          let q = supabase.from("meal_logs").select("*");
+          if (since) q = q.gt("logged_at", since);
+          const { data, error } = await q;
+          if (error) errors.push(`meal_logs: ${error.message}`);
+          else if (data) {
+            pulled.mealLogs = mergeById(get().mealLogs, data);
+            newest = maxIso(newest, maxRowTimestamp(data, "logged_at"));
           }
         }
 
@@ -757,6 +793,82 @@ export const useDayflowStore = create<DayflowSyncStore>()(
         return row.id;
       },
 
+      // ---------- meals (Phase 9 Nutrition) ----------
+
+      addMealLog: async (input) => {
+        const userId = await currentUserId();
+        if (!userId) return null;
+        const row: MealLogRow = {
+          id: uuid(),
+          user_id: userId,
+          name: input.name,
+          calories: input.calories,
+          protein_g: input.protein_g ?? null,
+          carbs_g: input.carbs_g ?? null,
+          fat_g: input.fat_g ?? null,
+          source: input.source ?? "manual",
+          logged_at: input.logged_at ?? nowIso(),
+          created_at: nowIso(),
+        };
+        set((s) => ({ mealLogs: [...s.mealLogs, row] }));
+        const { pending_sync, ...payload } = row;
+        await settleWrite(
+          row,
+          async () => {
+            const supabase = await syncClient();
+            return supabase.from("meal_logs").insert(payload);
+          },
+          userId,
+          () =>
+            useDayflowStore.setState((s) => ({
+              mealLogs: s.mealLogs.map((r) =>
+                r.id === row.id ? { ...r, pending_sync: true } : r
+              ),
+            }))
+        );
+        return row.id;
+      },
+
+      updateMealLog: async (id, patch) => {
+        const userId = await currentUserId();
+        if (!userId) return false;
+        const before = get().mealLogs.find((r) => r.id === id);
+        if (!before) return false;
+        set((s) => ({
+          mealLogs: s.mealLogs.map((r) => (r.id === id ? { ...r, ...patch } : r)),
+        }));
+        const supabase = await syncClient();
+        const { error } = await supabase.from("meal_logs").update(patch).eq("id", id);
+        if (error) {
+          set((s) => ({
+            mealLogs: s.mealLogs.map((r) => (r.id === id ? before : r)),
+            syncError: `meal_logs update: ${error.message}`,
+          }));
+          return false;
+        }
+        void bumpSyncCursor(userId);
+        return true;
+      },
+
+      deleteMealLog: async (id) => {
+        const userId = await currentUserId();
+        if (!userId) return false;
+        const before = get().mealLogs.find((r) => r.id === id);
+        if (!before) return false;
+        set((s) => ({ mealLogs: s.mealLogs.filter((r) => r.id !== id) }));
+        const supabase = await syncClient();
+        const { error } = await supabase.from("meal_logs").delete().eq("id", id);
+        if (error) {
+          set((s) => ({
+            mealLogs: [...s.mealLogs, before],
+            syncError: `meal_logs delete: ${error.message}`,
+          }));
+          return false;
+        }
+        void bumpSyncCursor(userId);
+        return true;
+      },
+
       // ---------- log mutations (Phase 5 T0) ----------
 
       updateSleepLog: async (id, patch) => {
@@ -994,6 +1106,7 @@ export const useDayflowStore = create<DayflowSyncStore>()(
         workoutLogs: s.workoutLogs,
         sleepLogs: s.sleepLogs,
         journalEntries: s.journalEntries,
+        mealLogs: s.mealLogs,
         lastSyncCursor: s.lastSyncCursor,
         lastSyncedAt: s.lastSyncedAt,
       }),

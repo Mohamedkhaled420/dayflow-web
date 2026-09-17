@@ -300,3 +300,79 @@ export async function* sseDeltas(
     reader.releaseLock();
   }
 }
+
+// ---------------------------------------------------------------
+// Vision (Phase 9 Nutrition): multimodal food-photo analysis via
+// Groq's vision tier (GROQ_MODELS.llama4Scout). Routed ONLY by
+// /api/ai/food — the vision tier is NOT part of the coach cascade
+// and never receives reasoning_effort. Same error contract as
+// callGroq: GroqError with retry-class status; think-strip; the
+// route falls through to z.ai / the offline estimator on failure.
+// ---------------------------------------------------------------
+
+export interface CallGroqVisionOptions {
+  /** Vision-tier model ID (GROQ_MODELS.llama4Scout). */
+  model: GroqModel;
+  /** Instruction prompt — the JSON contract lives in the route. */
+  prompt: string;
+  /** Base64 image payload (no data: prefix). */
+  imageBase64: string;
+  mimeType?: string;
+  temperature?: number;
+  /** Abort/timeout signal for the upstream fetch. */
+  signal?: AbortSignal;
+}
+
+export async function callGroqVision(opts: CallGroqVisionOptions): Promise<string> {
+  if (!process.env.GROQ_API_KEY) {
+    throw new GroqError(503, "GROQ_API_KEY is not configured");
+  }
+
+  const res = await fetch(GROQ_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: opts.model,
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: opts.prompt },
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:${opts.mimeType ?? "image/jpeg"};base64,${opts.imageBase64}`,
+              },
+            },
+          ],
+        },
+      ],
+      temperature: opts.temperature ?? 0.2,
+      max_completion_tokens: 800,
+      // Estimation wants a parseable object; a model that rejects
+      // response_format fails as retry-class and the caller falls
+      // through to the next hop.
+      response_format: { type: "json_object" },
+    }),
+    signal: opts.signal,
+  });
+
+  if (!res.ok) {
+    throw new GroqError(res.status, await res.text().catch(() => ""));
+  }
+
+  const data = await res.json();
+  const content: string = data.choices?.[0]?.message?.content ?? "";
+  const stripped = content
+    .replace(/<think>[\s\S]*?<\/think>/gi, "")
+    .replace(/<think>[\s\S]*$/i, "") // unclosed (truncated)
+    .trim();
+
+  if (!stripped) {
+    throw new GroqError(503, "empty answer after reasoning strip");
+  }
+  return stripped;
+}
