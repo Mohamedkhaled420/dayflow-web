@@ -217,11 +217,14 @@ export function HabitsView() {
         </div>
 
         <div className="mt-3 overflow-x-auto df-scroll">
-          <div className="min-w-[480px] flex flex-col gap-2.5">
+          {/* w-max: the grid keeps its true content width — rows never
+              shrink (that clipped day labels to 38px); phones scroll
+              the week horizontally instead. */}
+          <div className="w-max min-w-[480px] flex flex-col gap-2.5">
             {/* day header */}
             <div className="flex items-center gap-2 pl-[168px]">
               {week.map((d) => (
-                <div key={d.dateKey} className="w-[44px] text-center">
+                <div key={d.dateKey} className="w-[44px] shrink-0 text-center">
                   <div
                     className="text-[10px] font-semibold uppercase tracking-wide"
                     style={{ color: d.isToday ? "var(--df-accent-text)" : "var(--df-text-muted)" }}
@@ -261,7 +264,7 @@ export function HabitsView() {
                   {week.map((d) => {
                     const met = days.has(d.dateKey);
                     return (
-                      <div key={d.dateKey} className="w-[44px] grid place-items-center">
+                      <div key={d.dateKey} className="w-[44px] shrink-0 grid place-items-center">
                         <motion.button
                           type="button"
                           initial={{ scale: 0.5, opacity: 0 }}
@@ -327,50 +330,46 @@ export function HabitsView() {
                 </div>
               );
             })}
-
-            {/* new habit row */}
-            <form
-              className="flex items-center gap-2"
-              onSubmit={(e) => {
-                e.preventDefault();
-                void createHabit();
-              }}
-            >
-              <div className="w-[168px] shrink-0 flex items-center gap-2 pr-2">
-                <span
-                  className="w-2.5 h-2.5 rounded-[4px] shrink-0"
-                  style={{ background: "var(--df-text-muted)" }}
-                />
-                <input
-                  value={newHabit}
-                  onChange={(e) => setNewHabit(e.target.value)}
-                  placeholder="New habit…"
-                  aria-label="New habit name"
-                  className="w-full min-h-11 rounded-md px-2.5 bg-transparent outline-none text-base placeholder:text-[var(--df-text-muted)]"
-                  style={{
-                    color: "var(--df-text-primary)",
-                    background: "var(--df-input-fill)",
-                    border: "0.5px solid var(--df-input-border)",
-                  }}
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={!newHabit.trim()}
-                className="df-press df-btn-primary min-h-11 px-3.5 rounded-md text-[12px] font-semibold flex items-center gap-1.5 disabled:opacity-40"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                Add habit
-              </button>
-            </form>
-
-            {habits.length === 0 && (
-              <p className="text-[11.5px] py-2" style={{ color: "var(--df-text-muted)" }}>
-                No habits yet — add your first above (e.g. &ldquo;Morning walk&rdquo;, &ldquo;Read 10 pages&rdquo;).
-              </p>
-            )}
           </div>
         </div>
+
+        {/* new habit row — FULL WIDTH, outside the scrollable grid so
+            the input + button are always reachable on a phone (inside
+            the 480px grid they sat past the horizontal scroll edge). */}
+        <form
+          className="mt-3 flex items-center gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void createHabit();
+          }}
+        >
+          <input
+            value={newHabit}
+            onChange={(e) => setNewHabit(e.target.value)}
+            placeholder="New habit…"
+            aria-label="New habit name"
+            className="flex-1 min-w-0 min-h-11 rounded-md px-2.5 bg-transparent outline-none text-base placeholder:text-[var(--df-text-muted)]"
+            style={{
+              color: "var(--df-text-primary)",
+              background: "var(--df-input-fill)",
+              border: "0.5px solid var(--df-input-border)",
+            }}
+          />
+          <button
+            type="submit"
+            disabled={!newHabit.trim()}
+            className="df-press df-btn-primary min-h-11 shrink-0 px-3.5 rounded-md text-[12px] font-semibold flex items-center gap-1.5 disabled:opacity-40"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add habit
+          </button>
+        </form>
+
+        {habits.length === 0 && (
+          <p className="text-[11.5px] py-2" style={{ color: "var(--df-text-muted)" }}>
+            No habits yet — add your first above (e.g. &ldquo;Morning walk&rdquo;, &ldquo;Read 10 pages&rdquo;).
+          </p>
+        )}
       </section>
 
       {/* today's goal cards (server-backed) */}

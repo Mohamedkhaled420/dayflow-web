@@ -53,10 +53,14 @@ export const THEME_SWATCHES = {
   system: "linear-gradient(135deg, #FFE6CF 50%, #3B2B4B 50%)",
 } as const;
 
-/** Browser chrome theme-color metadata (app/layout.tsx viewport). */
+/** Browser chrome theme-color metadata (app/layout.tsx viewport +
+ *  ChromeThemeSync). Values mirror --df-window-bg 1:1 (#ffffff light /
+ *  #191919 dark in theme.css) so the address-bar band on phones blends
+ *  EXACTLY into the app surface — any tint difference reads as a
+ *  "browser band" and kills the native feel. */
 export const THEME_META_COLORS = {
-  light: "#FFE6E0",
-  dark: "#313348",
+  light: "#ffffff",
+  dark: "#191919",
 } as const;
 
 /**

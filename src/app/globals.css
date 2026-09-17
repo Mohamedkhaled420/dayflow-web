@@ -133,6 +133,25 @@ h4 {
   );
 }
 
+/* Horizontal variant for chip rails: the last chip dissolves at the
+   right edge so a cut-off chip reads as "scroll this way" instead of
+   "broken layout". Mask ends 4px inside so the fade never eats the
+   scroll end-state. */
+.df-edge-fade-x {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    black 0,
+    black calc(100% - 22px),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    black 0,
+    black calc(100% - 22px),
+    transparent 100%
+  );
+}
+
 /* App-like scroll containment — no bounce-chaining to the page. */
 .df-scroll {
   overscroll-behavior: contain;
@@ -484,6 +503,12 @@ h4 {
   transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 180ms ease, opacity 180ms ease, visibility 180ms;
   transform: translateZ(0);
   will-change: transform;
+  /* Single safe-area authority: the dock FLOATS above the home
+     indicator (bottom offset grows to the inset); the nav's internal
+     padding stays a fixed 6px so the dock never double-compensates
+     and balloons to ~120px in standalone mode. Applies below lg —
+     the dock only renders there (lg:hidden). */
+  bottom: max(0.5rem, env(safe-area-inset-bottom));
 }
 
 .df-mobile-dock:has(button[aria-current="page"]) {
@@ -833,10 +858,6 @@ select {
 
   .df-window > .flex > .df-panel {
     min-height: calc(100dvh - 104px);
-  }
-
-  .df-mobile-dock {
-    bottom: max(0.5rem, env(safe-area-inset-bottom));
   }
 
   .df-daily-view {

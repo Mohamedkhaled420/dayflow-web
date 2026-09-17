@@ -770,9 +770,10 @@ export function ChatView() {
         <div
           className="px-4 pb-[calc(0.75rem+max(0px,var(--keyboard-height,0px)))] pt-2 sm:px-6"
         >
-          {/* quick cards — preset prompt chips */}
+          {/* quick cards — preset prompt chips (fade at the right edge
+              signals the rail scrolls) */}
           <div
-            className="df-scroll -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-2"
+            className="df-scroll df-edge-fade-x -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-2"
             role="list"
             aria-label="Quick prompts for the coach"
           >
@@ -802,8 +803,11 @@ export function ChatView() {
             onSubmit={() => void saveEntry()}
           />
 
-          {/* action row — mood for the entry, then save / ask */}
-          <div className="mt-2 flex items-center gap-2">
+          {/* action row — mood for the entry, then save / ask.
+              flex-wrap: on phones the mood picker + two buttons don't
+              fit one 390px line, so the save/ask group wraps to its own
+              right-aligned row instead of overflowing the screen. */}
+          <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-2">
             <div
               className="flex items-center gap-0.5"
               role="radiogroup"
@@ -841,7 +845,7 @@ export function ChatView() {
                 type="button"
                 onClick={() => void saveEntry()}
                 disabled={!draftText || saving}
-                className="df-press df-btn-primary min-h-11 flex items-center gap-1.5 rounded-md px-4 text-[12.5px] font-semibold disabled:opacity-40"
+                className="df-press df-btn-primary min-h-11 flex items-center gap-1.5 rounded-md px-3.5 text-[12.5px] font-semibold disabled:opacity-40"
               >
                 <NotebookPen className="h-3.5 w-3.5" />
                 {saving ? "Saving…" : "Save entry"}
@@ -860,7 +864,7 @@ export function ChatView() {
                         ? "Ask the coach about your recent entries"
                         : "Ask the coach about your recent workouts"
                 }
-                className="df-press df-btn-secondary min-h-11 flex items-center gap-1.5 rounded-md px-4 text-[12.5px] font-semibold disabled:opacity-40"
+                className="df-press df-btn-secondary min-h-11 flex items-center gap-1.5 rounded-md px-3.5 text-[12.5px] font-semibold disabled:opacity-40"
               >
                 {asking ? (
                   <LogoLoop size="sm" />
