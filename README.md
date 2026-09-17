@@ -76,6 +76,20 @@ Or from the CLI:
 npx vercel
 ```
 
+### AI features (optional, free tiers)
+
+The app works with zero configuration — AI surfaces degrade gracefully to offline
+estimates. To light them up, add either key as a Vercel environment variable
+(**then redeploy** — env changes only apply to new deployments):
+
+| Variable | Unlocks | Where to get it |
+| --- | --- | --- |
+| `ZAI_API_KEY` | Photo → calorie/macro estimation (GLM-4.6V-Flash, free) | [z.ai](https://z.ai) → API keys |
+| `GROQ_API_KEY` | Coach chat + text food estimates (free tier) | [console.groq.com](https://console.groq.com) → API keys |
+
+`ZAI_API_KEY` from either Z.ai or BigModel works — the vision client auto-routes
+to the right platform and model.
+
 ## Architecture
 
 ```

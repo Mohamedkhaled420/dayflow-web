@@ -164,7 +164,7 @@ export function HabitsView() {
   };
 
   return (
-    <div className="df-scroll h-full overflow-y-auto px-4 sm:px-6 py-5">
+    <div className="df-scroll h-full overflow-y-auto px-4 sm:px-6 py-5 lg:mx-auto lg:w-full lg:max-w-[1060px]">
       {/* header */}
       <div className="flex items-end justify-between flex-wrap gap-2">
         <div>

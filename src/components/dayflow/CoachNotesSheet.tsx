@@ -107,7 +107,7 @@ export function CoachNotesSheet({
           <motion.button
             type="button"
             aria-label="Close Coach Notes"
-            className="fixed inset-0 z-40 cursor-default"
+            className="fixed inset-0 z-[55] cursor-default"
             style={{ background: "color-mix(in srgb, var(--df-text-primary) 24%, transparent)" }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -119,7 +119,7 @@ export function CoachNotesSheet({
             role="dialog"
             aria-modal="true"
             aria-label="Coach Notes"
-            className="df-notes-sheet fixed z-50 flex min-h-0 flex-col overflow-hidden inset-x-0 bottom-0 max-h-[72%] rounded-t-2xl sm:inset-x-auto sm:inset-y-4 sm:right-4 sm:w-[380px] sm:max-h-none sm:rounded-2xl"
+            className="df-notes-sheet fixed z-[60] flex min-h-0 flex-col overflow-hidden inset-x-0 bottom-0 max-h-[72%] rounded-t-2xl sm:inset-x-auto sm:inset-y-4 sm:right-4 sm:w-[380px] sm:max-h-none sm:rounded-2xl"
             style={{
               background: "var(--df-card-fill)",
               border: "0.5px solid var(--df-card-border)",

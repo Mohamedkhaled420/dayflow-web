@@ -337,7 +337,7 @@ export function TimelineView() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.15 }}
-              className="fixed inset-0 z-30"
+              className="fixed inset-0 z-[55]"
               onClick={() => setShowCalendar(false)}
               aria-hidden="true"
             />
@@ -357,7 +357,7 @@ export function TimelineView() {
                 border: "0.5px solid var(--df-card-border)",
                 boxShadow: "var(--df-material-shadow)",
               }}
-              className="relative z-40 mx-4 sm:mx-5 mb-3 rounded-lg p-3 backdrop-blur-xl saturate-180 w-[266px]"
+              className="relative z-[60] mx-4 sm:mx-5 mb-3 rounded-lg p-3 backdrop-blur-xl saturate-180 w-[266px]"
             >
               <div className="grid grid-cols-7 gap-1.5">
                 {["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].map((d) => (

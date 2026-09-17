@@ -75,35 +75,81 @@ export function useDockHideRequest(reason: string, active: boolean): void {
 
 /**
  * Keyboard watcher (Rule B, global): hides the dock while the
- * on-screen keyboard occupies more than KEYBOARD_MIN px of the
- * visual viewport. Mount once from the app shell; returns a
- * cleanup that also releases the keyboard reason.
+ * on-screen keyboard occupies the bottom band. Two independent
+ * signals, each holding its own ref-counted reason:
+ *
+ *   1. visualViewport — iOS and modern Android (resizes-visual):
+ *      the keyboard shrinks vv.height but not window.innerHeight,
+ *      so the difference IS the keyboard.
+ *   2. focus state — older Android resizes BOTH viewports, the
+ *      difference stays ~0 and signal 1 never fires. Text-entry
+ *      focus catches those. Released only when focus truly leaves
+ *      text entry (the timeout lets focusin win when it moves
+ *      between two inputs).
+ *
+ * Where both signals fire they simply stack — the reference count
+ * keeps the dock hidden until every reason clears. Mount once from
+ * the app shell; returns a cleanup that releases both.
  */
 const KEYBOARD_MIN = 120;
+
+function isTextEntry(el: Element | null): boolean {
+  return (
+    el instanceof HTMLElement &&
+    (el.tagName === "INPUT" ||
+      el.tagName === "TEXTAREA" ||
+      el.tagName === "SELECT" ||
+      el.isContentEditable)
+  );
+}
 
 export function watchDockKeyboard(): () => void {
   if (typeof window === "undefined") return () => {};
   const vv = window.visualViewport;
-  if (!vv) return () => {};
 
-  let currentRelease: (() => void) | null = null;
-  const handler = () => {
+  let vvRelease: (() => void) | null = null;
+  let focusRelease: (() => void) | null = null;
+
+  const vvHandler = () => {
+    if (!vv) return;
     const keyboardPx = window.innerHeight - vv.height;
     const open = keyboardPx > KEYBOARD_MIN;
-    if (open && !currentRelease) {
-      currentRelease = requestDockHide("keyboard");
-    } else if (!open && currentRelease) {
-      currentRelease();
-      currentRelease = null;
+    if (open && !vvRelease) {
+      vvRelease = requestDockHide("keyboard");
+    } else if (!open && vvRelease) {
+      vvRelease();
+      vvRelease = null;
     }
   };
 
-  vv.addEventListener("resize", handler);
-  handler();
+  const focusin = (e: FocusEvent) => {
+    if (e.target instanceof Element && isTextEntry(e.target) && !focusRelease) {
+      focusRelease = requestDockHide("keyboard-focus");
+    }
+  };
+  const focusout = () => {
+    // Next tick: if focus moved to another text entry, focusin has
+    // already re-registered by then and activeElement is still set.
+    setTimeout(() => {
+      if (focusRelease && !isTextEntry(document.activeElement)) {
+        focusRelease();
+        focusRelease = null;
+      }
+    }, 0);
+  };
+
+  vv?.addEventListener("resize", vvHandler);
+  vvHandler();
+  document.addEventListener("focusin", focusin);
+  document.addEventListener("focusout", focusout);
 
   return () => {
-    vv.removeEventListener("resize", handler);
-    currentRelease?.();
-    currentRelease = null;
+    vv?.removeEventListener("resize", vvHandler);
+    document.removeEventListener("focusin", focusin);
+    document.removeEventListener("focusout", focusout);
+    vvRelease?.();
+    vvRelease = null;
+    focusRelease?.();
+    focusRelease = null;
   };
 }

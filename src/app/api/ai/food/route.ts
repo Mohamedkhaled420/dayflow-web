@@ -36,6 +36,10 @@ import { callZaiVision, ZaiVisionError } from "@/lib/zai-vision";
 import { estimateMealFromText, type FoodEstimate } from "@/lib/food-db";
 
 export const runtime = "nodejs";
+// Vision hops can legitimately take ~10-25s (thinking revisions,
+// retries); the Vercel Hobby default of 10s would kill mid-flight
+// requests with a bare 504. 60s is the Hobby ceiling.
+export const maxDuration = 60;
 
 // ---------- request contract ----------
 

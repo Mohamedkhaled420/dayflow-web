@@ -2,11 +2,19 @@
 // Dayflow AI — z.ai vision client (Phase 9 Nutrition)
 // ------------------------------------------------------------
 // Raw-fetch client for Z.ai's OpenAI-compatible endpoint, used as
-// the PRIMARY food-photo hop by /api/ai/food. GLM-4V-Flash is the
-// free-tier vision model on the platform, which is why it routes
-// first — GLM-4.1V-Thinking-Flash (also free) backs it up, then
-// Groq's llama-4-scout, then the text cascade, then the offline
-// estimator.
+// the PRIMARY food-photo hop by /api/ai/food. The free vision
+// tier depends on WHICH platform issued the key:
+//
+//   api.z.ai (international)        → glm-4.6v-flash  (free)
+//   open.bigmodel.cn (China)        → glm-4v-flash    (free)
+//
+// The two platforms share the API shape but NOT model catalogs:
+// "glm-4v-flash" / "glm-4.1v-thinking-flash" are bigmodel.cn-only
+// IDs that 400 with code 1211 ("Unknown Model") on api.z.ai, and
+// "glm-4.6v-flash" is international-only. So the client tries the
+// international hop first, and a key that fails auth there (1000-
+// series 401) falls through to the bigmodel.cn hop — one key from
+// either platform lights up free vision with zero configuration.
 //
 // Zero SDK (house rule, PRD §10.2): raw fetch, no dependencies.
 // Auth is a single Bearer key, accepted under any of the common
@@ -15,9 +23,11 @@
 // ZHIPUAI_API_KEY all work:
 //
 //   ZAI_API_KEY      — free key from https://z.ai (API keys page)
-//   ZAI_BASE_URL     — optional override (default public v4 endpoint)
-//   ZAI_VISION_MODEL — optional override (pins ONE model instead
-//                      of the default free-tier chain below)
+//   ZAI_BASE_URL     — optional override (replaces the
+//                      international base; also disables the
+//                      bigmodel.cn fallback hop)
+//   ZAI_VISION_MODEL — optional override (pins ONE model on the
+//                      international base instead of the default)
 //
 // When no key is configured this client throws a retry-class
 // ZaiVisionError(503) and the cascade advances — the app works
@@ -28,22 +38,68 @@
 // bodies logged server-side only, never returned to the client.
 // ============================================================
 
-const DEFAULT_BASE_URL = "https://api.z.ai/api/paas/v4";
+const INTERNATIONAL_BASE_URL = "https://api.z.ai/api/paas/v4";
+const CN_BASE_URL = "https://open.bigmodel.cn/api/paas/v4";
 
-/**
- * Free vision tiers, most stable first. The thinking revision
- * emits reasoning blocks before the JSON, which the route's
- * lenient parser strips — it is kept as a fallback in case the
- * flash revision is rate-limited or retired.
- */
-const DEFAULT_VISION_MODELS: readonly string[] = [
-  "glm-4v-flash",
-  "glm-4.1v-thinking-flash",
-];
+/** One (platform, model) attempt — see the header comment. */
+interface VisionHop {
+  baseUrl: string;
+  model: string;
+  label: string;
+}
+
+function defaultHops(): VisionHop[] {
+  // Explicit base override (local proxy / self-hosted relay):
+  // single hop, caller owns the routing.
+  if (process.env.ZAI_BASE_URL) {
+    const model = process.env.ZAI_VISION_MODEL ?? "glm-4.6v-flash";
+    return [
+      { baseUrl: process.env.ZAI_BASE_URL, model, label: `custom ${model}` },
+    ];
+  }
+  // Explicit model override pins that model on the international
+  // platform (paid tiers like glm-4.6v work here too).
+  if (process.env.ZAI_VISION_MODEL) {
+    return [
+      {
+        baseUrl: INTERNATIONAL_BASE_URL,
+        model: process.env.ZAI_VISION_MODEL,
+        label: `z.ai ${process.env.ZAI_VISION_MODEL}`,
+      },
+    ];
+  }
+  return [
+    {
+      baseUrl: INTERNATIONAL_BASE_URL,
+      model: "glm-4.6v-flash",
+      label: "z.ai glm-4.6v-flash",
+    },
+    {
+      baseUrl: CN_BASE_URL,
+      model: "glm-4v-flash",
+      label: "bigmodel glm-4v-flash",
+    },
+  ];
+}
 
 /** Thinking revisions spend tokens on reasoning before the JSON. */
 const THINKING_MODEL_MAX_TOKENS = 3072;
 const DEFAULT_MAX_TOKENS = 800;
+
+/**
+ * GLM-4.6V honors the thinking switch (docs: "Thinking Mode
+ * Switch"); forced-thinking models (glm-4.5v, glm-5.3*) REJECT a
+ * disabled switch, and pre-4.5 revisions predate the parameter.
+ * Only send it where it is documented to work.
+ */
+function wantsThinkingDisabled(model: string): boolean {
+  return /4\.6v/.test(model);
+}
+
+/** Models that emit reasoning no matter what get a bigger budget. */
+function isForcedThinking(model: string): boolean {
+  return /thinking|4\.5v|5\.3/.test(model);
+}
 
 /** One quick in-hop retry on these before advancing the cascade. */
 const RETRYABLE_STATUSES: ReadonlySet<number> = new Set([
@@ -104,9 +160,10 @@ export interface ZaiVisionReply {
 
 /**
  * Estimate food from a photo via the z.ai free vision chain.
- * Tries each model once (with a single quick retry on
- * rate-limit/5xx); any model that answers wins, the cascade only
- * advances when every model fails or returns nothing usable.
+ * Tries each (platform, model) hop once (with a single quick
+ * retry on rate-limit/5xx); any hop that answers wins, the
+ * cascade only advances when every hop fails or returns nothing
+ * usable.
  */
 export async function callZaiVision(
   opts: CallZaiVisionOptions
@@ -116,18 +173,10 @@ export async function callZaiVision(
     throw new ZaiVisionError(503, "ZAI_API_KEY is not configured");
   }
 
-  const baseUrl = (process.env.ZAI_BASE_URL ?? DEFAULT_BASE_URL).replace(
-    /\/+$/,
-    ""
-  );
-  const models = process.env.ZAI_VISION_MODEL
-    ? [process.env.ZAI_VISION_MODEL]
-    : DEFAULT_VISION_MODELS;
-
   let lastError: unknown = new ZaiVisionError(503, "no z.ai model answered");
 
-  for (const model of models) {
-    const maxTokens = model.includes("thinking")
+  for (const hop of defaultHops()) {
+    const maxTokens = isForcedThinking(hop.model)
       ? THINKING_MODEL_MAX_TOKENS
       : DEFAULT_MAX_TOKENS;
 
@@ -136,54 +185,64 @@ export async function callZaiVision(
         await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
       }
       try {
-        const res = await fetch(`${baseUrl}/chat/completions`, {
+        const body: Record<string, unknown> = {
+          model: hop.model,
+          messages: [
+            {
+              role: "user",
+              content: [
+                { type: "text", text: opts.prompt },
+                {
+                  type: "image_url",
+                  image_url: {
+                    url: `data:${opts.mimeType ?? "image/jpeg"};base64,${opts.imageBase64}`,
+                  },
+                },
+              ],
+            },
+          ],
+          temperature: opts.temperature ?? 0.2,
+          max_tokens: maxTokens,
+          // No response_format: not guaranteed across GLM vision
+          // revisions — the prompt demands JSON and the parser is
+          // fence/think-tolerant instead.
+        };
+        if (wantsThinkingDisabled(hop.model)) {
+          // Clean, fast answers — the worked examples in the route
+          // prompt pin the output shape better than reasoning does.
+          body.thinking = { type: "disabled" };
+        }
+
+        const res = await fetch(`${hop.baseUrl.replace(/\/+$/, "")}/chat/completions`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${apiKey}`,
           },
-          body: JSON.stringify({
-            model,
-            messages: [
-              {
-                role: "user",
-                content: [
-                  { type: "text", text: opts.prompt },
-                  {
-                    type: "image_url",
-                    image_url: {
-                      url: `data:${opts.mimeType ?? "image/jpeg"};base64,${opts.imageBase64}`,
-                    },
-                  },
-                ],
-              },
-            ],
-            temperature: opts.temperature ?? 0.2,
-            max_tokens: maxTokens,
-            // No response_format: not guaranteed across GLM vision
-            // revisions — the prompt demands JSON and the parser is
-            // fence/think-tolerant instead.
-          }),
+          body: JSON.stringify(body),
           signal: opts.signal,
         });
 
         if (!res.ok) {
-          const body = await res.text().catch(() => "");
-          const err = new ZaiVisionError(res.status, body);
+          const errBody = await res.text().catch(() => "");
+          const err = new ZaiVisionError(
+            res.status,
+            `${hop.label}: ${errBody.slice(0, 300)}`
+          );
           lastError = err;
           if (RETRYABLE_STATUSES.has(res.status) && attempt === 0) continue;
-          break; // non-retryable (or retried already) — next model
+          break; // non-retryable (or retried already) — next hop
         }
 
         const data = await res.json();
         const content: string = data.choices?.[0]?.message?.content ?? "";
         if (!content.trim()) {
-          lastError = new ZaiVisionError(503, "empty vision answer");
+          lastError = new ZaiVisionError(503, `${hop.label}: empty vision answer`);
           if (attempt === 0) continue; // one retry — flash revisions
           // sometimes emit an empty first completion under load
           break;
         }
-        return { content, model };
+        return { content, model: hop.model };
       } catch (e) {
         if (opts.signal?.aborted) throw e; // route timeout wins
         lastError = e;
