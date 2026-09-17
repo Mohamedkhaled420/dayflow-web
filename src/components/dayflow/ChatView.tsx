@@ -747,7 +747,7 @@ export function ChatView() {
   const firstName = data.profile.name.split(" ")[0];
 
   return (
-    <div className="relative flex h-full min-h-0 flex-col">
+    <div className="relative flex h-full min-h-0 flex-col lg:mx-auto lg:w-full lg:max-w-[880px]">
       <DiaChatShell
         sync={sync}
         mode={mode}
