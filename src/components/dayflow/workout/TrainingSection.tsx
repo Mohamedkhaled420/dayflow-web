@@ -9,7 +9,7 @@
 // balance).
 
 import { useMemo, useState } from "react";
-import { Clock, Dumbbell, Trash2 } from "lucide-react";
+import { Clock, Dumbbell, Sparkles, Trash2 } from "lucide-react";
 import { useDayflowStore, type WorkoutLogRow } from "@/store/useDayflowStore";
 import { keyForOffset } from "@/lib/seed";
 import { triggerHaptic, hapticWarn } from "@/lib/haptics";
@@ -45,9 +45,11 @@ interface Props {
   dateKey: string;
   onLogWorkout: () => void;
   onEditWorkout: (row: WorkoutLogRow) => void;
+  /** Opens the AI routine builder sheet. */
+  onGenerateRoutine: () => void;
 }
 
-export function TrainingSection({ dateKey, onLogWorkout, onEditWorkout }: Props) {
+export function TrainingSection({ dateKey, onLogWorkout, onEditWorkout, onGenerateRoutine }: Props) {
   const workoutLogs = useDayflowStore((s) => s.workoutLogs);
   const deleteWorkoutLog = useDayflowStore((s) => s.deleteWorkoutLog);
   const [progressOpen, setProgressOpen] = useState(false);
@@ -107,38 +109,79 @@ export function TrainingSection({ dateKey, onLogWorkout, onEditWorkout }: Props)
             </span>
           )}
         </div>
-        <button
-          onClick={() => {
-            triggerHaptic();
-            onLogWorkout();
-          }}
-          className="df-press df-btn-secondary h-8 px-3 text-[12px] font-semibold flex items-center gap-1.5 shrink-0"
-        >
-          Log workout
-        </button>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button
+            onClick={() => {
+              triggerHaptic();
+              onGenerateRoutine();
+            }}
+            className="df-press h-8 px-3 text-[12px] font-semibold flex items-center gap-1.5 rounded-md"
+            style={{
+              background: `color-mix(in srgb, ${FITNESS} 12%, transparent)`,
+              border: `0.5px solid color-mix(in srgb, ${FITNESS} 40%, transparent)`,
+              color: FITNESS,
+            }}
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            AI plan
+          </button>
+          <button
+            onClick={() => {
+              triggerHaptic();
+              onLogWorkout();
+            }}
+            className="df-press df-btn-secondary h-8 px-3 text-[12px] font-semibold flex items-center gap-1.5 shrink-0"
+          >
+            Log workout
+          </button>
+        </div>
       </div>
 
       {/* today's sessions */}
       {sessions.length === 0 ? (
-        <button
-          onClick={() => {
-            triggerHaptic();
-            onLogWorkout();
-          }}
-          className="df-press w-full rounded-lg py-4 mt-3 flex flex-col items-center gap-1.5"
-          style={{
-            background: "var(--df-input-fill)",
-            border: `1.5px dashed color-mix(in srgb, ${FITNESS} 40%, transparent)`,
-          }}
-        >
-          <Dumbbell className="h-5 w-5" style={{ color: FITNESS }} />
-          <span className="text-[12px] font-semibold" style={{ color: "var(--df-text-primary)" }}>
-            Log sets from the 1,324-exercise library
-          </span>
-          <span className="text-[11px]" style={{ color: "var(--df-text-muted)" }}>
-            Bench, squat, run — weight × reps with rest timer & PR tracking
-          </span>
-        </button>
+        <div className="mt-3 flex flex-col gap-2">
+          <button
+            onClick={() => {
+              triggerHaptic();
+              onLogWorkout();
+            }}
+            className="df-press w-full rounded-lg py-4 flex flex-col items-center gap-1.5"
+            style={{
+              background: "var(--df-input-fill)",
+              border: `1.5px dashed color-mix(in srgb, ${FITNESS} 40%, transparent)`,
+            }}
+          >
+            <Dumbbell className="h-5 w-5" style={{ color: FITNESS }} />
+            <span className="text-[12px] font-semibold" style={{ color: "var(--df-text-primary)" }}>
+              Log sets from the 1,324-exercise library
+            </span>
+            <span className="text-[11px]" style={{ color: "var(--df-text-muted)" }}>
+              Bench, squat, run — weight × reps with rest timer & PR tracking
+            </span>
+          </button>
+          <button
+            onClick={() => {
+              triggerHaptic();
+              onGenerateRoutine();
+            }}
+            className="df-press w-full rounded-lg py-3 flex flex-col items-center gap-1"
+            style={{
+              background: `color-mix(in srgb, ${FITNESS} 7%, transparent)`,
+              border: `1px dashed color-mix(in srgb, ${FITNESS} 30%, transparent)`,
+            }}
+          >
+            <span
+              className="text-[12px] font-semibold flex items-center gap-1.5"
+              style={{ color: FITNESS }}
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              Or let AI build today&apos;s routine
+            </span>
+            <span className="text-[11px]" style={{ color: "var(--df-text-muted)" }}>
+              Science-backed plan — your goal, gear and history in, exercises out
+            </span>
+          </button>
+        </div>
       ) : (
         <div className="mt-3 flex flex-col gap-1">
           {sessions.map((row) => (
