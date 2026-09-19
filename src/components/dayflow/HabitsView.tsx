@@ -26,7 +26,7 @@ import { keyForOffset } from "@/lib/seed";
 import { weekOf } from "@/lib/compute";
 import { fmtDuration } from "@/lib/compute";
 import { triggerHaptic, hapticWarn } from "@/lib/haptics";
-import { LiquidGlass } from "@/components/ui/LiquidGlass";
+import { LiquidGlassView } from "@/components/ui/LiquidGlass";
 import { LogoLoop } from "@/components/brand/LogoLoop";
 import { stripReasoning } from "@/lib/coach-text";
 import { CATEGORY_COLORS, GOAL_FALLBACK_COLORS } from "@/styles/palette";
@@ -630,12 +630,16 @@ function WorkoutCard({
           {busy ? "thinking…" : plan ? "Regenerate workout" : "Generate Workout"}
         </button>
 
-        {/* Primary Log CTA — Liquid Glass T1 surface #2 (PRD §6.2). */}
+        {/* Primary Log CTA — Liquid Glass T1 surface #4 (PRD §6.2).
+            Clear-glass lens with the fitness tint (callstack parity:
+            effect + tintColor + interactive grow/shimmer). */}
         {plan && (
-          <LiquidGlass
-            filterCss="url(#lg-cta) blur(18px) saturate(1.7)"
+          <LiquidGlassView
+            variant="cta"
+            effect="clear"
+            interactive
+            tintColor={CATEGORY_COLORS.fitness}
             className="inline-flex"
-            style={{ background: `color-mix(in srgb, ${CATEGORY_COLORS.fitness} 22%, transparent)` }}
           >
             <button
               type="button"
@@ -647,7 +651,7 @@ function WorkoutCard({
               <Dumbbell className="h-3.5 w-3.5" style={{ color: CATEGORY_COLORS.fitness }} />
               {logging ? "Logging…" : "Log Workout"}
             </button>
-          </LiquidGlass>
+          </LiquidGlassView>
         )}
       </div>
 
