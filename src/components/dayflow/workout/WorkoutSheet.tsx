@@ -54,6 +54,7 @@ import {
 } from "@/lib/workout";
 import { exerciseById, type ExerciseRecord } from "@/lib/exercise-db";
 import { ExercisePicker } from "@/components/dayflow/workout/ExercisePicker";
+import { ExerciseThumb } from "@/components/dayflow/workout/ExerciseThumb";
 
 const FITNESS = CATEGORY_COLORS.fitness;
 const REST_SECONDS = 90;
@@ -760,6 +761,11 @@ function ExerciseCard({
       }}
     >
       <div className="flex items-center gap-2">
+        <ExerciseThumb
+          name={ex.n}
+          bodyPart={ex.id ? exerciseById(ex.id)?.bodyPart ?? null : null}
+          size={36}
+        />
         <div className="min-w-0 flex-1">
           <p
             className="text-[13.5px] font-bold truncate flex items-center gap-1.5"

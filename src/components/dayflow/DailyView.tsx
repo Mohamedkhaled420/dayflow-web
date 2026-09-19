@@ -23,6 +23,8 @@ import {
 } from "@/lib/compute";
 import { useDayflowStore, type MealLogRow } from "@/store/useDayflowStore";
 import { MealCaptureSheet } from "@/components/dayflow/MealCaptureSheet";
+import { SleepSection } from "@/components/dayflow/SleepSection";
+import { OptimizationSection } from "@/components/dayflow/OptimizationSection";
 import { WorkoutSheet, type WorkoutEditTarget, type WorkoutPrefill } from "@/components/dayflow/workout/WorkoutSheet";
 import { TrainingSection } from "@/components/dayflow/workout/TrainingSection";
 import { RoutineSheet } from "@/components/dayflow/workout/RoutineSheet";
@@ -202,6 +204,9 @@ export function DailyView() {
         />
       </div>
 
+      {/* sleep — last night over the flowing string waves */}
+      <SleepSection dateKey={dateKey} />
+
       {/* nutrition — Cal AI-style calories & macros (Phase 9) */}
       <section
         className="mt-5 rounded-lg p-4"
@@ -304,6 +309,9 @@ export function DailyView() {
         }}
         onGenerateRoutine={() => setRoutineSheetOpen(true)}
       />
+
+      {/* body optimization — fuel ↔ training ↔ recovery */}
+      <OptimizationSection dateKey={dateKey} />
 
       <div className="mt-5 grid xl:grid-cols-[1fr_360px] gap-4">
         {/* category activity grid */}
