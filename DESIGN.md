@@ -78,10 +78,41 @@ The app currently ships a warm light-first Dayflow theme (`--df-*`, light defaul
 | Tier | Recipe | Where |
 |---|---|---|
 | **T0 Frosted** | `blur(18px) saturate(1.7)` + hairline | Panels, cards, dialogs (`GlassPanel frosted`) |
-| **T1 Liquid** | T0 + `feDisplacementMap` refraction + specular rim — **max 4 live instances**, never inside scroll containers | Tab dock, sheet grabber, primary Log CTA, segmented thumb (Phase 2+) |
+| **T1 Liquid** | SDF `feDisplacementMap` refraction + chromatic aberration + specular rim — **max 4 live instances**, never inside scroll containers | Mobile tab dock, mobile header capsule, desktop sidebar rail, Habits Log CTA |
 | **T2 Solid** | Opaque `--color-surface` | `prefers-reduced-transparency`, low-power fallback |
 
 Legacy classes: `.df-material` (T0, blur 24px — legacy value preserved), `.df-dock` (dock material, blur capped at `backdrop-blur-xl` per §9.2), both with `@supports` / reduced-transparency / increased-contrast fallbacks already wired in `globals.css`.
+
+### 2.2.1 Liquid Glass v2 (T1 engine — web port of the iOS 26 material)
+
+`src/components/ui/LiquidGlass.tsx` implements the Liquid Glass design
+language with the component API modeled on `@callstack/liquid-glass`
+(Apple's `UIGlassEffect`):
+
+| Prop | Values | Notes |
+|---|---|---|
+| `variant` | `dock · cta · rail · header` | Fixed-size optics set (map + scale) per surface |
+| `effect` | `regular · clear · none` | Frosted / lens-like / dematerialized; changes crossfade over `animationDuration` |
+| `interactive` | — | Grows on hover/press (scale 1.025 / 0.968) + specular shimmer sweep |
+| `tintColor` | any CSS color | Tint layer between material and rim |
+| `colorScheme` | `light · dark · system` | Rim intensity (system = `--lg-rim-opacity` token) |
+
+`<LiquidGlassContainer spacing>` renders **one** glass pane; descendant
+`LiquidGlassView`s become islands (rim + tint only, no own backdrop-filter)
+— the web take on callstack's `UIGlassContainerEffect` merging.
+
+Optics (Chromium): the backdrop snapshot runs through a per-pixel **SDF
+displacement map** (rounded-rect signed distance field — displacement along
+the surface normal, concentrated at the rim by a smoothstep power curve),
+split into R/G/B for **chromatic aberration**, recombined via screen blends,
+saturated, then lit by a top-left key-light specular map. Maps are
+precomputed at build time by `scripts/gen-lg-maps.mjs` (dependency-free PNG
+encoder, per-pixel SDF optics) into
+`src/components/ui/liquidGlassMaps.ts` — the runtime never generates
+anything. Safari/Firefox get the T0 frost + CSS rim/tint layers.
+
+Regenerate maps after changing variant geometry:
+`node scripts/gen-lg-maps.mjs`
 
 ### 2.3 Reference component
 
