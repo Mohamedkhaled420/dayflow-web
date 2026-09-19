@@ -42,6 +42,8 @@ import { useIsPhone } from "@/hooks/use-media-query";
 import { hapticSuccess, triggerHaptic } from "@/lib/haptics";
 import { springSoft } from "@/lib/motion";
 import { CATEGORY_COLORS } from "@/styles/palette";
+import { ExerciseThumb } from "@/components/dayflow/workout/ExerciseThumb";
+import { exerciseById } from "@/lib/exercise-db";
 import {
   exerciseSummaries,
   fmtDaysAgo,
@@ -604,6 +606,11 @@ function PlanStep({
                 >
                   {i + 1}
                 </span>
+                <ExerciseThumb
+                  name={ex.n}
+                  bodyPart={exerciseById(ex.id)?.bodyPart ?? null}
+                  size={44}
+                />
                 <div className="min-w-0 flex-1">
                   <p
                     className="text-[13.5px] font-bold leading-tight"

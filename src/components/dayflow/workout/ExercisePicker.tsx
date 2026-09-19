@@ -19,6 +19,7 @@ import {
   type ExerciseRecord,
 } from "@/lib/exercise-db";
 import { fmtDaysAgo, type ExerciseSummary } from "@/lib/workout";
+import { ExerciseThumb } from "@/components/dayflow/workout/ExerciseThumb";
 import { triggerHaptic } from "@/lib/haptics";
 import { CATEGORY_COLORS } from "@/styles/palette";
 
@@ -222,9 +223,11 @@ export function ExercisePicker({ picked, onPick, onBack, history, recent }: Prop
                   triggerHaptic();
                   onPick(ex);
                 }}
-                className="df-press flex-1 min-w-0 text-left py-1.5"
+                className="df-press flex-1 min-w-0 text-left py-1.5 flex items-center gap-2.5"
                 aria-label={`Add ${ex.name}`}
               >
+                <ExerciseThumb name={ex.name} bodyPart={ex.bodyPart} size={40} />
+                <span className="min-w-0 flex-1">
                 <span
                   className="block text-[13.5px] font-semibold truncate"
                   style={{
@@ -248,6 +251,7 @@ export function ExercisePicker({ picked, onPick, onBack, history, recent }: Prop
                     Last: {hist.lastLine} · {fmtDaysAgo(hist.lastDate)}
                   </span>
                 )}
+                </span>
               </button>
               <button
                 onClick={() => toggleInfo(ex.id)}
