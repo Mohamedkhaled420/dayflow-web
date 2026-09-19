@@ -33,6 +33,7 @@ import type {
 import type { Category, DayflowData, Goals, Profile, TrackEvent, WaterEntry } from "./types";
 import { DEFAULT_CATEGORIES } from "./seed";
 import { CATEGORY_COLORS } from "@/styles/palette";
+import { parseExercises, summarizeWorkout } from "./workout";
 
 // ---------- profile JSONB section readers ----------
 
@@ -164,6 +165,9 @@ export function workoutToEvent(row: WorkoutLogRow): TrackEvent {
   const startClock = localClock(row.logged_at);
   const startMin = clockToMinutes(startClock);
   const dur = row.duration_minutes ?? 45;
+  // Gym sessions carry their exercises — surface them in the notes so
+  // the timeline shows "4 exercises · 18 sets · 2.4 t" at a glance.
+  const exSummary = summarizeWorkout(parseExercises(row.exercises ?? null));
   return {
     id: row.id,
     dateKey: localDateKey(row.logged_at),
@@ -172,7 +176,9 @@ export function workoutToEvent(row: WorkoutLogRow): TrackEvent {
     start: startClock,
     end: minutesToClock(startMin + dur),
     notes:
-      row.active_calories != null ? `${row.active_calories} kcal active` : undefined,
+      [row.active_calories != null ? `${row.active_calories} kcal active` : null, exSummary]
+        .filter(Boolean)
+        .join(" · ") || undefined,
   };
 }
 

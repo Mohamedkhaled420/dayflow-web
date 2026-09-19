@@ -189,6 +189,8 @@ export interface DayflowSyncActions {
     duration_minutes?: number | null;
     active_calories?: number | null;
     logged_at?: string;
+    /** Phase 10 gym session detail — jsonb array, src/lib/workout.ts */
+    exercises?: Json;
   }) => Promise<string | null>;
   addSleepLog: (input: {
     sleep_minutes: number;
@@ -714,6 +716,7 @@ export const useDayflowStore = create<DayflowSyncStore>()(
           active_calories: input.active_calories ?? null,
           logged_at: input.logged_at ?? nowIso(),
           created_at: nowIso(),
+          exercises: input.exercises ?? [],
         };
         set((s) => ({ workoutLogs: [...s.workoutLogs, row] }));
         const { pending_sync, ...payload } = row;

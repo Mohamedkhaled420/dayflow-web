@@ -21,6 +21,11 @@ import { CategoryIcon } from "@/components/dayflow/category-icons";
 import { DonutChart } from "@/components/dayflow/DonutChart";
 import { EventDialog } from "@/components/dayflow/EventDialog";
 import {
+  WorkoutSheet,
+  type WorkoutEditTarget,
+} from "@/components/dayflow/workout/WorkoutSheet";
+import { parseExercises } from "@/lib/workout";
+import {
   useDayflowData,
   LOGGABLE_CATEGORIES,
   localDateTime,
@@ -84,17 +89,40 @@ export function TimelineView() {
     open: false,
     event: null,
   });
+  // Phase 10: gym sessions (workout rows carrying exercises) edit in
+  // the WorkoutSheet gym logger, not the plain EventDialog.
+  const [workoutEdit, setWorkoutEdit] = useState<WorkoutEditTarget | null>(null);
   const { toast } = useToast();
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const data = useDayflowData();
   const categories = LOGGABLE_CATEGORIES;
   const addHydrationLog = useDayflowStore((s) => s.addHydrationLog);
+  const workoutLogs = useDayflowStore((s) => s.workoutLogs);
   const deleteSleepLog = useDayflowStore((s) => s.deleteSleepLog);
   const deleteWorkoutLog = useDayflowStore((s) => s.deleteWorkoutLog);
   const updateSleepLog = useDayflowStore((s) => s.updateSleepLog);
   const updateWorkoutLog = useDayflowStore((s) => s.updateWorkoutLog);
   const profileRow = useDayflowStore((s) => s.profile);
+
+  /** edit path: gym sessions → WorkoutSheet, everything else → EventDialog */
+  const openEditor = (ev: TrackEvent) => {
+    if (ev.categoryId !== "sleep") {
+      const row = workoutLogs.find((r) => r.id === ev.id);
+      if (row && parseExercises(row.exercises ?? null).length > 0) {
+        setWorkoutEdit({
+          id: row.id,
+          type: row.type,
+          duration_minutes: row.duration_minutes,
+          active_calories: row.active_calories,
+          logged_at: row.logged_at,
+          exercises: row.exercises,
+        });
+        return;
+      }
+    }
+    setDialog({ open: true, event: ev });
+  };
   const profile = data.profile;
 
   const dateKey = keyForOffset(dayOffset);
@@ -421,7 +449,7 @@ export function TimelineView() {
               hapticSelect();
               setSelectedId((cur) => (cur === id ? null : id));
             }}
-            onEdit={() => selected && setDialog({ open: true, event: selected })}
+            onEdit={() => selected && openEditor(selected)}
             onDelete={async () => {
               if (!selected) return;
               hapticWarn();
@@ -468,7 +496,7 @@ export function TimelineView() {
       {selected ? (
         <EventDetailPanel
           event={selected}
-          onEdit={() => setDialog({ open: true, event: selected })}
+          onEdit={() => openEditor(selected)}
           onDelete={async () => {
             hapticWarn();
             setSelectedId(null);
@@ -494,6 +522,14 @@ export function TimelineView() {
         event={dialog.event}
         dateKey={dateKey}
         onClose={() => setDialog({ open: false, event: null })}
+      />
+
+      {/* Phase 10 — gym-session editor */}
+      <WorkoutSheet
+        open={!!workoutEdit}
+        editing={workoutEdit}
+        dateKey={dateKey}
+        onClose={() => setWorkoutEdit(null)}
       />
     </div>
   );

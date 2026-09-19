@@ -23,6 +23,8 @@ import {
 } from "@/lib/compute";
 import { useDayflowStore, type MealLogRow } from "@/store/useDayflowStore";
 import { MealCaptureSheet } from "@/components/dayflow/MealCaptureSheet";
+import { WorkoutSheet, type WorkoutEditTarget } from "@/components/dayflow/workout/WorkoutSheet";
+import { TrainingSection } from "@/components/dayflow/workout/TrainingSection";
 import { useToast } from "@/hooks/use-toast";
 import { CATEGORY_COLORS, MACRO_COLORS } from "@/styles/palette";
 import { DEFAULT_NUTRITION_TARGETS, type NutritionTargets } from "@/lib/food-db";
@@ -39,6 +41,8 @@ export function DailyView() {
   const [dayOffset, setDayOffset] = useState(0);
   const [checked, setChecked] = useState<Record<number, boolean>>({});
   const [mealSheetOpen, setMealSheetOpen] = useState(false);
+  const [workoutSheetOpen, setWorkoutSheetOpen] = useState(false);
+  const [editingWorkout, setEditingWorkout] = useState<WorkoutEditTarget | null>(null);
 
   const mealLogs = useDayflowStore((s) => s.mealLogs);
   const deleteMealLog = useDayflowStore((s) => s.deleteMealLog);
@@ -281,6 +285,19 @@ export function DailyView() {
         </div>
       </section>
 
+      {/* training — gym logger sessions (Phase 10) */}
+      <TrainingSection
+        dateKey={dateKey}
+        onLogWorkout={() => {
+          setEditingWorkout(null);
+          setWorkoutSheetOpen(true);
+        }}
+        onEditWorkout={(row) => {
+          setEditingWorkout(row);
+          setWorkoutSheetOpen(true);
+        }}
+      />
+
       <div className="mt-5 grid xl:grid-cols-[1fr_360px] gap-4">
         {/* category activity grid */}
         <section
@@ -470,6 +487,15 @@ export function DailyView() {
       </div>
 
       <MealCaptureSheet open={mealSheetOpen} onClose={() => setMealSheetOpen(false)} dateKey={dateKey} />
+      <WorkoutSheet
+        open={workoutSheetOpen}
+        onClose={() => {
+          setWorkoutSheetOpen(false);
+          setEditingWorkout(null);
+        }}
+        dateKey={dateKey}
+        editing={editingWorkout}
+      />
     </div>
   );
 }
