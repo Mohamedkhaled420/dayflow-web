@@ -75,6 +75,18 @@ export interface WorkoutEditTarget {
   exercises: unknown;
 }
 
+/**
+ * A generated routine handed to the logger (AI routine builder).
+ * `key` forces a fresh form mount per generation; weights stay
+ * empty and get smart-filled from training history below.
+ */
+export interface WorkoutPrefill {
+  key: string;
+  title?: string;
+  exercises: WorkoutExercise[];
+  durationMinutes?: number;
+}
+
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -82,18 +94,21 @@ interface Props {
   dateKey?: string;
   /** When set, the sheet edits this existing workout_logs row. */
   editing?: WorkoutEditTarget | null;
+  /** When set (and not editing), the sheet starts from this routine. */
+  prefill?: WorkoutPrefill | null;
 }
 
-export function WorkoutSheet({ open, onClose, dateKey, editing }: Props) {
+export function WorkoutSheet({ open, onClose, dateKey, editing, prefill }: Props) {
   const isPhone = useIsPhone();
   return (
     <AnimatePresence>
       {open && (
         <WorkoutForm
-          key={editing?.id ?? "new"}
+          key={editing?.id ?? prefill?.key ?? "new"}
           onClose={onClose}
           dateKey={dateKey}
           editing={editing ?? null}
+          prefill={prefill ?? null}
           isPhone={isPhone}
         />
       )}
@@ -107,11 +122,13 @@ function WorkoutForm({
   onClose,
   dateKey,
   editing,
+  prefill,
   isPhone,
 }: {
   onClose: () => void;
   dateKey?: string;
   editing: WorkoutEditTarget | null;
+  prefill: WorkoutPrefill | null;
   isPhone: boolean;
 }) {
   const addWorkoutLog = useDayflowStore((s) => s.addWorkoutLog);
@@ -125,7 +142,7 @@ function WorkoutForm({
   );
 
   const [step, setStep] = useState<"build" | "picker">("build");
-  const [title, setTitle] = useState(editing?.type ?? "");
+  const [title, setTitle] = useState(editing?.type ?? prefill?.title ?? "");
   const [startHM, setStartHM] = useState(() => {
     if (editing?.logged_at) {
       const d = new Date(editing.logged_at);
@@ -134,12 +151,28 @@ function WorkoutForm({
     return nowHM();
   });
   const [durationMin, setDurationMin] = useState(
-    String(editing?.duration_minutes ?? 60)
+    String(editing?.duration_minutes ?? prefill?.durationMinutes ?? 60)
   );
   const [calories, setCalories] = useState(
     editing?.active_calories != null ? String(editing.active_calories) : ""
   );
-  const [session, setSession] = useState<WorkoutExercise[]>(editingExercises);
+  // Editing an existing row reuses its exercises verbatim. A
+  // generated routine instead arrives weight-empty: each exercise
+  // without a prescribed load gets the athlete's last-session
+  // weight prefilled (AI plan × training history = smart start),
+  // and everything is unchecked so sets are logged as they happen.
+  const [session, setSession] = useState<WorkoutExercise[]>(() => {
+    if (editingExercises.length > 0) return editingExercises;
+    if (!prefill) return [];
+    const hist = exerciseSummaries(workoutLogs);
+    return prefill.exercises.map((ex) => {
+      if (ex.s.some((s) => s.w != null)) return ex;
+      const w = hist.get(ex.n)?.lastSet.w;
+      return w == null
+        ? ex
+        : { ...ex, s: ex.s.map((s) => (s.r != null ? { ...s, w } : s)) };
+    });
+  });
   const [askClose, setAskClose] = useState(false);
 
   // ---- rest timer ------------------------------------------------

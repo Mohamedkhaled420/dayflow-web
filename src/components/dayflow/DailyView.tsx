@@ -23,8 +23,10 @@ import {
 } from "@/lib/compute";
 import { useDayflowStore, type MealLogRow } from "@/store/useDayflowStore";
 import { MealCaptureSheet } from "@/components/dayflow/MealCaptureSheet";
-import { WorkoutSheet, type WorkoutEditTarget } from "@/components/dayflow/workout/WorkoutSheet";
+import { WorkoutSheet, type WorkoutEditTarget, type WorkoutPrefill } from "@/components/dayflow/workout/WorkoutSheet";
 import { TrainingSection } from "@/components/dayflow/workout/TrainingSection";
+import { RoutineSheet } from "@/components/dayflow/workout/RoutineSheet";
+import { planToSession, type RoutinePlan } from "@/lib/routine";
 import { useToast } from "@/hooks/use-toast";
 import { CATEGORY_COLORS, MACRO_COLORS } from "@/styles/palette";
 import { DEFAULT_NUTRITION_TARGETS, type NutritionTargets } from "@/lib/food-db";
@@ -43,6 +45,8 @@ export function DailyView() {
   const [mealSheetOpen, setMealSheetOpen] = useState(false);
   const [workoutSheetOpen, setWorkoutSheetOpen] = useState(false);
   const [editingWorkout, setEditingWorkout] = useState<WorkoutEditTarget | null>(null);
+  const [routineSheetOpen, setRoutineSheetOpen] = useState(false);
+  const [workoutPrefill, setWorkoutPrefill] = useState<WorkoutPrefill | null>(null);
 
   const mealLogs = useDayflowStore((s) => s.mealLogs);
   const deleteMealLog = useDayflowStore((s) => s.deleteMealLog);
@@ -290,12 +294,15 @@ export function DailyView() {
         dateKey={dateKey}
         onLogWorkout={() => {
           setEditingWorkout(null);
+          setWorkoutPrefill(null);
           setWorkoutSheetOpen(true);
         }}
         onEditWorkout={(row) => {
           setEditingWorkout(row);
+          setWorkoutPrefill(null);
           setWorkoutSheetOpen(true);
         }}
+        onGenerateRoutine={() => setRoutineSheetOpen(true)}
       />
 
       <div className="mt-5 grid xl:grid-cols-[1fr_360px] gap-4">
@@ -492,9 +499,27 @@ export function DailyView() {
         onClose={() => {
           setWorkoutSheetOpen(false);
           setEditingWorkout(null);
+          setWorkoutPrefill(null);
         }}
         dateKey={dateKey}
         editing={editingWorkout}
+        prefill={workoutPrefill}
+      />
+      <RoutineSheet
+        open={routineSheetOpen}
+        onClose={() => setRoutineSheetOpen(false)}
+        onStart={(plan: RoutinePlan) => {
+          // hand the routine to the gym logger, prefilled
+          setWorkoutPrefill({
+            key: crypto.randomUUID(),
+            title: plan.title,
+            exercises: planToSession(plan),
+            durationMinutes: plan.estMinutes,
+          });
+          setEditingWorkout(null);
+          setRoutineSheetOpen(false);
+          setWorkoutSheetOpen(true);
+        }}
       />
     </div>
   );
