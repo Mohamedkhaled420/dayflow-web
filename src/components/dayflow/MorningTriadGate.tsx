@@ -21,6 +21,7 @@ import { Sheet } from "@/components/ui/Sheet";
 import { useDayflowStore } from "@/store/useDayflowStore";
 import { keyForOffset } from "@/lib/seed";
 import { triggerHaptic } from "@/lib/haptics";
+import { useDockHideRequest } from "@/hooks/use-dock-visibility";
 import { CATEGORY_COLORS } from "@/styles/palette";
 
 export const MORNING_TRIAD_STORAGE_KEY = "dayflow-morning-triad-v1";
@@ -78,6 +79,8 @@ export function MorningTriadGate({
   const addHydrationLog = useDayflowStore((s) => s.addHydrationLog);
   const [light, setLight] = useState(false);
   const [logging, setLogging] = useState(false);
+  // Overlay owns the bottom band while open (dock-avoidance Rule B).
+  useDockHideRequest("overlay:morning-triad", open);
 
   const todayMl = useMemo(() => {
     const todayKey = keyForOffset(0);

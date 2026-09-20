@@ -19,6 +19,13 @@ export type ReasoningEffort = "none" | "low" | "medium" | "high";
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 
+/** Base URL is env-overridable so the sandbox can point the full
+ *  cascade + SSE pipeline at a local mock Groq (scripts/mock-groq.mjs)
+ *  — production behavior is unchanged when GROQ_BASE_URL is unset. */
+function groqUrl(): string {
+  return process.env.GROQ_BASE_URL ?? GROQ_URL;
+}
+
 // All four routed IDs accept reasoning_effort (verified 2026-09-11).
 const REASONING_CAPABLE: ReadonlySet<GroqModel> = new Set([
   GROQ_MODELS.gptOss120b,
@@ -50,6 +57,30 @@ export interface CallGroqOptions {
   /** Graded effort — attached ONLY for capable models (all four are). */
   reasoningEffort?: ReasoningEffort;
   maxTokens?: number;
+  /** Abort/timeout signal for the upstream fetch (v0 audit #5). */
+  signal?: AbortSignal;
+}
+
+/**
+ * Calculate max completion tokens based on reasoning effort.
+ * FIX: Bump token budget for reasoning models to prevent truncation (v0 audit #1).
+ */
+function getMaxTokens(opts: CallGroqOptions): number {
+  if (opts.maxTokens) return opts.maxTokens;
+  // Reasoning models need more tokens for think blocks + response
+  return opts.reasoningEffort && opts.reasoningEffort !== 'none' ? 2048 : 1536;
+}
+
+/**
+ * Strip think blocks from text (case-insensitive, supports <think> and <thinking> variants).
+ * Used for non-streaming responses.
+ */
+function stripThinkBlocks(text: string): string {
+  // First pass: Remove complete think blocks (non-greedy, case-insensitive)
+  let cleaned = text.replace(/<(think|thinking)\s*>[\s\S]*?<\/(think|thinking)\s*>/gi, '');
+  // Second pass: Remove unclosed/truncated think blocks at end of string
+  cleaned = cleaned.replace(/<(think|thinking)\s*>[\s\S]*$/i, '');
+  return cleaned.trim();
 }
 
 export async function callGroq(opts: CallGroqOptions): Promise<string> {
@@ -65,7 +96,7 @@ export async function callGroq(opts: CallGroqOptions): Promise<string> {
     model: opts.model,
     messages: opts.messages,
     temperature: opts.temperature ?? 0.7,
-    max_completion_tokens: opts.maxTokens ?? 1024,
+    max_completion_tokens: getMaxTokens(opts),
   };
   if (opts.json) body.response_format = { type: "json_object" };
 
@@ -77,13 +108,14 @@ export async function callGroq(opts: CallGroqOptions): Promise<string> {
     body.reasoning_effort = opts.reasoningEffort;
   }
 
-  const res = await fetch(GROQ_URL, {
+  const res = await fetch(groqUrl(), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
     },
     body: JSON.stringify(body),
+    signal: opts.signal,
   });
 
   if (!res.ok) {
@@ -91,5 +123,266 @@ export async function callGroq(opts: CallGroqOptions): Promise<string> {
   }
 
   const data = await res.json();
-  return data.choices?.[0]?.message?.content ?? "";
+  const content = data.choices?.[0]?.message?.content ?? "";
+  
+  // FIX: Strip think blocks from non-streaming responses (v0 audit #1)
+  const stripped = stripThinkBlocks(content);
+
+  // FIX: Guard against truncation due to token limits (follow-up #3)
+  const finishReason = data.choices?.[0]?.finish_reason as string | undefined;
+  if (finishReason === 'length' && stripped.length < 200) {
+    throw new GroqError(503, `truncated answer after reasoning strip (${stripped.length} chars)`);
+  }
+
+  if (!stripped) {
+    throw new GroqError(503, "empty answer after reasoning strip");
+  }
+  return stripped;
+}
+
+// ---------------------------------------------------------------
+// Streaming (v0 audit #1: the coach felt frozen while Groq
+// generated). Raw SSE pass-through — the route layer owns the
+// client-facing event protocol; this function only guarantees
+// "the upstream accepted the request" so the cascade can commit.
+// ---------------------------------------------------------------
+
+export interface CallGroqStreamResult {
+  model: GroqModel;
+  response: Response;
+}
+
+export async function callGroqStream(
+  opts: CallGroqOptions
+): Promise<CallGroqStreamResult> {
+  if (!process.env.GROQ_API_KEY) {
+    // Same retry-class semantics as callGroq: missing key → the
+    // cascade advances and finally lands on the algorithmic floor.
+    throw new GroqError(503, "GROQ_API_KEY is not configured");
+  }
+
+  const body: Record<string, unknown> = {
+    model: opts.model,
+    messages: opts.messages,
+    temperature: opts.temperature ?? 0.7,
+    max_completion_tokens: getMaxTokens(opts),
+    stream: true,
+  };
+  if (opts.json) body.response_format = { type: "json_object" };
+  if (opts.reasoningEffort && REASONING_CAPABLE.has(opts.model)) {
+    body.reasoning_effort = opts.reasoningEffort;
+  }
+
+  const res = await fetch(groqUrl(), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+    },
+    body: JSON.stringify(body),
+    signal: opts.signal,
+  });
+
+  if (!res.ok || !res.body) {
+    throw new GroqError(res.status, await res.text().catch(() => ""));
+  }
+  return { model: opts.model, response: res };
+}
+
+/**
+ * Parse an SSE body into text deltas. Yields only content chunks;
+ * network/parse errors surface as exceptions to the caller.
+ * 
+ * FIX: Stateful tracking of think blocks across streaming deltas with:
+ * - Holdback buffer for tags split across deltas (e.g., "<thi" + "nk>")
+ * - Case-insensitive matching for <think>, <thinking> variants
+ * - Flush remaining buffer at stream end if not in think block
+ */
+export async function* sseDeltas(
+  response: Response
+): AsyncGenerator<string> {
+  const reader = response.body!.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let pending = ""; // Holdback buffer for split tags
+  let inThinkBlock = false;
+  
+  // Tag patterns (case-insensitive, supports <think> and <thinking> variants)
+  const THINK_OPEN = /<(think|thinking)\s*>/gi;
+  const THINK_CLOSE = /<\/(think|thinking)\s*>/gi;
+  
+  /**
+   * Calculate holdback length: longest suffix of `text` that is a proper prefix of `tag`
+   */
+  function getHoldbackLength(text: string, tag: string): number {
+    const maxHold = Math.min(text.length, tag.length - 1);
+    for (let len = maxHold; len > 0; len--) {
+      const suffix = text.slice(-len);
+      if (tag.startsWith(suffix)) {
+        return len;
+      }
+    }
+    return 0;
+  }
+  
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) {
+        // Flush any remaining pending buffer if not in think block
+        if (!inThinkBlock && pending.length > 0) {
+          yield pending;
+        }
+        break;
+      }
+      
+      buffer += decoder.decode(value, { stream: true });
+      
+      let sep: number;
+      while ((sep = buffer.indexOf("\n\n")) !== -1) {
+        const rawEvent = buffer.slice(0, sep);
+        buffer = buffer.slice(sep + 2);
+        
+        for (const line of rawEvent.split("\n")) {
+          if (!line.startsWith("data:")) continue;
+          const data = line.slice(5).trim();
+          if (!data || data === "[DONE]") continue;
+          
+          try {
+            const parsed = JSON.parse(data) as {
+              choices?: { delta?: { content?: string } }[];
+            };
+            const delta = parsed.choices?.[0]?.delta?.content;
+            if (delta) {
+              // Append to pending buffer
+              pending += delta;
+              
+              // Determine which tag we're looking for
+              const targetTag = inThinkBlock ? "</think>" : "<think>";
+              const holdLen = getHoldbackLength(pending, targetTag);
+              
+              // Process safe prefix, keep potentially-split suffix in pending
+              const safePrefix = holdLen > 0 ? pending.slice(0, -holdLen) : pending;
+              pending = holdLen > 0 ? pending.slice(-holdLen) : "";
+              
+              // Stateful strip on safe prefix
+              let clean = "";
+              let remaining = safePrefix;
+              
+              while (remaining.length > 0) {
+                if (inThinkBlock) {
+                  // Look for closing tag (case-insensitive)
+                  THINK_CLOSE.lastIndex = 0;
+                  const closeMatch = THINK_CLOSE.exec(remaining);
+                  if (closeMatch) {
+                    inThinkBlock = false;
+                    remaining = remaining.slice(closeMatch.index + closeMatch[0].length);
+                  } else {
+                    break; // inside think block, discard
+                  }
+                } else {
+                  // Look for opening tag (case-insensitive)
+                  THINK_OPEN.lastIndex = 0;
+                  const openMatch = THINK_OPEN.exec(remaining);
+                  if (openMatch) {
+                    clean += remaining.slice(0, openMatch.index);
+                    inThinkBlock = true;
+                    remaining = remaining.slice(openMatch.index + openMatch[0].length);
+                  } else {
+                    clean += remaining;
+                    remaining = "";
+                  }
+                }
+              }
+              
+              if (clean) yield clean;
+            }
+          } catch {
+            // Malformed keep-alive/comment fragments — skip
+          }
+        }
+      }
+    }
+    // Stream ended: flush carry if not in think block
+    if (pending && !inThinkBlock) yield pending;
+    pending = "";
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+// ---------------------------------------------------------------
+// Vision (Phase 9 Nutrition): multimodal food-photo analysis via
+// Groq's vision tier (GROQ_MODELS.llama4Scout). Routed ONLY by
+// /api/ai/food — the vision tier is NOT part of the coach cascade
+// and never receives reasoning_effort. Same error contract as
+// callGroq: GroqError with retry-class status; think-strip; the
+// route falls through to z.ai / the offline estimator on failure.
+// ---------------------------------------------------------------
+
+export interface CallGroqVisionOptions {
+  /** Vision-tier model ID (GROQ_MODELS.llama4Scout). */
+  model: GroqModel;
+  /** Instruction prompt — the JSON contract lives in the route. */
+  prompt: string;
+  /** Base64 image payload (no data: prefix). */
+  imageBase64: string;
+  mimeType?: string;
+  temperature?: number;
+  /** Abort/timeout signal for the upstream fetch. */
+  signal?: AbortSignal;
+}
+
+export async function callGroqVision(opts: CallGroqVisionOptions): Promise<string> {
+  if (!process.env.GROQ_API_KEY) {
+    throw new GroqError(503, "GROQ_API_KEY is not configured");
+  }
+
+  const res = await fetch(GROQ_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: opts.model,
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: opts.prompt },
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:${opts.mimeType ?? "image/jpeg"};base64,${opts.imageBase64}`,
+              },
+            },
+          ],
+        },
+      ],
+      temperature: opts.temperature ?? 0.2,
+      max_completion_tokens: 800,
+      // Estimation wants a parseable object; a model that rejects
+      // response_format fails as retry-class and the caller falls
+      // through to the next hop.
+      response_format: { type: "json_object" },
+    }),
+    signal: opts.signal,
+  });
+
+  if (!res.ok) {
+    throw new GroqError(res.status, await res.text().catch(() => ""));
+  }
+
+  const data = await res.json();
+  const content: string = data.choices?.[0]?.message?.content ?? "";
+  const stripped = content
+    .replace(/<think>[\s\S]*?<\/think>/gi, "")
+    .replace(/<think>[\s\S]*$/i, "") // unclosed (truncated)
+    .trim();
+
+  if (!stripped) {
+    throw new GroqError(503, "empty answer after reasoning strip");
+  }
+  return stripped;
 }

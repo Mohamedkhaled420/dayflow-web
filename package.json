@@ -8,7 +8,8 @@
     "build": "node scripts/check-raw-colors.mjs && eslint . && next build && node scripts/patch-error-html.mjs",
     "start": "next start",
     "lint": "eslint .",
-    "check:colors": "node scripts/check-raw-colors.mjs"
+    "check:colors": "node scripts/check-raw-colors.mjs",
+    "test:coach": "node scripts/test-coach-protocol.mjs"
   },
   "dependencies": {
     "@radix-ui/react-toast": "^1.2.14",

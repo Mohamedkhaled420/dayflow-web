@@ -19,7 +19,11 @@ import {
   MorningTriadGate,
   readMorningTriad,
 } from "@/components/dayflow/MorningTriadGate";
-import { LiquidGlass, LiquidGlassFilters } from "@/components/ui/LiquidGlass";
+import {
+  LiquidGlassContainer,
+  LiquidGlassFilters,
+  LiquidGlassView,
+} from "@/components/ui/LiquidGlass";
 import { hapticSelect } from "@/lib/haptics";
 import { springSoft } from "@/lib/motion";
 import { useDockHidden, watchDockKeyboard } from "@/hooks/use-dock-visibility";
@@ -190,19 +194,33 @@ export function AppShell() {
           Liquid Glass surfaces (mobile dock + Habits Log CTA). */}
       <LiquidGlassFilters />
 
-      <header className="lg:hidden sticky top-0 z-40 flex shrink-0 items-center justify-between px-4 pt-[max(0.65rem,env(safe-area-inset-top))] pb-2.5 df-mobile-header">
-        <div className="flex items-center gap-2.5">
-          <LogoMark size={30} />
-          <div className="flex items-center gap-1.5">
-            <p className="text-[13px] font-semibold leading-none" style={{ color: "var(--df-text-primary)" }}>Dayflow</p>
-            {/* Phase 6.5: sync indicator beside the title (never in the dock) */}
-            {isSyncing && <LogoLoop size="sm" />}
+      {/* Mobile header — Liquid Glass T1 surface #2 (PRD §6.2).
+          Floating capsule (iOS 26 nav-bar material): the glass refracts
+          the window gradients; hairline + fill ride the --lg-* tokens. */}
+      <header className="lg:hidden sticky top-0 z-40 shrink-0 px-3 pt-[max(0.5rem,env(safe-area-inset-top))] pb-2">
+        <LiquidGlassView
+          variant="header"
+          effect="regular"
+          className="flex items-center justify-between px-3.5 py-1.5"
+          style={{
+            ["--lg-fill" as string]:
+              "color-mix(in srgb, var(--df-mobile-nav-fill) 55%, transparent)",
+            border: "0.5px solid var(--df-chip-border)",
+          }}
+        >
+          <div className="flex items-center gap-2.5">
+            <LogoMark size={30} />
+            <div className="flex items-center gap-1.5">
+              <p className="text-[13px] font-semibold leading-none" style={{ color: "var(--df-text-primary)" }}>Dayflow</p>
+              {/* Phase 6.5: sync indicator beside the title (never in the dock) */}
+              {isSyncing && <LogoLoop size="sm" />}
+            </div>
+            <p className="mt-1 text-[10px] leading-none" style={{ color: "var(--df-text-muted)" }}>{activeTab.label}</p>
           </div>
-          <p className="mt-1 text-[10px] leading-none" style={{ color: "var(--df-text-muted)" }}>{activeTab.label}</p>
-        </div>
-        <button onClick={() => select("settings")} aria-label="Settings" aria-current={tab === "settings" ? "page" : undefined} className="df-press grid size-9 place-items-center rounded-full" style={{ color: "var(--df-text-secondary)", border: "0.5px solid var(--df-chip-border)", background: "var(--df-chip-fill)" }}>
-          <SettingsIcon className="size-[17px]" strokeWidth={1.8} />
-        </button>
+          <button onClick={() => select("settings")} aria-label="Settings" aria-current={tab === "settings" ? "page" : undefined} className="df-press grid size-9 place-items-center rounded-full" style={{ color: "var(--df-text-secondary)", border: "0.5px solid var(--df-chip-border)", background: "var(--df-chip-fill)" }}>
+            <SettingsIcon className="size-[17px]" strokeWidth={1.8} />
+          </button>
+        </LiquidGlassView>
       </header>
 
       <div className="mx-auto flex w-full flex-1 min-h-0 items-stretch max-w-[1440px]">
@@ -211,21 +229,34 @@ export function AppShell() {
           <div className="df-rise" style={{ animationDelay: "0ms" }}>
             <LogoMark size={40} />
           </div>
-          <nav
-            aria-label="Primary"
-            className="df-rise flex flex-col items-center gap-[5px]"
-            style={{ animationDelay: "150ms" }}
+          {/* Desktop rail — Liquid Glass T1 surface #3 (PRD §6.2).
+              One glass pane (LiquidGlassContainer) carrying the nav
+              group — the macOS Tahoe sidebar material. */}
+          <LiquidGlassContainer
+            variant="rail"
+            className="df-rise"
+            style={{
+              animationDelay: "150ms",
+              ["--lg-fill" as string]:
+                "color-mix(in srgb, var(--df-mobile-nav-fill) 42%, transparent)",
+              border: "0.5px solid var(--df-chip-border)",
+            }}
           >
-            {TABS.map((t) => (
-              <SidebarButton
-                key={t.id}
-                label={t.label}
-                active={tab === t.id}
-                onClick={() => select(t.id)}
-                icon={<t.icon className="h-[17px] w-[17px]" strokeWidth={1.8} />}
-              />
-            ))}
-          </nav>
+            <nav
+              aria-label="Primary"
+              className="flex flex-col items-center gap-[5px] px-1 py-1.5"
+            >
+              {TABS.map((t) => (
+                <SidebarButton
+                  key={t.id}
+                  label={t.label}
+                  active={tab === t.id}
+                  onClick={() => select(t.id)}
+                  icon={<t.icon className="h-[17px] w-[17px]" strokeWidth={1.8} />}
+                />
+              ))}
+            </nav>
+          </LiquidGlassContainer>
           <div className="h-6" />
         </aside>
 
@@ -256,24 +287,27 @@ export function AppShell() {
         </div>
       </div>
 
-      {/* Mobile dock — Liquid Glass T1 surface #1 (PRD §6.2, max 2).
+      {/* Mobile dock — Liquid Glass T1 surface #1 (PRD §6.2, max 4).
           Dock avoidance Rule B: slides out (transform+opacity only)
           while ANY hide request is active — keyboard open or the
           fullscreen journal editor. The transform rides the style
-          prop (LiquidGlass's inline translateZ(0) base would beat a
-          CSS class). Rule C: the 88px reservation on the panel
-          never changes, so CLS stays 0. */}
-      <LiquidGlass
-        filterCss="url(#lg-dock) blur(18px) saturate(1.7)"
-        className="df-mobile-dock lg:hidden fixed inset-x-3 bottom-2 z-50"
+          prop. Rule C: the 88px reservation on the panel never
+          changes, so CLS stays 0. Bottom offset (incl. the
+          home-indicator safe area) is owned by the .df-mobile-dock
+          CSS rule — single safe-area authority. */}
+      <LiquidGlassView
+        variant="dock"
+        effect="regular"
+        className="df-mobile-dock lg:hidden fixed inset-x-3 z-50"
         style={{
-          background: "var(--df-mobile-nav-fill)",
+          ["--lg-fill" as string]:
+            "color-mix(in srgb, var(--df-mobile-nav-fill) 60%, transparent)",
           border: "0.5px solid var(--df-chip-border)",
           ...(dockHidden
             ? {
                 transform: "translateY(calc(100% + 20px))",
                 opacity: 0,
-                visibility: "hidden",
+                visibility: "hidden" as const,
                 pointerEvents: "none" as const,
               }
             : {}),
@@ -283,7 +317,7 @@ export function AppShell() {
       >
         <nav
           aria-label="Mobile primary"
-          className="flex items-center justify-around px-1.5 pb-[max(0.35rem,env(safe-area-inset-bottom))] pt-1.5"
+          className="flex items-center justify-around px-1.5 pb-1.5 pt-1.5"
         >
           {TABS.filter((item) => item.id !== "settings").map((t) => (
             <DockItem
@@ -295,7 +329,7 @@ export function AppShell() {
             />
           ))}
         </nav>
-      </LiquidGlass>
+      </LiquidGlassView>
 
       {/* Morning Triad gate (T1d) — gates the Focus tab. */}
       <MorningTriadGate

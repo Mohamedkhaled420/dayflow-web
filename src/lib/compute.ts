@@ -8,6 +8,7 @@
 // ============================================================
 
 import type { Category, DayflowData, GoalProgress, TrackEvent, WaterEntry } from "./types";
+import type { MealLogRow } from "@/store/useDayflowStore";
 import { keyForOffset, keyToDate, pad2 } from "./seed";
 import { GOAL_FALLBACK_COLORS, UNTRACKED_COLOR } from "@/styles/palette";
 
@@ -61,6 +62,40 @@ export const waterForDay = (water: WaterEntry[], dateKey: string) =>
 
 export const waterTotal = (water: WaterEntry[], dateKey: string) =>
   waterForDay(water, dateKey).reduce((s, w) => s + w.ml, 0);
+
+// ---------- nutrition (Phase 9) ----------
+
+export interface NutritionDay {
+  meals: MealLogRow[];
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+}
+
+const mealDateKey = (iso: string): string => {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+};
+
+/** meal_logs rows for a local day, newest last (chronological list). */
+export function loggedMealsForDay(mealLogs: MealLogRow[], dateKey: string): MealLogRow[] {
+  return mealLogs
+    .filter((m) => mealDateKey(m.logged_at) === dateKey)
+    .sort((a, b) => Date.parse(a.logged_at) - Date.parse(b.logged_at));
+}
+
+/** Day totals for the nutrition card (calories + macros). */
+export function nutritionForDay(mealLogs: MealLogRow[], dateKey: string): NutritionDay {
+  const meals = loggedMealsForDay(mealLogs, dateKey);
+  return {
+    meals,
+    calories: meals.reduce((s, m) => s + m.calories, 0),
+    protein_g: meals.reduce((s, m) => s + (m.protein_g ?? 0), 0),
+    carbs_g: meals.reduce((s, m) => s + (m.carbs_g ?? 0), 0),
+    fat_g: meals.reduce((s, m) => s + (m.fat_g ?? 0), 0),
+  };
+}
 
 export const categoryById = (categories: Category[], id: string): Category => {
   const found = categories.find((c) => c.id === id);

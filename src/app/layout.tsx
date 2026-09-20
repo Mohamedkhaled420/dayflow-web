@@ -4,7 +4,8 @@ import "./globals.css";
 import { DeferredToaster } from "@/components/ui/deferred-toaster";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ServiceWorkerRegistrar } from "@/components/dayflow/ServiceWorkerRegistrar";
-import { PWA_SURFACE_COLORS } from "@/styles/palette";
+import { ChromeThemeSync } from "@/components/dayflow/ChromeThemeSync";
+import { THEME_META_COLORS } from "@/styles/palette";
 
 const figtree = Figtree({
   variable: "--font-figtree",
@@ -35,7 +36,12 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     title: "Dayflow",
-    statusBarStyle: "default",
+    // black-translucent: the installed app paints edge-to-edge (under the
+    // notch / Dynamic Island); the mobile header already pads
+    // env(safe-area-inset-top). ChromeThemeSync swaps this to "default"
+    // while the LIGHT theme is active so the status-bar text stays
+    // readable on the light header.
+    statusBarStyle: "black-translucent",
   },
   formatDetection: { telephone: false },
   // PWA install surface (Phase 4): web app manifest + Apple touch icon.
@@ -56,11 +62,17 @@ export const viewport: Viewport = {
   // viewportFit=cover lets the app paint under the notch/home indicator;
   // the tab dock respects env(safe-area-inset-bottom).
   viewportFit: "cover",
-  // Phase 4 ship: flat --color-surface (#0e1117) so the browser chrome
-  // matches the installed PWA shell (manifest theme_color). The previous
-  // light/dark media pair lives on in THEME_META_COLORS if the design
-  // system ever wants per-scheme chrome back.
-  themeColor: PWA_SURFACE_COLORS.theme,
+  // Browser chrome must BLEND with the app surface or the phone reads
+  // "website", not "app": the address-bar area is tinted per color
+  // scheme (light chrome on light, dark on dark). THEME_META_COLORS
+  // values mirror --df-window-bg in theme.css (#ffffff light /
+  // #191919 dark). ChromeThemeSync re-syncs this meta when the user
+  // toggles the in-app theme manually (the media pair only reacts to
+  // the OS scheme).
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: THEME_META_COLORS.light },
+    { media: "(prefers-color-scheme: dark)", color: THEME_META_COLORS.dark },
+  ],
 };
 
 export default function RootLayout({
@@ -83,6 +95,9 @@ export default function RootLayout({
           {/* Deferred until the first toast (Phase 4 bundle diet) — the
               radix toast chunk never rides the initial payload. */}
           <DeferredToaster />
+          {/* Keeps the browser chrome + iOS status bar in lock-step with
+              the ACTIVE theme (manual toggles included). */}
+          <ChromeThemeSync />
           <ServiceWorkerRegistrar />
         </ThemeProvider>
       </body>

@@ -91,7 +91,7 @@ export function WeeklyView() {
   }, [days, workouts, avgSleep, waterAvg, data.goals]);
 
   return (
-    <div className="df-weekly-view df-scroll h-full min-w-0 max-w-full overflow-x-hidden overflow-y-auto px-4 sm:px-6 py-5">
+    <div className="df-weekly-view df-scroll h-full min-w-0 max-w-full overflow-x-hidden overflow-y-auto px-4 sm:px-6 py-5 lg:mx-auto lg:w-full lg:max-w-[1060px]">
       {/* header */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">

@@ -30,6 +30,14 @@ body {
   --lg-displacement: 26;
   --lg-rim-opacity: 0.6;
   --lg-radius: var(--radius-panel);
+  /* Liquid Glass v2 — per-variant geometry + material tokens
+     (see src/components/ui/LiquidGlass.tsx). */
+  --lg-radius-dock: 26px;
+  --lg-radius-cta: 22px;
+  --lg-radius-rail: 26px;
+  --lg-radius-header: 21px;
+  --lg-tint-opacity: 0.2;
+  --lg-effect-ms: 320ms;
 }
 
 body {
@@ -129,6 +137,25 @@ h4 {
     transparent 0,
     black 16px,
     black calc(100% - 20px),
+    transparent 100%
+  );
+}
+
+/* Horizontal variant for chip rails: the last chip dissolves at the
+   right edge so a cut-off chip reads as "scroll this way" instead of
+   "broken layout". Mask ends 4px inside so the fade never eats the
+   scroll end-state. */
+.df-edge-fade-x {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    black 0,
+    black calc(100% - 22px),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    black 0,
+    black calc(100% - 22px),
     transparent 100%
   );
 }
@@ -337,6 +364,19 @@ h4 {
   text-decoration: underline;
   text-underline-offset: 2px;
 }
+.df-prose hr {
+  border: 0;
+  border-top: 0.5px solid var(--df-card-border);
+  margin: 0.75em 0;
+}
+/* Coach bubbles: slightly tighter prose rhythm than journal
+   entries (chat reads best without inter-paragraph air). */
+.df-prose p:first-child {
+  margin-top: 0;
+}
+.df-prose p:last-child {
+  margin-bottom: 0;
+}
 
 /* Backdrop-filter fallback for browsers without it */
 @supports not ((backdrop-filter: blur(4px)) or (-webkit-backdrop-filter: blur(4px))) {
@@ -358,6 +398,17 @@ h4 {
     background: var(--background);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
+  }
+
+  /* T2 glass controls fall back to opaque fills — the translucent
+     pill reads become quiet solids. */
+  .df-btn-secondary,
+  .df-input-glass,
+  .df-glass-chip {
+    background: var(--df-panel-fill);
+  }
+  .df-sheet-footer {
+    background: var(--background);
   }
 }
 
@@ -419,24 +470,139 @@ h4 {
 }
 
 .df-btn-primary {
+  position: relative;
+  overflow: hidden;
   background: var(--df-primary-btn-fill);
   border: 0.5px solid var(--df-primary-btn-border);
-  box-shadow: var(--df-primary-btn-glow);
+  /* Liquid Glass T2: crisp specular top edge + deepened base + a
+     soft light pool under the button — reads as a tinted glass pill
+     without any backdrop-filter (safe inside frosted sheets). */
+  box-shadow: inset 0 1.5px 0 -0.25px var(--df-primary-btn-sheen),
+    inset 0 -1px 0 var(--df-primary-btn-shade),
+    0 4px 14px -6px var(--df-primary-btn-halo);
   color: var(--df-primary-btn-text);
   border-radius: var(--df-radius-btn);
 }
 
+/* Top gloss — a short vertical fade of light catching the pill's
+   upper curve. Kept shallow (30% height) so the label stays crisp;
+   the depth comes from the fill gradient itself. */
+.df-btn-primary::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--df-primary-btn-sheen) 45%, transparent) 0%,
+    transparent 30%
+  );
+  pointer-events: none;
+}
+
+/* Specular sweep — the callstack `interactive` shimmer, CSS-only:
+   a diagonal light band crosses the pill on hover/press. Rides
+   ABOVE the label, never catches pointer events. */
+.df-btn-primary::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    115deg,
+    transparent 26%,
+    var(--df-glass-sweep) 46%,
+    transparent 66%
+  );
+  transform: translateX(-130%);
+  transition: transform 0.55s ease;
+  pointer-events: none;
+}
+.df-btn-primary:hover::after,
+.df-btn-primary:focus-visible::after {
+  transform: translateX(130%);
+}
+.df-btn-primary:active::after {
+  transform: translateX(130%);
+  transition-duration: 0.3s;
+}
+
 .df-btn-secondary {
+  position: relative;
   background: var(--df-secondary-btn-fill);
   border: 0.5px solid var(--df-secondary-btn-border);
+  /* Clear-glass: translucent fill + top sheen (no backdrop-filter —
+     stacked-glass ban; the host surface frosts underneath). */
+  box-shadow: inset 0 1px 0 var(--df-secondary-btn-sheen);
   color: var(--df-secondary-btn-text);
   border-radius: var(--df-radius-btn);
+}
+
+/* Capsule variant — the iOS-26 liquid-glass pill for hero CTAs
+   (Generate / Start / Log actions in sheets). */
+.df-btn-capsule {
+  border-radius: 999px;
 }
 
 .df-chip {
   background: var(--df-chip-fill);
   border: 0.5px solid var(--df-chip-border);
   color: var(--df-text-primary);
+}
+
+/* Glass chip sheen — base layer for chip-like controls whose
+   fill/border/color stay inline (accent-tinted actives). The
+   translucent fill + top gloss reads as a cast-glass pill riding
+   on the frosted sheet below it. */
+.df-glass-chip {
+  position: relative;
+  overflow: hidden;
+  box-shadow: inset 0 1px 0 var(--df-glass-sheen-soft);
+  transition: background 0.15s ease, box-shadow 0.15s ease,
+    border-color 0.15s ease;
+}
+.df-glass-chip::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--df-glass-sheen) 42%, transparent) 0%,
+    transparent 45%
+  );
+  pointer-events: none;
+}
+.df-glass-chip:active {
+  box-shadow: inset 0 1px 0 var(--df-glass-sheen-soft),
+    inset 0 2px 6px var(--df-glass-shade);
+}
+
+/* Glass input well — the pressed-in counterpart of the raised
+   glass buttons: inset shadow + focus glow ring (composer-glow
+   ladder applied to every form field). Wrap pattern: the class
+   goes on the styled container that owns border + fill, with the
+   bare <input>/<textarea> inside. */
+.df-input-glass {
+  background: var(--df-input-fill);
+  border: 0.5px solid var(--df-input-border);
+  border-radius: var(--df-radius-btn);
+  box-shadow: var(--df-input-inset);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+.df-input-glass:focus-within {
+  border-color: var(--df-input-glow-border);
+  box-shadow: var(--df-input-inset), 0 0 0 3px var(--df-input-glow-ring);
+}
+
+/* Sheet action footer — sticky bottom band inside sheet scroll
+   containers. Owns the veil + top hairline so scrolled content
+   separates cleanly instead of sliding under the CTA. Padding is
+   the call site's job (safe-area aware there). */
+.df-sheet-footer {
+  background: var(--df-footer-veil);
+  border-top: 0.5px solid var(--df-material-edge);
+  box-shadow: 0 -10px 18px -16px var(--df-panel-shadow);
 }
 
 .df-hour-line {
@@ -455,7 +621,9 @@ h4 {
 }
 
 /* Subtle press animation like DayflowPressScaleButtonStyle.
-   100ms ease-out — feedback on pointer-DOWN, instant (skill §1). */
+   100ms ease-out — feedback on pointer-DOWN, instant (skill §1).
+   The brightness+saturate bump gives pressed controls the liquid
+   "light trapped in glass" read (callstack interactive parity). */
 .df-press {
   transition: transform 0.1s ease-out, filter 0.15s ease;
 }
@@ -465,12 +633,21 @@ h4 {
 .df-press:hover {
   filter: brightness(1.03);
 }
+.df-press:active {
+  filter: brightness(1.06) saturate(1.08);
+}
 
 .df-mobile-dock {
   box-shadow: 0 12px 32px color-mix(in srgb, var(--df-panel-shadow) 42%, transparent), inset 0 1px 0 color-mix(in srgb, var(--df-white) 70%, transparent);
   transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 180ms ease, opacity 180ms ease, visibility 180ms;
   transform: translateZ(0);
   will-change: transform;
+  /* Single safe-area authority: the dock FLOATS above the home
+     indicator (bottom offset grows to the inset); the nav's internal
+     padding stays a fixed 6px so the dock never double-compensates
+     and balloons to ~120px in standalone mode. Applies below lg —
+     the dock only renders there (lg:hidden). */
+  bottom: max(0.5rem, env(safe-area-inset-bottom));
 }
 
 .df-mobile-dock:has(button[aria-current="page"]) {
@@ -810,20 +987,10 @@ select {
      handled by Tailwind lg: classes on the JSX since the 2026-09
      breakpoint fix — see the 1023px block above.) */
 
-  .df-mobile-header {
-    background: color-mix(in srgb, var(--df-window-bg) 88%, transparent);
-    border-bottom: 1px solid color-mix(in srgb, var(--df-text-primary) 8%, transparent);
-    backdrop-filter: blur(18px);
-    transform: translateZ(0);
-    will-change: transform;
-  }
-
+  /* Liquid Glass floating header capsule is ~8px taller than the
+     old flat bar — keep the panel min-height floor in step. */
   .df-window > .flex > .df-panel {
-    min-height: calc(100dvh - 104px);
-  }
-
-  .df-mobile-dock {
-    bottom: max(0.5rem, env(safe-area-inset-bottom));
+    min-height: calc(100dvh - 112px);
   }
 
   .df-daily-view {
@@ -844,5 +1011,194 @@ select {
 
   .df-daily-view .df-summary-card > div:first-child {
     font-size: 1rem;
+  }
+}
+
+/* ============================================================
+   Liquid Glass v2 — T1 surfaces (PRD §6.2)
+   ------------------------------------------------------------
+   Web port of the iOS 26 Liquid Glass material (API modeled on
+   @callstack/liquid-glass). DOM order per surface:
+     [backdrop-regular] [backdrop-clear] [rim] [tint] [shimmer]
+     [content z1]  — shimmer rides above at z2.
+   Chromium gets true SDF refraction via the SVG filter chain;
+   Safari/Firefox get the T0 frost + the CSS rim below.
+   ============================================================ */
+
+.lgv {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.lgv-layer {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+/* --- material layers + animated effect crossfade --------------- */
+
+.lgv-backdrop {
+  /* every backdrop-filter element is its own GPU layer —
+     WebKit black-box guard (PRD §9.2) */
+  transform: translateZ(0);
+  will-change: transform;
+  transition: opacity var(--lg-effect-ms, 320ms) ease;
+}
+
+.lgv-backdrop-clear {
+  opacity: 0;
+}
+
+.lgv[data-effect="clear"] .lgv-backdrop-regular {
+  opacity: 0;
+}
+
+.lgv[data-effect="clear"] .lgv-backdrop-clear {
+  opacity: 1;
+}
+
+.lgv[data-effect="none"] .lgv-backdrop {
+  opacity: 0;
+}
+
+/* --- surface fill — veil between material and rim ---------------- */
+
+.lgv-fill {
+  background: var(--lg-fill, transparent);
+}
+
+/* --- rim light — CSS bevel approximation ----------------------- */
+
+.lgv-rim {
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--df-white) 45%, transparent),
+      color-mix(in srgb, var(--df-white) 10%, transparent) 30%,
+      transparent 55%,
+      color-mix(in srgb, var(--df-white) 16%, transparent)
+    ),
+    radial-gradient(
+      130% 60% at 50% -12%,
+      color-mix(in srgb, var(--df-white) 20%, transparent),
+      transparent 58%
+    );
+  opacity: var(--lg-rim-opacity, 0.6);
+  mix-blend-mode: screen;
+}
+
+.lgv[data-scheme="dark"] {
+  --lg-rim-opacity: 0.34;
+}
+
+.lgv[data-scheme="light"] {
+  --lg-rim-opacity: 0.72;
+}
+
+/* --- tint (callstack tintColor parity) -------------------------- */
+
+.lgv-tint {
+  opacity: var(--lg-tint-opacity, 0.2);
+}
+
+.lgv[data-effect="clear"] .lgv-tint {
+  --lg-tint-opacity: 0.16;
+}
+
+/* --- content rides above the material --------------------------- */
+
+.lgv-content {
+  position: relative;
+  z-index: 1;
+}
+
+/* --- container + islands (one pane, many islands) ---------------- */
+
+.lgv-container > .lgv-content {
+  display: flex;
+  align-items: center;
+  gap: var(--lg-spacing, 0px);
+}
+
+.lgv[data-island] {
+  box-shadow: inset 0 0 0 0.5px
+    color-mix(in srgb, var(--df-white) 35%, transparent);
+}
+
+/* --- interactive — grow + shimmer sweep (callstack parity) ------- */
+
+.lgv[data-interactive] {
+  transition: transform 240ms
+    var(--ease-spring-critical, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+.lgv[data-interactive]:hover {
+  transform: scale(1.025);
+}
+
+.lgv[data-interactive]:active {
+  transform: scale(0.968);
+}
+
+.lgv-shimmer {
+  background: linear-gradient(
+    105deg,
+    transparent 38%,
+    color-mix(in srgb, var(--df-white) 32%, transparent) 50%,
+    transparent 62%
+  );
+  transform: translateX(-140%);
+  opacity: 0;
+  z-index: 2;
+}
+
+.lgv[data-interactive]:hover .lgv-shimmer,
+.lgv[data-interactive]:active .lgv-shimmer {
+  opacity: 1;
+  animation: lgv-sweep 950ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes lgv-sweep {
+  from {
+    transform: translateX(-140%);
+  }
+  to {
+    transform: translateX(140%);
+  }
+}
+
+/* --- accessibility: motion + transparency ------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .lgv[data-interactive],
+  .lgv[data-interactive]:hover,
+  .lgv[data-interactive]:active {
+    transition: none;
+    transform: none;
+  }
+
+  .lgv-shimmer {
+    animation: none !important;
+    opacity: 0 !important;
+  }
+
+  .lgv-backdrop {
+    transition: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .lgv-backdrop {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    background: var(--background);
+  }
+
+  .lgv-rim,
+  .lgv-tint {
+    opacity: calc(var(--lg-rim-opacity, 0.6) * 0.3);
   }
 }
