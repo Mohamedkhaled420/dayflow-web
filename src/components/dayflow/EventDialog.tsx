@@ -35,6 +35,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useIsPhone } from "@/hooks/use-media-query";
 import { hapticSuccess, hapticWarn, triggerHaptic } from "@/lib/haptics";
 import { useKeyboardTracking } from "@/components/ui/Sheet";
+import { useDockHideRequest } from "@/hooks/use-dock-visibility";
 import { springSheet, springSoft } from "@/lib/motion";
 import type { Category, TrackEvent } from "@/lib/types";
 
@@ -62,6 +63,9 @@ export function EventDialog({ open, onClose, event, dateKey }: Props) {
   const isPhone = useIsPhone();
   const reducedMotion = useReducedMotion();
   const dragControls = useDragControls();
+  // Overlay owns the bottom band while open (dock-avoidance Rule B):
+  // the phone sheet's action row must not stack glass with the dock.
+  useDockHideRequest("overlay:event-dialog", open);
   // A drag that ends above the sheet leaves a stray click on the scrim
   // (release point can sit outside the sheet). Track drags and swallow
   // that click so a rubber-banded sheet stays open.
@@ -165,6 +169,19 @@ export function EventDialog({ open, onClose, event, dateKey }: Props) {
               isPhone
                 ? "w-full rounded-t-[24px] overflow-hidden df-material"
                 : "w-full max-w-[420px] rounded-2xl p-5 df-material"
+            }
+            style={
+              isPhone
+                ? {
+                    /* Keyboard lift: EventForm already tracks the shared
+                       --keyboard-height — apply it so the sheet (and its
+                       action row) rides above the software keyboard. */
+                    marginBottom: "var(--keyboard-height, 0px)",
+                    maxHeight: "calc(100dvh - var(--keyboard-height, 0px))",
+                    transition:
+                      "margin-bottom 220ms cubic-bezier(0.32, 0.72, 0, 1)",
+                  }
+                : undefined
             }
             onClick={(e) => e.stopPropagation()}
           >
@@ -322,7 +339,7 @@ function EventForm({
   // Phone: bottom sheet — the header zone is the drag handle; the body
   // scrolls if it grows past the sheet.
   return (
-    <div className="flex max-h-[88dvh] flex-col">
+    <div className="flex max-h-[calc(88dvh-var(--keyboard-height,0px))] flex-col">
       <div
         className="shrink-0 pt-2.5 pb-1 px-5"
         onPointerDown={draggable ? onDragStart : undefined}
@@ -426,7 +443,7 @@ function FormBody(p: FormBodyProps) {
               <button
                 key={c.id}
                 onClick={() => p.setCategoryId(c.id)}
-                className="df-press rounded-full h-9 pl-2.5 pr-3 flex items-center gap-1.5 text-[12px] font-semibold"
+                className="df-press df-glass-chip rounded-full h-9 pl-2.5 pr-3 flex items-center gap-1.5 text-[12px] font-semibold"
                 style={{
                   background: active
                     ? `color-mix(in srgb, ${c.colorHex} 22%, transparent)`
@@ -455,13 +472,7 @@ function FormBody(p: FormBodyProps) {
         >
           Workout
         </label>
-        <div
-          className="mt-1.5 rounded-md px-3 min-h-12 flex items-center"
-          style={{
-            background: "var(--df-input-fill)",
-            border: "0.5px solid var(--df-input-border)",
-          }}
-        >
+        <div className="df-input-glass mt-1.5 rounded-md px-3 min-h-12 flex items-center">
           <input
             value={p.title}
             onChange={(e) => p.setTitle(e.target.value)}
@@ -490,13 +501,7 @@ function FormBody(p: FormBodyProps) {
             >
               {f.label}
             </label>
-            <div
-              className="mt-1.5 rounded-md px-2.5 h-11 flex items-center gap-2"
-              style={{
-                background: "var(--df-input-fill)",
-                border: "0.5px solid var(--df-input-border)",
-              }}
-            >
+            <div className="df-input-glass mt-1.5 rounded-md px-2.5 h-11 flex items-center gap-2">
               <Clock className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--df-text-muted)" }} />
               <input
                 type="time"
@@ -540,13 +545,7 @@ function FormBody(p: FormBodyProps) {
             (optional — {p.isSleep ? "bpm" : "kcal"})
           </span>
         </label>
-        <div
-          className="mt-1.5 rounded-md px-3 min-h-12 flex items-center"
-          style={{
-            background: "var(--df-input-fill)",
-            border: "0.5px solid var(--df-input-border)",
-          }}
-        >
+        <div className="df-input-glass mt-1.5 rounded-md px-3 min-h-12 flex items-center">
           <input
             value={p.metric}
             onChange={(e) => p.setMetric(e.target.value.replace(/[^0-9]/g, ""))}
@@ -559,12 +558,13 @@ function FormBody(p: FormBodyProps) {
         </div>
       </div>
 
-      {/* actions */}
-      <div className="mt-4 flex items-center gap-2">
+      {/* actions — sticky on phone so Log/Save never sit under the
+          dock band; inert on desktop (no scroll ancestor). */}
+      <div className="df-sheet-footer sticky bottom-0 mt-4 -mx-5 px-5 pt-2.5 pb-1 flex items-center gap-2">
         {p.event && (
           <button
             onClick={p.remove}
-            className="df-press h-11 px-3 rounded-md flex items-center gap-1.5 text-[12px] font-semibold"
+            className="df-press df-btn-capsule h-11 px-3 flex items-center gap-1.5 text-[12px] font-semibold"
             style={{
               background: "color-mix(in srgb, var(--df-destructive) 12%, transparent)",
               border: "0.5px solid color-mix(in srgb, var(--df-destructive) 35%, transparent)",
@@ -577,13 +577,13 @@ function FormBody(p: FormBodyProps) {
           </button>
         )}
         <div className="flex-1" />
-        <button onClick={p.onClose} className="df-press df-btn-secondary h-11 px-4 text-[12.5px] font-semibold">
+        <button onClick={p.onClose} className="df-press df-btn-secondary df-btn-capsule h-11 px-4 text-[12.5px] font-semibold">
           Cancel
         </button>
         <button
           onClick={p.save}
           disabled={!p.valid}
-          className="df-press df-btn-primary h-11 px-4 text-[12.5px] font-semibold flex items-center gap-1.5 disabled:opacity-40"
+          className="df-press df-btn-primary df-btn-capsule h-11 px-4 text-[12.5px] font-semibold flex items-center gap-1.5 disabled:opacity-40"
         >
           <Check className="h-3.5 w-3.5" />
           {p.event ? "Save changes" : "Log block"}

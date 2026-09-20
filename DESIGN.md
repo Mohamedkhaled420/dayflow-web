@@ -114,6 +114,35 @@ anything. Safari/Firefox get the T0 frost + CSS rim/tint layers.
 Regenerate maps after changing variant geometry:
 `node scripts/gen-lg-maps.mjs`
 
+### 2.2.2 Liquid Glass T2 — controls (buttons, chips, inputs, footers)
+
+Every interactive control carries the liquid-glass read through **layered
+light, not live refraction** (2026-09 v3). This is the callstack
+`interactive` language expressed in pure CSS so it is safe INSIDE frosted
+sheets and panels (ban #12: never nest backdrop-filter):
+
+| Class | Recipe |
+|---|---|
+| `.df-btn-primary` | 3-stop vertical gradient fill + crisp 1.5px specular top edge (`--df-primary-btn-sheen`) + base shade + accent halo pool; `::before` = shallow top gloss; `::after` = specular sweep on hover/press/focus |
+| `.df-btn-secondary` | clear-glass volume gradient (`--df-secondary-btn-fill`) + top sheen |
+| `.df-btn-capsule` | 999px radius — the iOS-26 pill for sheet hero CTAs |
+| `.df-glass-chip` | sheen top-edge + `::before` gloss fade for chip-like controls whose fill/border stay inline (accent actives) |
+| `.df-input-glass` | pressed-in well: inset shadow + focus-within accent glow ring (the composer-glow ladder, applied to every field) |
+| `.df-sheet-footer` | sticky action band: `--df-footer-veil` + top hairline so scrolled content separates from the CTA |
+
+Tokens live in the T2 blocks of `theme.css` (light + dark:
+`--df-glass-sheen[-soft]`, `--df-glass-shade`, `--df-glass-sweep`,
+`--df-primary-btn-sheen/shade/halo`, chip/input/footer tokens). Radius:
+`--df-radius-btn` 10px. `prefers-reduced-transparency` falls every one of
+these back to opaque fills.
+
+**Overlay dock rule (bug fix, 2026-09):** every modal/sheet overlay
+registers `useDockHideRequest("overlay:<id>", open)` — the mobile dock
+slides out while ANY sheet is open, so sheet CTAs never stack glass-on-glass
+with the nav bar. Phone sheets additionally lift above the software
+keyboard via the shared `--keyboard-height` variable
+(`margin-bottom` + `max-height` caps), mirroring `Sheet.tsx`.
+
 ### 2.3 Reference component
 
 `src/components/ui/GlassPanel.tsx` — typed props (`surface`, `radius`, `hairline`, `edgeFade`, `frosted`), tokens only, zero feature logic. New screens compose this; legacy views keep their `.df-*` classes until their convergence phase.

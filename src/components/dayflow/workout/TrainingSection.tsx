@@ -115,7 +115,7 @@ export function TrainingSection({ dateKey, onLogWorkout, onEditWorkout, onGenera
               triggerHaptic();
               onGenerateRoutine();
             }}
-            className="df-press h-8 px-3 text-[12px] font-semibold flex items-center gap-1.5 rounded-md"
+            className="df-press df-glass-chip df-btn-capsule h-8 px-3 text-[12px] font-semibold flex items-center gap-1.5"
             style={{
               background: `color-mix(in srgb, ${FITNESS} 12%, transparent)`,
               border: `0.5px solid color-mix(in srgb, ${FITNESS} 40%, transparent)`,
@@ -130,7 +130,7 @@ export function TrainingSection({ dateKey, onLogWorkout, onEditWorkout, onGenera
               triggerHaptic();
               onLogWorkout();
             }}
-            className="df-press df-btn-secondary h-8 px-3 text-[12px] font-semibold flex items-center gap-1.5 shrink-0"
+            className="df-press df-btn-secondary df-btn-capsule h-8 px-3 text-[12px] font-semibold flex items-center gap-1.5 shrink-0"
           >
             Log workout
           </button>

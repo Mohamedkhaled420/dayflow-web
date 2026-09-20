@@ -41,6 +41,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useIsPhone } from "@/hooks/use-media-query";
 import { hapticSuccess, triggerHaptic } from "@/lib/haptics";
 import { springSoft } from "@/lib/motion";
+import { useDockHideRequest } from "@/hooks/use-dock-visibility";
+import { useKeyboardTracking } from "@/components/ui/Sheet";
 import { CATEGORY_COLORS } from "@/styles/palette";
 import { ExerciseThumb } from "@/components/dayflow/workout/ExerciseThumb";
 import { exerciseById } from "@/lib/exercise-db";
@@ -92,6 +94,11 @@ interface Props {
 
 export function RoutineSheet({ open, onClose, onStart }: Props) {
   const isPhone = useIsPhone();
+  // Overlay owns the bottom band while open (dock-avoidance Rule B):
+  // the 92dvh phone sheet + its sticky CTA must never stack glass on
+  // glass with the dock — the CTA band colliding with the nav bar is
+  // exactly the reported mobile bug.
+  useDockHideRequest("overlay:routine-sheet", open);
   return (
     <AnimatePresence>
       {open && <RoutineBuilder key="routine-builder" onClose={onClose} onStart={onStart} isPhone={isPhone} />}
@@ -111,6 +118,10 @@ function RoutineBuilder({
   const workoutLogs = useDayflowStore((s) => s.workoutLogs);
   const { toast } = useToast();
   const reducedMotion = useReducedMotion();
+  // Software-keyboard tracking: writes the shared --keyboard-height
+  // variable so the phone shell below rides ABOVE the keyboard
+  // (the "Generate" CTA was hidden underneath it while typing).
+  useKeyboardTracking();
 
   // ---- brief state ------------------------------------------------
   const [goal, setGoal] = useState<RoutineGoal>("muscle");
@@ -254,7 +265,7 @@ function RoutineBuilder({
         <button
           onClick={onClose}
           aria-label="Close"
-          className="df-press shrink-0 h-8 w-8 grid place-items-center rounded-full"
+          className="df-press df-glass-chip shrink-0 h-8 w-8 grid place-items-center rounded-full"
           style={{ background: "var(--df-chip-fill)", color: "var(--df-text-secondary)" }}
         >
           <X className="h-4 w-4" />
@@ -310,11 +321,7 @@ function RoutineBuilder({
 
           <SectionLabel>Anything to work around? <span className="opacity-60 normal-case tracking-normal">optional</span></SectionLabel>
           <div
-            className="mt-1.5 rounded-md px-3 min-h-11 py-2.5"
-            style={{
-              background: "var(--df-input-fill)",
-              border: "0.5px solid var(--df-input-border)",
-            }}
+            className="mt-1.5 rounded-md px-3 min-h-11 py-2.5 df-input-glass"
           >
             <input
               value={notes}
@@ -359,14 +366,11 @@ function RoutineBuilder({
           <div className="h-1 shrink-0" />
 
           {/* sticky footer */}
-          <div
-            className="sticky bottom-0 mt-auto pt-2 pb-1"
-            style={{ background: "var(--df-material-bg)" }}
-          >
+          <div className="df-sheet-footer sticky bottom-0 mt-auto pt-2.5 pb-1 -mx-1 px-1">
             <button
               onClick={() => void generate()}
               disabled={busy}
-              className="df-press df-btn-primary w-full h-12 text-[13.5px] font-semibold flex items-center justify-center gap-2 disabled:opacity-60"
+              className="df-press df-btn-primary df-btn-capsule w-full h-12 text-[13.5px] font-semibold flex items-center justify-center gap-2 disabled:opacity-60"
             >
               {busy ? (
                 <>
@@ -416,7 +420,16 @@ function RoutineBuilder({
           exit={reducedMotion ? { opacity: 0 } : { y: "100%", opacity: 0.5 }}
           transition={{ duration: 0.24, ease: [0.32, 0.72, 0, 1] }}
           className="w-full rounded-t-[24px] overflow-hidden df-material flex flex-col"
-          style={{ height: "92dvh" }}
+          style={{
+            height: "92dvh",
+            /* Keyboard lift (shared --keyboard-height): the sheet
+               rides above the software keyboard instead of leaving
+               the CTA buried underneath it while typing. maxHeight
+               shrinks the panel so it never runs off the top edge. */
+            marginBottom: "var(--keyboard-height, 0px)",
+            maxHeight: "calc(100dvh - var(--keyboard-height, 0px))",
+            transition: "margin-bottom 220ms cubic-bezier(0.32, 0.72, 0, 1)",
+          }}
           onClick={(e) => e.stopPropagation()}
         >
           <div
@@ -678,14 +691,11 @@ function PlanStep({
       <div className="h-1 shrink-0" />
 
       {/* sticky footer */}
-      <div
-        className="sticky bottom-0 mt-auto pt-2 pb-1"
-        style={{ background: "var(--df-material-bg)" }}
-      >
+      <div className="df-sheet-footer sticky bottom-0 mt-auto pt-2.5 pb-1 -mx-1 px-1">
         <div className="flex items-center gap-2">
           <button
             onClick={onBack}
-            className="df-press df-btn-secondary h-11 px-3.5 text-[12.5px] font-semibold shrink-0"
+            className="df-press df-btn-secondary df-btn-capsule h-11 px-3.5 text-[12.5px] font-semibold shrink-0"
           >
             Tweak
           </button>
@@ -693,13 +703,13 @@ function PlanStep({
             onClick={onRegenerate}
             disabled={busy}
             aria-label="Generate another routine"
-            className="df-press df-btn-secondary h-11 w-11 grid place-items-center shrink-0 disabled:opacity-50"
+            className="df-press df-btn-secondary df-btn-capsule h-11 w-11 grid place-items-center shrink-0 disabled:opacity-50"
           >
             <RefreshCw className={`h-4 w-4 ${busy ? "animate-spin" : ""}`} />
           </button>
           <button
             onClick={onStart}
-            className="df-press df-btn-primary flex-1 h-11 px-4 text-[13px] font-semibold flex items-center justify-center gap-1.5"
+            className="df-press df-btn-primary df-btn-capsule flex-1 h-11 px-4 text-[13px] font-semibold flex items-center justify-center gap-1.5"
           >
             <Play className="h-4 w-4" />
             Start workout
@@ -750,7 +760,7 @@ function MiniList({ title, items, accent }: { title: string; items: string[]; ac
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <p
-      className="mt-3.5 first:mt-1 text-[10px] font-bold uppercase tracking-[0.06em] shrink-0"
+      className="mt-[18px] first:mt-1 text-[10px] font-bold uppercase tracking-[0.06em] shrink-0"
       style={{ color: "var(--df-text-secondary)" }}
     >
       {children}
@@ -759,7 +769,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 }
 
 function ChipRow({ children }: { children: React.ReactNode }) {
-  return <div className="mt-1.5 flex flex-wrap gap-1.5 shrink-0">{children}</div>;
+  return <div className="mt-2 flex flex-wrap gap-1.5 shrink-0">{children}</div>;
 }
 
 function Chip({
@@ -777,13 +787,17 @@ function Chip({
     <button
       onClick={onClick}
       aria-pressed={active}
-      className={`df-press h-9 rounded-full text-[12px] font-semibold ${wide ? "min-w-11" : "px-3.5"}`}
+      className={`df-press df-glass-chip h-9 rounded-full text-[12px] font-semibold ${wide ? "min-w-11" : "px-3.5"}`}
       style={
         active
           ? {
               background: `color-mix(in srgb, ${FITNESS} 15%, transparent)`,
               border: `1px solid color-mix(in srgb, ${FITNESS} 45%, transparent)`,
               color: FITNESS,
+              boxShadow:
+                "inset 0 1px 0 var(--df-glass-sheen), 0 1px 8px color-mix(in srgb, " +
+                FITNESS +
+                " 22%, transparent)",
             }
           : {
               background: "var(--df-chip-fill)",
