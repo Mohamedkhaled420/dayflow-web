@@ -31,6 +31,7 @@ import { useDayflowStore } from "@/store/useDayflowStore";
 import { localDateTime } from "@/lib/viewmodel";
 import { useToast } from "@/hooks/use-toast";
 import { useIsPhone } from "@/hooks/use-media-query";
+import { useDockHideRequest } from "@/hooks/use-dock-visibility";
 import { triggerHaptic } from "@/lib/haptics";
 import { useKeyboardTracking } from "@/components/ui/Sheet";
 import { CATEGORY_COLORS, MACRO_COLORS } from "@/styles/palette";
@@ -90,6 +91,8 @@ async function downscaleToBase64(file: File): Promise<{ base64: string; dataUrl:
 
 export function MealCaptureSheet({ open, onClose, dateKey }: Props) {
   const isPhone = useIsPhone();
+  // Overlay owns the bottom band while open (dock-avoidance Rule B).
+  useDockHideRequest("overlay:meal-sheet", open);
   if (!isPhone) {
     return (
       <AnimatePresence>
@@ -336,23 +339,21 @@ function MealCaptureForm({ onClose, dateKey }: { onClose: () => void; dateKey?: 
               onChange={(e) => setNote(e.target.value.slice(0, 200))}
               placeholder="e.g. large plate, half eaten"
               aria-label="Photo note"
-              className="w-full rounded-md px-3 h-11 outline-none text-base"
+              className="df-input-glass w-full rounded-md px-3 h-11 outline-none text-base"
               style={{
-                background: "var(--df-input-fill)",
-                border: "0.5px solid var(--df-input-border)",
                 color: "var(--df-text-primary)",
               }}
             />
           </div>
           <div className="mt-4 flex items-center gap-2">
-            <button onClick={() => setStep("pick")} className="df-press df-btn-secondary h-11 px-4 text-[12.5px] font-semibold">
+            <button onClick={() => setStep("pick")} className="df-press df-btn-secondary df-btn-capsule h-11 px-4 text-[12.5px] font-semibold">
               Back
             </button>
             <div className="flex-1" />
             <button
               onClick={() => void analyze()}
               disabled={!photo || busy}
-              className="df-press df-btn-primary h-11 px-4 text-[12.5px] font-semibold flex items-center gap-1.5 disabled:opacity-40"
+              className="df-press df-btn-primary df-btn-capsule h-11 px-4 text-[12.5px] font-semibold flex items-center gap-1.5 disabled:opacity-40"
             >
               <ScanLine className="h-3.5 w-3.5" />
               {busy ? "Analyzing…" : "Analyze photo"}
@@ -370,22 +371,20 @@ function MealCaptureForm({ onClose, dateKey }: { onClose: () => void; dateKey?: 
             placeholder="2 eggs and toast with avocado"
             aria-label="Meal description"
             rows={3}
-            className="w-full rounded-md px-3 py-2.5 outline-none text-base resize-none"
+            className="df-input-glass w-full rounded-md px-3 py-2.5 outline-none text-base resize-none"
             style={{
-              background: "var(--df-input-fill)",
-              border: "0.5px solid var(--df-input-border)",
               color: "var(--df-text-primary)",
             }}
           />
           <div className="mt-4 flex items-center gap-2">
-            <button onClick={() => setStep("pick")} className="df-press df-btn-secondary h-11 px-4 text-[12.5px] font-semibold">
+            <button onClick={() => setStep("pick")} className="df-press df-btn-secondary df-btn-capsule h-11 px-4 text-[12.5px] font-semibold">
               Back
             </button>
             <div className="flex-1" />
             <button
               onClick={() => void analyze()}
               disabled={description.trim().length < 2 || busy}
-              className="df-press df-btn-primary h-11 px-4 text-[12.5px] font-semibold flex items-center gap-1.5 disabled:opacity-40"
+              className="df-press df-btn-primary df-btn-capsule h-11 px-4 text-[12.5px] font-semibold flex items-center gap-1.5 disabled:opacity-40"
             >
               <ScanLine className="h-3.5 w-3.5" />
               {busy ? "Estimating…" : "Estimate"}
@@ -459,7 +458,7 @@ function MealCaptureForm({ onClose, dateKey }: { onClose: () => void; dateKey?: 
           <div className="mt-4 flex items-center gap-2">
             <button
               onClick={() => setStep("pick")}
-              className="df-press df-btn-secondary h-11 px-4 text-[12.5px] font-semibold"
+              className="df-press df-btn-secondary df-btn-capsule h-11 px-4 text-[12.5px] font-semibold"
             >
               Back
             </button>
@@ -467,7 +466,7 @@ function MealCaptureForm({ onClose, dateKey }: { onClose: () => void; dateKey?: 
             <button
               onClick={() => void logMeal(step === "manual" ? "manual" : source === "fallback" ? "manual" : "ai")}
               disabled={!validNumbers}
-              className="df-press df-btn-primary h-11 px-4 text-[12.5px] font-semibold flex items-center gap-1.5 disabled:opacity-40"
+              className="df-press df-btn-primary df-btn-capsule h-11 px-4 text-[12.5px] font-semibold flex items-center gap-1.5 disabled:opacity-40"
             >
               <Check className="h-3.5 w-3.5" />
               Log meal
@@ -591,9 +590,8 @@ function MacroInput({
         <span className="normal-case font-medium opacity-70"> ({unit})</span>
       </FieldLabel>
       <div
-        className="mt-1.5 rounded-md px-3 h-12 flex items-center"
+        className="df-input-glass mt-1.5 rounded-md px-3 h-12 flex items-center"
         style={{
-          background: "var(--df-input-fill)",
           border: `0.5px solid color-mix(in srgb, ${color} 30%, var(--df-input-border))`,
         }}
       >
@@ -665,10 +663,18 @@ function SheetShell({ onClose, children }: { onClose: () => void; children: Reac
         exit={reducedMotion ? { opacity: 0 } : { y: "100%", opacity: 0.5 }}
         transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
         className="w-full rounded-t-[24px] overflow-hidden df-material"
+        style={{
+          /* Keyboard lift (MealCaptureForm tracks --keyboard-height):
+             ride above the software keyboard, cap the panel so it never
+             runs off the top edge. */
+          marginBottom: "var(--keyboard-height, 0px)",
+          maxHeight: "calc(100dvh - var(--keyboard-height, 0px))",
+          transition: "margin-bottom 220ms cubic-bezier(0.32, 0.72, 0, 1)",
+        }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mx-auto mt-2.5 mb-1 h-[5px] w-9 rounded-full" style={{ background: "var(--df-chip-border)" }} />
-        <div className="df-scroll overflow-y-auto px-5 pb-[max(18px,env(safe-area-inset-bottom))] max-h-[82dvh]">
+        <div className="df-scroll overflow-y-auto px-5 pb-[max(18px,env(safe-area-inset-bottom))] max-h-[calc(82dvh-var(--keyboard-height,0px))]">
           {children}
         </div>
       </motion.div>

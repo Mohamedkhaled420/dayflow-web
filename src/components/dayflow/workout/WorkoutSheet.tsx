@@ -38,6 +38,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useIsPhone } from "@/hooks/use-media-query";
 import { hapticSuccess, triggerHaptic } from "@/lib/haptics";
 import { springSoft } from "@/lib/motion";
+import { useDockHideRequest } from "@/hooks/use-dock-visibility";
+import { useKeyboardTracking } from "@/components/ui/Sheet";
 import { CATEGORY_COLORS } from "@/styles/palette";
 import {
   autoTitle,
@@ -101,6 +103,10 @@ interface Props {
 
 export function WorkoutSheet({ open, onClose, dateKey, editing, prefill }: Props) {
   const isPhone = useIsPhone();
+  // Overlay owns the bottom band while open (dock-avoidance Rule B):
+  // the phone sheet + its sticky Save row never stack glass on glass
+  // with the nav dock underneath.
+  useDockHideRequest("overlay:workout-sheet", open);
   return (
     <AnimatePresence>
       {open && (
@@ -136,6 +142,9 @@ function WorkoutForm({
   const updateWorkoutLog = useDayflowStore((s) => s.updateWorkoutLog);
   const workoutLogs = useDayflowStore((s) => s.workoutLogs);
   const { toast } = useToast();
+  // Software-keyboard tracking: lifts the phone shell above the
+  // keyboard (title/time/kcal fields) via the shared variable.
+  useKeyboardTracking();
 
   const editingExercises = useMemo(
     () => parseExercises(editing?.exercises ?? null),
@@ -448,7 +457,15 @@ function WorkoutForm({
           exit={reducedMotion ? { opacity: 0 } : { y: "100%", opacity: 0.5 }}
           transition={{ duration: 0.24, ease: [0.32, 0.72, 0, 1] }}
           className="w-full rounded-t-[24px] overflow-hidden df-material flex flex-col"
-          style={{ height: "92dvh" }}
+          style={{
+            height: "92dvh",
+            /* Keyboard lift (shared --keyboard-height) — same fix as
+               RoutineSheet: ride above the software keyboard, shrink
+               via maxHeight so the top never runs off-screen. */
+            marginBottom: "var(--keyboard-height, 0px)",
+            maxHeight: "calc(100dvh - var(--keyboard-height, 0px))",
+            transition: "margin-bottom 220ms cubic-bezier(0.32, 0.72, 0, 1)",
+          }}
           onClick={(e) => e.stopPropagation()}
         >
           <div
@@ -512,13 +529,7 @@ function BuildStep(p: BuildProps) {
   return (
     <div className="mt-3 flex flex-col min-h-0 flex-1 overflow-y-auto df-scroll -mx-1 px-1">
       {/* title + when */}
-      <div
-        className="rounded-md px-3 h-12 flex items-center shrink-0"
-        style={{
-          background: "var(--df-input-fill)",
-          border: "0.5px solid var(--df-input-border)",
-        }}
-      >
+      <div className="df-input-glass rounded-md px-3 h-12 flex items-center shrink-0">
         <input
           value={p.title}
           onChange={(e) => p.setTitle(e.target.value.slice(0, 60))}
@@ -605,10 +616,7 @@ function BuildStep(p: BuildProps) {
       <div className="h-1 shrink-0" />
 
       {/* sticky footer */}
-      <div
-        className="sticky bottom-0 mt-auto pt-2 pb-1"
-        style={{ background: "var(--df-material-bg)" }}
-      >
+      <div className="df-sheet-footer sticky bottom-0 mt-auto pt-2 pb-1 -mx-1 px-1">
         {/* rest pill */}
         {p.restLeft != null && p.restLeft > 0 && (
           <div
@@ -704,7 +712,7 @@ function BuildStep(p: BuildProps) {
           <button
             onClick={p.save}
             disabled={!p.valid}
-            className="df-press df-btn-primary h-11 px-5 text-[13px] font-semibold flex items-center gap-1.5 disabled:opacity-40 shrink-0"
+            className="df-press df-btn-primary df-btn-capsule h-11 px-5 text-[13px] font-semibold flex items-center gap-1.5 disabled:opacity-40 shrink-0"
           >
             <Check className="h-4 w-4" />
             {p.valid ? "Save workout" : "Add exercises"}
@@ -1001,13 +1009,7 @@ function TimeField({
   return (
     <div>
       <FieldLabel>{label}</FieldLabel>
-      <div
-        className="mt-1 rounded-md px-2 h-10 flex items-center gap-1"
-        style={{
-          background: "var(--df-input-fill)",
-          border: "0.5px solid var(--df-input-border)",
-        }}
-      >
+      <div className="df-input-glass mt-1 rounded-md px-2 h-10 flex items-center gap-1">
         <Clock className="h-3 w-3 shrink-0" style={{ color: "var(--df-text-muted)" }} />
         <input
           type="time"
@@ -1036,13 +1038,7 @@ function NumField({
   return (
     <div className="min-w-0">
       <FieldLabel>{label}</FieldLabel>
-      <div
-        className="mt-1 rounded-md px-2.5 h-10 flex items-center"
-        style={{
-          background: "var(--df-input-fill)",
-          border: "0.5px solid var(--df-input-border)",
-        }}
-      >
+      <div className="df-input-glass mt-1 rounded-md px-2.5 h-10 flex items-center">
         <input
           value={value}
           onChange={(e) => onChange(e.target.value.replace(/[^0-9]/g, "").slice(0, 4))}

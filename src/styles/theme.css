@@ -181,16 +181,25 @@
   --df-donut-ring-bg: #f1f1ef;
   --df-donut-center: #ffffff;
 
-  --df-secondary-btn-fill: #f7f7f5;
+  /* fill moved to the Liquid Glass T2 block below (translucent) */
   --df-secondary-btn-border: #dbdbd8;
   --df-secondary-btn-text: #37352f;
 
-  --df-primary-btn-fill: #1a6fc4;
+  --df-primary-btn-fill: linear-gradient(
+    180deg,
+    #3d94de 0%,
+    #1f74ca 52%,
+    #1560ae 100%
+  );
   --df-primary-btn-border: #1a6fc4;
   --df-primary-btn-text: #ffffff;
 
-  --df-chip-fill: #f7f7f5;
-  --df-chip-border: #e3e3e1;
+  --df-chip-fill: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.92) 0%,
+    rgba(255, 255, 255, 0.38) 100%
+  );
+  --df-chip-border: #cfcfcd;
 
   --df-input-fill: #ffffff;
   --df-input-border: #dbdbd8;
@@ -215,6 +224,32 @@
   --df-dock-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.8),
     0 12px 38px rgba(0, 0, 0, 0.16), 0 2px 6px rgba(0, 0, 0, 0.08);
 
+  /* --- Liquid Glass T2 — buttons, chips, inputs (v3, 2026-09) ---
+     Gradient-glass control surfaces in the callstack/liquid-glass
+     design language: specular top highlight, deepened base, tinted
+     translucency. Deliberately NO backdrop-filter here — these ride
+     INSIDE frosted sheets and panels (ban list #12: never stack
+     backdrop-filter on backdrop-filter); the liquid read comes from
+     layered light, not live refraction. */
+  --df-glass-sheen: rgba(255, 255, 255, 0.65);
+  --df-glass-sheen-soft: rgba(255, 255, 255, 0.45);
+  --df-glass-shade: rgba(11, 39, 70, 0.14);
+  --df-glass-sweep: rgba(255, 255, 255, 0.5);
+  --df-primary-btn-sheen: rgba(255, 255, 255, 0.7);
+  --df-primary-btn-shade: rgba(9, 33, 61, 0.3);
+  /* light pool under primary CTAs */
+  --df-primary-btn-halo: color-mix(in srgb, #1a6fc4 55%, transparent);
+  --df-secondary-btn-fill: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.78) 0%,
+    rgba(255, 255, 255, 0.42) 100%
+  );
+  --df-secondary-btn-sheen: rgba(255, 255, 255, 0.6);
+  --df-input-inset: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+  --df-input-glow-ring: color-mix(in srgb, #2383e2 15%, transparent);
+  --df-input-glow-border: color-mix(in srgb, #2383e2 55%, transparent);
+  --df-footer-veil: rgba(255, 255, 255, 0.92);
+
   /* --- Phase 0 tokenized chrome (Notion-quiet values) --- */
   --df-white: #ffffff;
   --df-scrim: rgba(0, 0, 0, 0.35);
@@ -230,7 +265,7 @@
   --df-radius-card: 6px;
   --df-radius-card-lg: 10px;
   --df-radius-control: 7px;
-  --df-radius-btn: 6px;
+  --df-radius-btn: 10px;
   --df-radius-focus: 6px;
 
   --df-primary-btn-glow: 0 1px 2px rgba(0, 0, 0, 0.18);
@@ -371,13 +406,11 @@
   --df-donut-ring-bg: rgba(255, 255, 255, 0.12);
   --df-donut-center: #191919;
 
-  --df-secondary-btn-fill: #2a2a2a;
+  /* fill moved to the Liquid Glass T2 dark block below (translucent) */
   --df-secondary-btn-border: #3d3d3d;
   --df-secondary-btn-text: #e6e6e4;
 
-  --df-primary-btn-fill: #1a6fc4;
-  --df-primary-btn-border: #1a6fc4;
-  --df-primary-btn-text: #ffffff;
+  /* flat base — the T2 dark block overrides with the glass gradient */
 
   --df-chip-fill: #2a2a2a;
   --df-chip-border: #3d3d3d;
@@ -403,6 +436,40 @@
   --df-dock-bg: rgba(30, 30, 30, 0.88);
   --df-dock-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.12),
     0 14px 42px rgba(0, 0, 0, 0.55);
+
+  /* --- Liquid Glass T2 (dark) — see light block for rationale --- */
+  --df-glass-sheen: rgba(255, 255, 255, 0.22);
+  --df-glass-sheen-soft: rgba(255, 255, 255, 0.12);
+  --df-glass-shade: rgba(0, 0, 0, 0.32);
+  --df-glass-sweep: rgba(255, 255, 255, 0.2);
+  --df-primary-btn-fill: linear-gradient(
+    180deg,
+    #3588d8 0%,
+    #1a6fc4 55%,
+    #1457a4 100%
+  );
+  --df-primary-btn-sheen: rgba(255, 255, 255, 0.42);
+  --df-primary-btn-shade: rgba(0, 0, 0, 0.34);
+  /* light pool under primary CTAs (dark) */
+  --df-primary-btn-halo: color-mix(in srgb, #1a6fc4 70%, transparent);
+  --df-secondary-btn-fill: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.12) 0%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
+  --df-secondary-btn-sheen: rgba(255, 255, 255, 0.14);
+  --df-input-inset: inset 0 1px 2px rgba(0, 0, 0, 0.24);
+  --df-input-glow-ring: color-mix(in srgb, #379eff 19%, transparent);
+  --df-input-glow-border: color-mix(in srgb, #379eff 58%, transparent);
+  --df-footer-veil: rgba(28, 28, 28, 0.93);
+
+  /* translucent glass chips (dark) — volume gradient */
+  --df-chip-fill: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.13) 0%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
+  --df-chip-border: #484848;
 
   /* --- Phase 0 tokenized chrome (dark deltas; unlisted = same as light) --- */
   --df-water-ink: #56d4dd;

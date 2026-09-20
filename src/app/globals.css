@@ -399,6 +399,17 @@ h4 {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }
+
+  /* T2 glass controls fall back to opaque fills — the translucent
+     pill reads become quiet solids. */
+  .df-btn-secondary,
+  .df-input-glass,
+  .df-glass-chip {
+    background: var(--df-panel-fill);
+  }
+  .df-sheet-footer {
+    background: var(--background);
+  }
 }
 
 @media (prefers-contrast: more) {
@@ -459,24 +470,139 @@ h4 {
 }
 
 .df-btn-primary {
+  position: relative;
+  overflow: hidden;
   background: var(--df-primary-btn-fill);
   border: 0.5px solid var(--df-primary-btn-border);
-  box-shadow: var(--df-primary-btn-glow);
+  /* Liquid Glass T2: crisp specular top edge + deepened base + a
+     soft light pool under the button — reads as a tinted glass pill
+     without any backdrop-filter (safe inside frosted sheets). */
+  box-shadow: inset 0 1.5px 0 -0.25px var(--df-primary-btn-sheen),
+    inset 0 -1px 0 var(--df-primary-btn-shade),
+    0 4px 14px -6px var(--df-primary-btn-halo);
   color: var(--df-primary-btn-text);
   border-radius: var(--df-radius-btn);
 }
 
+/* Top gloss — a short vertical fade of light catching the pill's
+   upper curve. Kept shallow (30% height) so the label stays crisp;
+   the depth comes from the fill gradient itself. */
+.df-btn-primary::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--df-primary-btn-sheen) 45%, transparent) 0%,
+    transparent 30%
+  );
+  pointer-events: none;
+}
+
+/* Specular sweep — the callstack `interactive` shimmer, CSS-only:
+   a diagonal light band crosses the pill on hover/press. Rides
+   ABOVE the label, never catches pointer events. */
+.df-btn-primary::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    115deg,
+    transparent 26%,
+    var(--df-glass-sweep) 46%,
+    transparent 66%
+  );
+  transform: translateX(-130%);
+  transition: transform 0.55s ease;
+  pointer-events: none;
+}
+.df-btn-primary:hover::after,
+.df-btn-primary:focus-visible::after {
+  transform: translateX(130%);
+}
+.df-btn-primary:active::after {
+  transform: translateX(130%);
+  transition-duration: 0.3s;
+}
+
 .df-btn-secondary {
+  position: relative;
   background: var(--df-secondary-btn-fill);
   border: 0.5px solid var(--df-secondary-btn-border);
+  /* Clear-glass: translucent fill + top sheen (no backdrop-filter —
+     stacked-glass ban; the host surface frosts underneath). */
+  box-shadow: inset 0 1px 0 var(--df-secondary-btn-sheen);
   color: var(--df-secondary-btn-text);
   border-radius: var(--df-radius-btn);
+}
+
+/* Capsule variant — the iOS-26 liquid-glass pill for hero CTAs
+   (Generate / Start / Log actions in sheets). */
+.df-btn-capsule {
+  border-radius: 999px;
 }
 
 .df-chip {
   background: var(--df-chip-fill);
   border: 0.5px solid var(--df-chip-border);
   color: var(--df-text-primary);
+}
+
+/* Glass chip sheen — base layer for chip-like controls whose
+   fill/border/color stay inline (accent-tinted actives). The
+   translucent fill + top gloss reads as a cast-glass pill riding
+   on the frosted sheet below it. */
+.df-glass-chip {
+  position: relative;
+  overflow: hidden;
+  box-shadow: inset 0 1px 0 var(--df-glass-sheen-soft);
+  transition: background 0.15s ease, box-shadow 0.15s ease,
+    border-color 0.15s ease;
+}
+.df-glass-chip::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--df-glass-sheen) 42%, transparent) 0%,
+    transparent 45%
+  );
+  pointer-events: none;
+}
+.df-glass-chip:active {
+  box-shadow: inset 0 1px 0 var(--df-glass-sheen-soft),
+    inset 0 2px 6px var(--df-glass-shade);
+}
+
+/* Glass input well — the pressed-in counterpart of the raised
+   glass buttons: inset shadow + focus glow ring (composer-glow
+   ladder applied to every form field). Wrap pattern: the class
+   goes on the styled container that owns border + fill, with the
+   bare <input>/<textarea> inside. */
+.df-input-glass {
+  background: var(--df-input-fill);
+  border: 0.5px solid var(--df-input-border);
+  border-radius: var(--df-radius-btn);
+  box-shadow: var(--df-input-inset);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+.df-input-glass:focus-within {
+  border-color: var(--df-input-glow-border);
+  box-shadow: var(--df-input-inset), 0 0 0 3px var(--df-input-glow-ring);
+}
+
+/* Sheet action footer — sticky bottom band inside sheet scroll
+   containers. Owns the veil + top hairline so scrolled content
+   separates cleanly instead of sliding under the CTA. Padding is
+   the call site's job (safe-area aware there). */
+.df-sheet-footer {
+  background: var(--df-footer-veil);
+  border-top: 0.5px solid var(--df-material-edge);
+  box-shadow: 0 -10px 18px -16px var(--df-panel-shadow);
 }
 
 .df-hour-line {
@@ -495,7 +621,9 @@ h4 {
 }
 
 /* Subtle press animation like DayflowPressScaleButtonStyle.
-   100ms ease-out — feedback on pointer-DOWN, instant (skill §1). */
+   100ms ease-out — feedback on pointer-DOWN, instant (skill §1).
+   The brightness+saturate bump gives pressed controls the liquid
+   "light trapped in glass" read (callstack interactive parity). */
 .df-press {
   transition: transform 0.1s ease-out, filter 0.15s ease;
 }
@@ -504,6 +632,9 @@ h4 {
 }
 .df-press:hover {
   filter: brightness(1.03);
+}
+.df-press:active {
+  filter: brightness(1.06) saturate(1.08);
 }
 
 .df-mobile-dock {

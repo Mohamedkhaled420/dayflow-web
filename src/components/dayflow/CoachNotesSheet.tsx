@@ -38,6 +38,7 @@ import {
   Zap,
 } from "lucide-react";
 import { triggerHaptic, hapticSelect } from "@/lib/haptics";
+import { useDockHideRequest } from "@/hooks/use-dock-visibility";
 import type { CoachLogAction } from "@/lib/coach-protocol";
 import { coachActionLabel } from "@/lib/coach-protocol";
 
@@ -81,6 +82,8 @@ export function CoachNotesSheet({
   /** "noteId:idx" of the action currently being written. */
   applyingIdx: string | null;
 }) {
+  // Overlay owns the bottom band while open (dock-avoidance Rule B).
+  useDockHideRequest("overlay:coach-notes", open);
   // Escape closes (dialog semantics without a portal library).
   useEffect(() => {
     if (!open) return;
