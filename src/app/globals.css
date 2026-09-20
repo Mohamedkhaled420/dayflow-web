@@ -337,6 +337,19 @@ h4 {
   text-decoration: underline;
   text-underline-offset: 2px;
 }
+.df-prose hr {
+  border: 0;
+  border-top: 0.5px solid var(--df-card-border);
+  margin: 0.75em 0;
+}
+/* Coach bubbles: slightly tighter prose rhythm than journal
+   entries (chat reads best without inter-paragraph air). */
+.df-prose p:first-child {
+  margin-top: 0;
+}
+.df-prose p:last-child {
+  margin-bottom: 0;
+}
 
 /* Backdrop-filter fallback for browsers without it */
 @supports not ((backdrop-filter: blur(4px)) or (-webkit-backdrop-filter: blur(4px))) {

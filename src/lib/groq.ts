@@ -19,6 +19,13 @@ export type ReasoningEffort = "none" | "low" | "medium" | "high";
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 
+/** Base URL is env-overridable so the sandbox can point the full
+ *  cascade + SSE pipeline at a local mock Groq (scripts/mock-groq.mjs)
+ *  — production behavior is unchanged when GROQ_BASE_URL is unset. */
+function groqUrl(): string {
+  return process.env.GROQ_BASE_URL ?? GROQ_URL;
+}
+
 // All four routed IDs accept reasoning_effort (verified 2026-09-11).
 const REASONING_CAPABLE: ReadonlySet<GroqModel> = new Set([
   GROQ_MODELS.gptOss120b,
@@ -101,7 +108,7 @@ export async function callGroq(opts: CallGroqOptions): Promise<string> {
     body.reasoning_effort = opts.reasoningEffort;
   }
 
-  const res = await fetch(GROQ_URL, {
+  const res = await fetch(groqUrl(), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -166,7 +173,7 @@ export async function callGroqStream(
     body.reasoning_effort = opts.reasoningEffort;
   }
 
-  const res = await fetch(GROQ_URL, {
+  const res = await fetch(groqUrl(), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -188,7 +195,7 @@ export async function callGroqStream(
  * 
  * FIX: Stateful tracking of think blocks across streaming deltas with:
  * - Holdback buffer for tags split across deltas (e.g., "<thi" + "nk>")
- * - Case-insensitive matching for , <thinking>, variants
+ * - Case-insensitive matching for <think>, <thinking> variants
  * - Flush remaining buffer at stream end if not in think block
  */
 export async function* sseDeltas(
@@ -200,7 +207,7 @@ export async function* sseDeltas(
   let pending = ""; // Holdback buffer for split tags
   let inThinkBlock = false;
   
-  // Tag patterns (case-insensitive)
+  // Tag patterns (case-insensitive, supports <think> and <thinking> variants)
   const THINK_OPEN = /<(think|thinking)\s*>/gi;
   const THINK_CLOSE = /<\/(think|thinking)\s*>/gi;
   
@@ -296,6 +303,9 @@ export async function* sseDeltas(
         }
       }
     }
+    // Stream ended: flush carry if not in think block
+    if (pending && !inThinkBlock) yield pending;
+    pending = "";
   } finally {
     reader.releaseLock();
   }
