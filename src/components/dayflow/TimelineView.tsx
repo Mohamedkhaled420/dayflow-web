@@ -102,13 +102,15 @@ export function TimelineView() {
   const workoutLogs = useDayflowStore((s) => s.workoutLogs);
   const deleteSleepLog = useDayflowStore((s) => s.deleteSleepLog);
   const deleteWorkoutLog = useDayflowStore((s) => s.deleteWorkoutLog);
+  const deleteActivityLog = useDayflowStore((s) => s.deleteActivityLog);
   const updateSleepLog = useDayflowStore((s) => s.updateSleepLog);
   const updateWorkoutLog = useDayflowStore((s) => s.updateWorkoutLog);
+  const updateActivityLog = useDayflowStore((s) => s.updateActivityLog);
   const profileRow = useDayflowStore((s) => s.profile);
 
   /** edit path: gym sessions → WorkoutSheet, everything else → EventDialog */
   const openEditor = (ev: TrackEvent) => {
-    if (ev.categoryId !== "sleep") {
+    if (ev.source === "workout") {
       const row = workoutLogs.find((r) => r.id === ev.id);
       if (row && parseExercises(row.exercises ?? null).length > 0) {
         setWorkoutEdit({
@@ -618,8 +620,10 @@ export function TimelineView() {
               if (!selected) return;
               hapticWarn();
               setSelectedId(null);
-              if (selected.categoryId === "sleep") {
+              if (selected.source === "sleep") {
                 await deleteSleepLog(selected.id);
+              } else if (selected.source === "activity") {
+                await deleteActivityLog(selected.id);
               } else {
                 await deleteWorkoutLog(selected.id);
               }
@@ -629,10 +633,15 @@ export function TimelineView() {
               // Drag-to-reschedule: persist through the Delta Sync
               // store (sleep -> wake time shift, workout -> start shift).
               const dur = eventDuration(event);
-              if (event.categoryId === "sleep") {
+              if (event.source === "sleep") {
                 await updateSleepLog(event.id, {
                   sleep_minutes: dur,
                   logged_at: localDateTime(event.dateKey, newEnd),
+                });
+              } else if (event.source === "activity") {
+                await updateActivityLog(event.id, {
+                  duration_minutes: dur,
+                  logged_at: localDateTime(event.dateKey, newStart),
                 });
               } else {
                 await updateWorkoutLog(event.id, {
@@ -664,8 +673,10 @@ export function TimelineView() {
           onDelete={async () => {
             hapticWarn();
             setSelectedId(null);
-            if (selected.categoryId === "sleep") {
+            if (selected.source === "sleep") {
               await deleteSleepLog(selected.id);
+            } else if (selected.source === "activity") {
+              await deleteActivityLog(selected.id);
             } else {
               await deleteWorkoutLog(selected.id);
             }

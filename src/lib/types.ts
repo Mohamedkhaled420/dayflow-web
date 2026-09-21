@@ -34,6 +34,10 @@ export interface TrackEvent {
   /** "HH:MM" 24h — when end <= start the block crosses midnight (sleep) */
   end: string;
   notes?: string;
+  /** Which log table backs this block — routes edit/delete/drag writes.
+   *  Derived (never persisted): sleepToEvent / workoutToEvent /
+   *  activityToEvent set it on every event they mint. */
+  source?: "sleep" | "workout" | "activity";
 }
 
 export interface WaterEntry {
