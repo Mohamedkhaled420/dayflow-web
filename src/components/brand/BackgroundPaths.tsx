@@ -94,7 +94,7 @@ export function BackgroundPaths() {
   return (
     <div
       className="pointer-events-none absolute inset-0 overflow-hidden"
-      style={{ color: "var(--color-ink)" }}
+      style={{ color: "var(--df-text-primary)" }}
       aria-hidden="true"
     >
       <FloatingPaths position={1} reduced={reduced} />

@@ -1,74 +1,167 @@
 "use client";
 
 import Link from "next/link";
-import { Smile } from "lucide-react";
+import { ArrowDown, Smile } from "lucide-react";
 
 import { LogoFormation } from "@/components/brand/LogoFormation";
 import { DiaChrome } from "@/components/dayflow/DiaChatShell";
+import { CATEGORY_COLORS } from "@/styles/palette";
 
 // ============================================================
-// Dayflow AI — landing hero (client, Phase 6.5 / B2 — Phase 8)
+// Dayflow AI — landing hero (client, Phase 6.5 / B2 — Phase 8
+// — Phase 10 "Lively Pastel")
 // ------------------------------------------------------------
-// LogoFormation draws the mark once on mount (2026-09 fix: the
-// old scroll-driven runway died with the F-2 overflow-x:clip
-// change and left an empty first screen); this layer supplies
-// the hero copy ("Open Dayflow" CTA) and the below-the-fold
-// closing section. Token colors only.
+// The first viewport is the LIME DAY from the reference value
+// prop screen: electric lime gradient, charcoal ExtraBold
+// headline with one word riding an ORANGE HIGHLIGHT BOX, the
+// charcoal pill CTA, a green scroll FAB, and a pastel tag cloud
+// of everything Dayflow tracks. LogoFormation still draws the
+// mark once on mount — same brand moment, new canvas.
 //
-// Phase 8 (dogfooding marketing): the hero CTA is the ONE
-// gradient button in the product (--df-hero-gradient, landing
-// hero only — in-app CTAs stay solid). Below the fold, the
-// feature pitch is led by a STATIC FRAME of the REAL Dia chat
-// shell — the same <DiaChrome> component the authenticated
-// Journal renders, frozen at a sample conversation — instead
-// of a fake marketing mockup. No animation rides the frame
-// (static aurora only).
+// Phase 8 (dogfooding marketing): below the fold, the feature
+// pitch is led by a STATIC FRAME of the REAL Dia chat shell —
+// the same <DiaChrome> component the authenticated Journal
+// renders, frozen at a sample conversation — instead of a fake
+// marketing mockup. Bubbles ride the app's live pastel tokens
+// (yellow user / pink coach) so the frame can never drift from
+// the product. No animation rides the frame (static aurora
+// only).
 // ============================================================
+
+/** The tag cloud — what lands on your timeline, in the app's own
+ *  category DATA colors (single-sourced in palette.ts). */
+const TAGS: { label: string; color: string }[] = [
+  { label: "Timeline", color: CATEGORY_COLORS.work },
+  { label: "Sleep", color: CATEGORY_COLORS.sleep },
+  { label: "Workouts", color: CATEGORY_COLORS.fitness },
+  { label: "Water", color: CATEGORY_COLORS.water },
+  { label: "Habit streaks", color: CATEGORY_COLORS.personal },
+  { label: "Meals & macros", color: CATEGORY_COLORS.meals },
+  { label: "Weekly review", color: CATEGORY_COLORS.leisure },
+];
 
 export function LandingHero() {
+  const scrollToFrame = () => {
+    document
+      .getElementById("app-frame")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   return (
-    <main className="df-window w-full min-h-[100dvh]">
+    <main className="df-window w-full">
       {/* NOTE: no overflow-x-hidden here — an overflow ancestor
           would clip the sticky positioning contexts below. */}
-      <LogoFormation>
-        <div className="flex max-w-md flex-col items-center gap-6 text-center">
-          <div>
-            <h1
-              className="text-3xl font-semibold leading-tight sm:text-4xl"
-              style={{ color: "var(--df-text-primary)" }}
+
+      {/* ------- HERO — the lime day (reference value-prop) ------- */}
+      <section
+        className="relative w-full"
+        style={{ background: "var(--df-landing-bg)" }}
+      >
+        <LogoFormation>
+          <div className="flex max-w-md flex-col items-center gap-6 text-center">
+            <div>
+              <h1
+                className="text-3xl font-extrabold leading-[1.08] tracking-tight sm:text-[44px]"
+                style={{ color: "var(--df-landing-ink)" }}
+              >
+                Your day, drawn in{" "}
+                {/* the highlight box — the reference's orange
+                    rounded marker behind the one word that matters */}
+                <span className="relative inline-block whitespace-nowrap">
+                  <span
+                    aria-hidden="true"
+                    className="absolute inset-x-[-7px] inset-y-[0.08em] rounded-[10px]"
+                    style={{ background: "var(--df-landing-highlight)" }}
+                  />
+                  <span className="relative">rhythm.</span>
+                </span>
+              </h1>
+              <p
+                className="mt-3 text-[13.5px] leading-relaxed sm:text-sm"
+                style={{ color: "var(--df-landing-ink-soft)" }}
+              >
+                Workouts, work, sleep, water, and meals on one timeline — habit
+                streaks, weekly reviews, and a grounded AI coach. Local-first and
+                private by default.
+              </p>
+            </div>
+
+            {/* CTA row — the charcoal pill + the green scroll FAB */}
+            <div className="flex items-center gap-3">
+              {/* Landing hero CTA — the only gradient button in the
+                  product (Phase 8 CTA discipline). */}
+              <Link
+                href="/auth"
+                className="df-press df-btn-hero inline-flex min-h-12 items-center gap-2 rounded-full px-7 text-[14px] font-bold"
+              >
+                Open Dayflow
+              </Link>
+              <button
+                type="button"
+                onClick={scrollToFrame}
+                aria-label="Scroll to the app preview"
+                title="See the app"
+                className="df-press grid size-12 place-items-center rounded-full"
+                style={{
+                  background: "var(--df-landing-fab)",
+                  color: "var(--df-landing-fab-ink)",
+                  boxShadow:
+                    "0 8px 24px color-mix(in srgb, var(--df-landing-fab) 45%, transparent)",
+                }}
+              >
+                <ArrowDown className="size-5" strokeWidth={2.4} />
+              </button>
+            </div>
+
+            {/* the pastel tag cloud — what lands on the timeline */}
+            <div
+              className="flex max-w-md flex-wrap items-center justify-center gap-2"
+              aria-label="What Dayflow tracks"
             >
-              Your day, drawn in rhythm.
-            </h1>
+              {TAGS.map((t) => (
+                <span
+                  key={t.label}
+                  className="rounded-full px-3.5 py-1.5 text-[12.5px] font-bold leading-none"
+                  style={{
+                    background: `color-mix(in srgb, ${t.color} 45%, var(--df-white))`,
+                    color: "var(--df-landing-ink)",
+                  }}
+                >
+                  {t.label}
+                </span>
+              ))}
+              {/* the one dark pill — the hero feature, like the
+                  reference's selected tag */}
+              <span
+                className="rounded-full px-3.5 py-1.5 text-[12.5px] font-bold leading-none"
+                style={{
+                  background: "var(--df-landing-ink)",
+                  color: "var(--df-white)",
+                }}
+              >
+                AI coach
+              </span>
+            </div>
+
             <p
-              className="mt-3 text-[13.5px] leading-relaxed sm:text-sm"
-              style={{ color: "var(--df-text-secondary)" }}
+              className="text-[10.5px] leading-none"
+              style={{ color: "var(--df-landing-ink-soft)" }}
             >
-              Workouts, work, sleep, water, and meals on one timeline — habit
-              streaks, weekly reviews, and a grounded AI coach. Local-first and
-              private by default.
+              Free while in beta · your data stays yours
             </p>
           </div>
-          {/* Landing hero CTA — the only gradient button in the
-              product (Phase 8 CTA discipline). */}
-          <Link
-            href="/auth"
-            className="df-press df-btn-hero inline-flex min-h-11 items-center gap-2 rounded-full px-7 text-[13px] font-semibold"
-          >
-            Open Dayflow
-          </Link>
-          <p
-            className="text-[10.5px] leading-none"
-            style={{ color: "var(--df-text-muted)" }}
-          >
-            Free while in beta · your data stays yours
-          </p>
-        </div>
-      </LogoFormation>
+        </LogoFormation>
+      </section>
+
+      {/* ------- below the fold — the periwinkle day ------- */}
 
       {/* Real-app frame — the actual Dia chat shell, frozen. */}
-      <section className="mx-auto max-w-3xl px-6 pb-4 pt-2">
+      <section
+        id="app-frame"
+        className="mx-auto max-w-3xl scroll-mt-6 px-6 pb-4 pt-12"
+      >
         <div
-          className="df-panel overflow-hidden rounded-lg"
+          className="df-panel overflow-hidden rounded-[24px]"
           aria-label="Dayflow Journal surface — static preview"
         >
           <DiaChrome sync="ok" syncLabel="Synced" mode="journal" />
@@ -79,12 +172,13 @@ export function LandingHero() {
                 Journal — private to your account, never shared with your team.
               </p>
 
-              {/* user question bubble */}
+              {/* user question bubble — the sunny yellow pastel */}
               <div
-                className="max-w-[78%] self-end rounded-[12px] border px-3.5 py-2.5 sm:max-w-[62%]"
+                className="max-w-[78%] self-end px-3.5 py-2.5 sm:max-w-[62%]"
                 style={{
                   background: "var(--df-chat-soft-fill)",
-                  borderColor: "var(--df-chat-soft-border)",
+                  border: "0.5px solid var(--df-chat-soft-border)",
+                  borderRadius: "var(--df-bubble-radius)",
                 }}
               >
                 <p className="text-[13px] leading-[1.5]" style={{ color: "var(--df-text-primary)" }}>
@@ -92,12 +186,13 @@ export function LandingHero() {
                 </p>
               </div>
 
-              {/* coach reply */}
+              {/* coach reply — blush pink */}
               <div
-                className="max-w-[78%] self-start rounded-[12px] border px-3.5 py-2.5 sm:max-w-[62%]"
+                className="max-w-[78%] self-start px-3.5 py-2.5 sm:max-w-[62%]"
                 style={{
-                  background: "var(--df-card-fill)",
-                  borderColor: "var(--df-card-border)",
+                  background: "var(--df-bubble-coach-fill)",
+                  border: "0.5px solid var(--df-bubble-coach-border)",
+                  borderRadius: "var(--df-bubble-radius)",
                 }}
               >
                 <p className="text-[13px] leading-[1.5]" style={{ color: "var(--df-text-primary)" }}>
@@ -109,8 +204,12 @@ export function LandingHero() {
 
               {/* journal entry — rich text, as authored */}
               <article
-                className="rounded-[12px] border px-3.5 py-2.5"
-                style={{ background: "var(--df-card-fill)", borderColor: "var(--df-card-border)" }}
+                className="px-3.5 py-2.5"
+                style={{
+                  background: "var(--df-card-fill)",
+                  border: "0.5px solid var(--df-card-border)",
+                  borderRadius: "var(--df-bubble-radius)",
+                }}
               >
                 <div className="flex items-center gap-2">
                   <span
@@ -144,8 +243,8 @@ export function LandingHero() {
         </p>
       </section>
 
-      <section className="mx-auto max-w-3xl px-6 pb-20">
-        <div className="df-panel rounded-lg p-6 sm:p-8">
+      <section className="mx-auto max-w-3xl px-6 pb-20 pt-6">
+        <div className="df-panel rounded-[24px] p-6 sm:p-8">
           <h2
             className="text-[15px] font-bold"
             style={{ color: "var(--df-text-primary)" }}
@@ -173,10 +272,11 @@ export function LandingHero() {
             ].map(([title, body]) => (
               <li
                 key={title}
-                className="rounded-md border p-4"
+                className="rounded-[20px] p-4"
                 style={{
                   borderColor: "var(--df-chip-border)",
                   background: "var(--df-card-fill)",
+                  border: "0.5px solid var(--df-chip-border)",
                 }}
               >
                 <p

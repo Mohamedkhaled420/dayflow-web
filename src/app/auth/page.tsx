@@ -164,16 +164,27 @@ export default function AuthPage() {
       {/* Phase 8: flowing-path backdrop — /auth ONLY (the
           authenticated app bans infinite path animations). */}
       <BackgroundPaths />
-      <GlassPanel className="relative w-full max-w-md p-6 sm:p-8">
+      {/* Phase 10: the auth card is a CREAM glass panel on the
+          periwinkle day — the app's own material. */}
+      <GlassPanel
+        hairline="none"
+        className="relative w-full max-w-md p-6 sm:p-8"
+        style={{
+          background: "color-mix(in srgb, var(--df-panel-fill) 90%, transparent)",
+          border: "0.5px solid var(--df-panel-border)",
+          borderRadius: "var(--df-radius-panel)",
+          boxShadow: "var(--df-hero-panel-shadow)",
+        }}
+      >
         <div>
           <LogoMark size={36} />
-          <p className="mt-3 text-xs font-semibold tracking-[0.22em] text-(--color-accent-focus)">
+          <p className="mt-3 text-xs font-bold tracking-[0.22em] text-(--df-accent-text)">
             DAYFLOW AI
           </p>
-          <h1 className="mt-3 text-3xl font-semibold text-(--color-ink)">
+          <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-(--df-text-primary)">
             Your day, in flow.
           </h1>
-          <p className="mt-2 text-sm leading-6 text-(--color-ink-muted)">
+          <p className="mt-2 text-sm leading-6 text-(--df-text-secondary)">
             A calm home for your timeline, habits, and weekly rhythm.
           </p>
         </div>
@@ -200,7 +211,7 @@ export default function AuthPage() {
             type="button"
             onClick={signInWithPasskeyFlow}
             disabled={passkeyBusy || pending}
-            className="mt-6 min-h-12 w-full rounded-(--radius-pill) bg-(--color-ink) px-4 text-base font-semibold text-(--color-accent-focus) transition-[transform,opacity] duration-(--duration-press) ease-(--ease-spring-critical) hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+            className="df-press df-btn-primary mt-6 min-h-12 w-full px-4 text-base font-bold disabled:cursor-not-allowed disabled:opacity-60"
           >
             <span className="flex items-center justify-center gap-2">
               <Fingerprint className="h-5 w-5" aria-hidden="true" />
@@ -210,27 +221,27 @@ export default function AuthPage() {
         )}
 
         {passkeyAvailable && (
-          <div className="my-5 flex items-center gap-3 text-xs text-(--color-ink-faint)">
-            <span className="h-px flex-1 bg-(--hairline)" />
+          <div className="my-5 flex items-center gap-3 text-xs text-(--df-text-muted)">
+            <span className="h-px flex-1 bg-(--df-input-border)" />
             or with email
-            <span className="h-px flex-1 bg-(--hairline)" />
+            <span className="h-px flex-1 bg-(--df-input-border)" />
           </div>
         )}
 
         <form className={passkeyAvailable ? "flex flex-col gap-4" : "mt-6 flex flex-col gap-4"} onSubmit={submit}>
           <label className="flex flex-col gap-2">
-            <span className="text-sm font-medium text-(--color-ink-muted)">Email</span>
+            <span className="text-sm font-semibold text-(--df-text-secondary)">Email</span>
             <input
               required
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               autoComplete="email"
-              className="min-h-12 rounded-(--radius-panel) border border-(--hairline) bg-(--color-surface-subtle) px-4 text-base text-(--color-ink) outline-none transition-colors placeholder:text-(--color-ink-faint) focus:border-(--hairline-accent)"
+              className="df-input-glass min-h-12 px-4 text-base text-(--df-text-primary) outline-none transition-colors placeholder:text-(--df-text-muted)"
             />
           </label>
           <label className="flex flex-col gap-2">
-            <span className="text-sm font-medium text-(--color-ink-muted)">Password</span>
+            <span className="text-sm font-semibold text-(--df-text-secondary)">Password</span>
             <input
               required
               minLength={6}
@@ -238,38 +249,38 @@ export default function AuthPage() {
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               autoComplete={mode === "sign-in" ? "current-password" : "new-password"}
-              className="min-h-12 rounded-(--radius-panel) border border-(--hairline) bg-(--color-surface-subtle) px-4 text-base text-(--color-ink) outline-none transition-colors placeholder:text-(--color-ink-faint) focus:border-(--hairline-accent)"
+              className="df-input-glass min-h-12 px-4 text-base text-(--df-text-primary) outline-none transition-colors placeholder:text-(--df-text-muted)"
             />
           </label>
           {error ? (
-            <p role="alert" className="text-sm text-(--df-destructive)">
+            <p role="alert" className="text-sm text-(--df-destructive-text)">
               {error}
             </p>
           ) : null}
           {message ? (
-            <p role="status" className="text-sm text-(--color-accent-focus)">
+            <p role="status" className="text-sm text-(--df-accent-text)">
               {message}
             </p>
           ) : null}
           <button
             disabled={pending}
             type="submit"
-            className="min-h-12 rounded-(--radius-pill) bg-(--color-ink) px-4 text-base font-semibold text-(--color-accent-focus) transition-[transform,opacity] duration-(--duration-press) ease-(--ease-spring-critical) hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+            className="df-press df-btn-primary min-h-12 px-4 text-base font-bold disabled:cursor-not-allowed disabled:opacity-60"
           >
             {pending ? "Please wait…" : mode === "sign-in" ? "Continue" : "Create account"}
           </button>
         </form>
 
-        <div className="my-6 flex items-center gap-3 text-xs text-(--color-ink-faint)">
-          <span className="h-px flex-1 bg-(--hairline)" />
+        <div className="my-6 flex items-center gap-3 text-xs text-(--df-text-muted)">
+          <span className="h-px flex-1 bg-(--df-input-border)" />
           OR
-          <span className="h-px flex-1 bg-(--hairline)" />
+          <span className="h-px flex-1 bg-(--df-input-border)" />
         </div>
 
         <button
           type="button"
           onClick={signInWithGoogle}
-          className="min-h-12 w-full rounded-(--radius-pill) border border-(--hairline) px-4 text-base font-medium text-(--color-ink) transition-[transform,opacity] duration-(--duration-press) ease-(--ease-spring-critical) hover:bg-(--color-surface-subtle) active:scale-[0.98]"
+          className="df-press df-btn-secondary min-h-12 w-full px-4 text-base font-semibold"
         >
           Continue with Google
         </button>

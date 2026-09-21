@@ -50,8 +50,12 @@ export function Segmented({
       aria-label={label}
       className={cn("relative flex w-full", className)}
       style={{
-        background: "var(--color-surface-subtle)",
-        borderRadius: "var(--radius-pill)",
+        /* Phase 10: rides the df segment tokens — the pastel
+           track + white cast thumb match the in-app Segmented
+           look on the cream auth/onboarding cards. */
+        background: "var(--df-segment-track)",
+        border: "0.5px solid var(--df-segment-track-border)",
+        borderRadius: "var(--df-radius-btn)",
         padding: "4px",
       }}
     >
@@ -65,9 +69,9 @@ export function Segmented({
           transform: `translateX(${activeIndex * 100}%)`,
           transition:
             "transform 300ms var(--ease-spring-critical), width 300ms var(--ease-spring-critical)",
-          background: "var(--color-surface-elevated)",
-          borderRadius: "var(--radius-pill)",
-          boxShadow: "inset 0 1px 0 var(--hairline)",
+          background: "var(--df-control-fill)",
+          borderRadius: "var(--df-radius-btn)",
+          boxShadow: "inset 0 1px 0 var(--df-control-border)",
         }}
       />
 
@@ -80,9 +84,11 @@ export function Segmented({
             role="radio"
             aria-checked={active}
             onClick={() => onChange(option.id)}
-            className="relative z-10 flex min-h-[44px] flex-1 items-center justify-center gap-1.5 bg-transparent px-3 text-[13px] font-medium"
+            className="relative z-10 flex min-h-[44px] flex-1 items-center justify-center gap-1.5 bg-transparent px-3 text-[13px] font-bold"
             style={{
-              color: active ? "var(--color-ink)" : "var(--color-ink-muted)",
+              color: active
+                ? "var(--df-text-primary)"
+                : "var(--df-segment-inactive)",
             }}
           >
             {option.icon}

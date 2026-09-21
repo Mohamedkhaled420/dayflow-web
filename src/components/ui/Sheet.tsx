@@ -136,7 +136,9 @@ export function Sheet({
         data-df-sheet-panel=""
         style={{
           ...sheetOffsetStyle,
-          background: "var(--color-surface-glass)",
+          /* Phase 10: the sheet rides the app's floating material —
+             cream frosted glass in the pastel day, plum in dark. */
+          background: "var(--df-material-bg)",
           borderTopLeftRadius: "var(--radius-sheet)",
           borderTopRightRadius: "var(--radius-sheet)",
           boxShadow: "var(--df-sheet-shadow)",
@@ -166,7 +168,7 @@ export function Sheet({
             className="block h-[5px] w-9"
             style={{
               borderRadius: "var(--radius-pill)",
-              background: "var(--color-ink-faint)",
+              background: "var(--df-text-muted)",
             }}
           />
         </div>
@@ -174,7 +176,7 @@ export function Sheet({
         <div
           data-df-sheet-content=""
           className="df-scroll max-h-[calc(92dvh-44px)] overflow-y-auto px-4 pb-[calc(env(safe-area-inset-bottom)+16px)]"
-          style={{ color: "var(--color-ink)" }}
+          style={{ color: "var(--df-text-primary)" }}
         >
           {children}
         </div>
