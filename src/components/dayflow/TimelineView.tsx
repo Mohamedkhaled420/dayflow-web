@@ -13,6 +13,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Droplet,
+  Flame,
   Plus,
   Pencil,
   Trash2,
@@ -230,7 +231,57 @@ export function TimelineView() {
     <div className="flex flex-col lg:flex-row h-full min-h-0">
       {/* ------- timeline column ------- */}
       <div className="flex-1 min-w-0 min-h-0 flex flex-col">
-        <header className="df-timeline-header px-4 sm:px-5 pt-4 pb-2.5 flex flex-wrap items-center gap-x-2 gap-y-2">
+        {/* Lively Pastel hero (Phase 10) — the periwinkle greeting
+            card from the reference home screen: "Hey, {name}" + a
+            white streak badge + the ONE charcoal pill CTA. Sits at
+            the top of the timeline on every breakpoint. */}
+        <section
+          className="df-rise relative mx-4 mt-4 mb-1 shrink-0 overflow-hidden rounded-[24px] px-5 py-4 sm:mx-5"
+          style={{
+            background: "var(--df-hero-panel)",
+            border: "0.5px solid var(--df-hero-panel-edge)",
+            boxShadow: "var(--df-hero-panel-shadow)",
+          }}
+          aria-label="Today at a glance"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h2
+                className="truncate text-[20px] font-extrabold leading-tight tracking-tight"
+                style={{ color: "var(--df-text-primary)" }}
+              >
+                Hey, {profile.name}
+              </h2>
+              <p
+                className="mt-0.5 text-[12px] font-semibold leading-none"
+                style={{ color: "var(--df-text-secondary)" }}
+              >
+                {dayLabel(dayOffset)} · {fmtDuration(totalTracked(data.events, dateKey))} tracked
+              </p>
+            </div>
+            <span
+              className="flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-[11.5px] font-bold"
+              style={{
+                background: "var(--df-hero-badge-fill)",
+                border: "0.5px solid var(--df-hero-badge-border)",
+                color: "var(--df-streak)",
+              }}
+              aria-label={`${dayEvents.length} ${dayEvents.length === 1 ? "block" : "blocks"} on the timeline`}
+            >
+              <Flame className="h-3.5 w-3.5" style={{ color: "var(--df-streak)" }} aria-hidden="true" />
+              {dayEvents.length} {dayEvents.length === 1 ? "block" : "blocks"}
+            </span>
+          </div>
+          <button
+            onClick={() => setDialog({ open: true, event: null })}
+            className="df-press df-btn-primary mt-3.5 inline-flex h-9 items-center gap-1.5 px-4 text-[12.5px] font-bold"
+          >
+            <Plus className="h-3.5 w-3.5" strokeWidth={2.4} aria-hidden="true" />
+            Plan today
+          </button>
+        </section>
+
+        <header className="df-timeline-header px-4 sm:px-5 pt-3 pb-2.5 flex flex-wrap items-center gap-x-2 gap-y-2">
           <div className="flex items-center gap-1.5">
             <NavArrow dir="prev" disabled={dayOffset <= -13} onClick={() => go(-1)} />
             <button
@@ -755,11 +806,27 @@ function DayTimeline({
                   key={event.id}
                   onClick={() => onSelect(event.id)}
                   className="df-mobile-event df-card df-lift flex min-h-16 w-full items-center gap-3 px-3 py-2.5 text-left df-press"
-                  style={{ outline: selectedId === event.id ? "1.5px solid var(--df-accent)" : "none" }}
+                  style={{
+                    background: `color-mix(in srgb, ${cat.colorHex} 12%, var(--df-card-fill))`,
+                    outline: selectedId === event.id ? "1.5px solid var(--df-accent)" : "none",
+                  }}
                   aria-pressed={selectedId === event.id}
                   aria-label={`${event.title}, ${cat.name}, ${fmtRange(event)}, ${fmtDuration(eventDuration(event))}`}
                 >
-                  <span className="h-10 w-1 shrink-0 rounded-full" style={{ background: cat.colorHex }} />
+                  {/* circular category medallion — the reference's
+                      photo-cutout circle, white-ringed + softly tinted */}
+                  <span
+                    className="grid size-10 shrink-0 place-items-center rounded-full"
+                    style={{
+                      background: `color-mix(in srgb, ${cat.colorHex} 26%, var(--df-card-fill))`,
+                      border: "2px solid var(--df-white)",
+                      boxShadow: `0 0 0 2px color-mix(in srgb, ${cat.colorHex} 32%, transparent)`,
+                      color: `color-mix(in srgb, ${cat.colorHex} 62%, var(--df-text-primary))`,
+                    }}
+                    aria-hidden="true"
+                  >
+                    <CategoryIcon name={cat.icon} className="h-[18px] w-[18px]" />
+                  </span>
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-1.5">
                       <span className="truncate text-[13px] font-semibold" style={{ color: "var(--df-text-primary)" }}>{event.title}</span>
@@ -996,7 +1063,14 @@ function ActivityCard({
       dragElastic={0.18}
       onDragEnd={handleDragEnd}
       whileDrag={{ scale: 1.015, zIndex: 30 }}
-      style={{ cursor: "grab", touchAction: "none" }}
+      style={{
+        cursor: "grab",
+        touchAction: "none",
+        /* Lively Pastel: every card rides a soft wash of its own
+           category pastel over the cream base (16% keeps slate ink
+           well past AA on the composite). */
+        background: `color-mix(in srgb, ${cat.colorHex} 16%, var(--df-card-fill))`,
+      }}
       className={`df-card df-lift w-full h-full text-left flex flex-col overflow-hidden df-press relative ${
         compact ? "py-[3px] px-3" : "py-2 px-3.5"
       }`}

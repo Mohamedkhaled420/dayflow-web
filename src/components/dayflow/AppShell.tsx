@@ -388,7 +388,7 @@ function DockItem({
             style={{
               background: "var(--df-sidebar-selected-fill)",
               border: "0.5px solid var(--df-sidebar-selected-border)",
-              boxShadow: "var(--df-sidebar-selected-glow)",
+              boxShadow: "0 2px 8px var(--df-sidebar-selected-glow)",
             }}
             aria-hidden="true"
           />

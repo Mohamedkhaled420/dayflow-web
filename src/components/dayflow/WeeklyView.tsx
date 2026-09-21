@@ -538,7 +538,7 @@ function Card({
 }) {
   return (
     <section
-      className="rounded-lg p-4"
+      className="rounded-[20px] p-4"
       style={{
         background: "var(--df-daily-grid-fill)",
         border: "0.5px solid var(--df-daily-grid-border)",

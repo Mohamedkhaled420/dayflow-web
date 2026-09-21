@@ -209,7 +209,7 @@ export function DailyView() {
 
       {/* nutrition — Cal AI-style calories & macros (Phase 9) */}
       <section
-        className="mt-5 rounded-lg p-4"
+        className="mt-5 rounded-[20px] p-4"
         style={{
           background: "var(--df-daily-grid-fill)",
           border: "0.5px solid var(--df-daily-grid-border)",
@@ -270,7 +270,7 @@ export function DailyView() {
           {nutrition.meals.length === 0 ? (
             <button
               onClick={() => setMealSheetOpen(true)}
-              className="df-press w-full rounded-lg py-4 flex flex-col items-center gap-1.5"
+              className="df-press w-full rounded-[20px] py-4 flex flex-col items-center gap-1.5"
               style={{
                 background: "var(--df-input-fill)",
                 border: `1.5px dashed color-mix(in srgb, ${CATEGORY_COLORS.meals} 40%, transparent)`,
@@ -316,7 +316,7 @@ export function DailyView() {
       <div className="mt-5 grid xl:grid-cols-[1fr_360px] gap-4">
         {/* category activity grid */}
         <section
-          className="rounded-lg p-4"
+          className="rounded-[20px] p-4"
           style={{
             background: "var(--df-daily-grid-fill)",
             border: "0.5px solid var(--df-daily-grid-border)",
@@ -423,7 +423,7 @@ export function DailyView() {
 
         {/* daily recap card */}
         <section
-          className="rounded-lg p-4 relative overflow-hidden"
+          className="rounded-[20px] p-4 relative overflow-hidden"
           style={{
             border: "0.5px solid var(--df-daily-grid-border)",
             background:

@@ -252,7 +252,16 @@ export function HabitsView() {
               return (
                 <div key={h.id} className="flex items-center gap-2">
                   <div className="w-[168px] shrink-0 flex items-center gap-2 pr-2">
-                    <span className="w-2.5 h-2.5 rounded-[4px] shrink-0" style={{ background: color }} />
+                    <span
+                      className="grid size-[18px] shrink-0 place-items-center rounded-full"
+                      style={{
+                        background: `color-mix(in srgb, ${color} 30%, var(--df-card-fill))`,
+                        boxShadow: `0 0 0 2px color-mix(in srgb, ${color} 32%, transparent)`,
+                      }}
+                      aria-hidden="true"
+                    >
+                      <span className="size-[7px] rounded-full" style={{ background: color }} />
+                    </span>
                     <span
                       className="text-[12px] font-semibold truncate"
                       style={{ color: "var(--df-text-primary)" }}
@@ -274,7 +283,7 @@ export function HabitsView() {
                             if (d.isToday && !met) void completeHabit(h.id, h.name);
                           }}
                           aria-label={`${h.name} on ${d.label}${met ? " — completed" : ""}`}
-                          className="h-[26px] w-[26px] rounded-[8px] grid place-items-center df-press"
+                          className="h-[26px] w-[26px] rounded-full grid place-items-center df-press"
                           style={{
                             background: met
                               ? color
@@ -387,9 +396,9 @@ export function HabitsView() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.25 }}
-              className="rounded-lg p-4"
+              className="rounded-[20px] p-4"
               style={{
-                background: "var(--df-daily-grid-fill)",
+                background: `color-mix(in srgb, ${g.colorHex} 10%, var(--df-daily-grid-fill))`,
                 border: `0.5px solid ${
                   met ? `color-mix(in srgb, ${g.colorHex} 55%, transparent)` : "var(--df-daily-grid-border)"
                 }`,
@@ -397,7 +406,16 @@ export function HabitsView() {
             >
               <div className="flex items-center justify-between gap-2">
                 <span className="flex items-center gap-2 min-w-0">
-                  <span className="w-2.5 h-2.5 rounded-[4px] shrink-0" style={{ background: g.colorHex }} />
+                  <span
+                    className="grid size-[18px] shrink-0 place-items-center rounded-full"
+                    style={{
+                      background: `color-mix(in srgb, ${g.colorHex} 30%, var(--df-card-fill))`,
+                      boxShadow: `0 0 0 2px color-mix(in srgb, ${g.colorHex} 32%, transparent)`,
+                    }}
+                    aria-hidden="true"
+                  >
+                    <span className="size-[7px] rounded-full" style={{ background: g.colorHex }} />
+                  </span>
                   <span className="text-[12.5px] font-bold truncate" style={{ color: "var(--df-text-primary)" }}>
                     {g.label}
                   </span>

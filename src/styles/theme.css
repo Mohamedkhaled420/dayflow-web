@@ -147,14 +147,18 @@
   /* --- Dayflow light theme (Lively Pastel — periwinkle day) --- */
   --df-window-bg: #a5b4fc;
   --df-window-border: #8b93f2;
+  /* Color-only shadow tints — composed with offsets at the call
+     site (globals.css / components). Full-shadow values here would
+     produce invalid box-shadow declarations in light mode (the
+     dark block below keeps the same structure). */
   --df-panel-fill: #fffbf5;
   --df-panel-border: rgba(255, 255, 255, 0.55);
-  --df-panel-shadow: 0 6px 20px rgba(67, 56, 202, 0.15);
+  --df-panel-shadow: rgba(67, 56, 202, 0.15);
   --df-panel-inner-glow: rgba(255, 255, 255, 0);
 
   --df-sidebar-selected-fill: #ffffff;
   --df-sidebar-selected-border: rgba(255, 255, 255, 0.7);
-  --df-sidebar-selected-glow: 0 2px 8px rgba(67, 56, 202, 0.15);
+  --df-sidebar-selected-glow: rgba(67, 56, 202, 0.18);
   --df-sidebar-label: #3f4668;
   --df-sidebar-label-active: #1e293b;
 
@@ -167,7 +171,7 @@
 
   --df-control-fill: #ffffff;
   --df-control-border: rgba(255, 255, 255, 0.6);
-  --df-control-glow: 0 2px 8px rgba(67, 56, 202, 0.12);
+  --df-control-glow: rgba(67, 56, 202, 0.1);
   --df-control-text: #1e293b;
 
   --df-segment-track: rgba(255, 255, 255, 0.55);
@@ -176,7 +180,7 @@
 
   --df-card-fill: #fffbf5;
   --df-card-border: rgba(255, 255, 255, 0.5);
-  --df-card-glow: 0 4px 14px rgba(67, 56, 202, 0.12);
+  --df-card-glow: rgba(67, 56, 202, 0.1);
   --df-card-time: #475569;
 
   --df-hour-label: #3f4668;
@@ -221,8 +225,11 @@
   --df-daily-empty: rgba(30, 41, 59, 0.06);
   --df-daily-stat-value: #475569;
 
-  --df-chat-soft-fill: #fef3c7;
-  --df-chat-soft-border: rgba(245, 158, 11, 0.25);
+  --df-chat-soft-fill: #fde68a;
+  --df-chat-soft-border: rgba(217, 119, 6, 0.28);
+  --df-bubble-coach-fill: #fce7f3;
+  --df-bubble-coach-border: rgba(219, 39, 119, 0.16);
+  --df-bubble-radius: 18px;
   --df-chat-code: #f5f3ff;
   --df-empty-cell: rgba(30, 41, 59, 0.06);
   --df-mobile-nav-fill: rgba(255, 255, 255, 0.85);
@@ -322,6 +329,24 @@
   );
   /* Landing-page-only hero CTA gradient (in-app CTAs stay solid). */
   --df-hero-gradient: linear-gradient(135deg, #4338ca 0%, #1c1917 100%);
+
+  /* --- Phase 10 signature surfaces — hero card / bubbles / landing ---
+     Hero: the periwinkle gradient greeting card at the top of the
+     Timeline (reference home screen). Bubbles: user = sunnier
+     yellow-200, coach = blush pink-100 (both clear AA with slate
+     ink). Landing tokens are consumed ONLY by the marketing
+     layer — the authenticated app never reads them. */
+  --df-hero-panel: linear-gradient(135deg, #b9c3fd 0%, #818cf8 100%);
+  --df-hero-panel-edge: rgba(255, 255, 255, 0.45);
+  --df-hero-panel-shadow: 0 6px 20px rgba(67, 56, 202, 0.18);
+  --df-hero-badge-fill: rgba(255, 255, 255, 0.85);
+  --df-hero-badge-border: rgba(255, 255, 255, 0.65);
+  --df-landing-bg: linear-gradient(180deg, #fef08a 0%, #fde047 100%);
+  --df-landing-ink: #1c1917;
+  --df-landing-ink-soft: #44403c;
+  --df-landing-highlight: #fdba74;
+  --df-landing-fab: #4ade80;
+  --df-landing-fab-ink: #052e16;
 
   /* --- Legacy logo tokens (v0 LogoBadge — component is retired;
      values preserved for reference, nothing consumes them). --- */
@@ -442,8 +467,10 @@
   --df-daily-empty: rgba(255, 255, 255, 0.07);
   --df-daily-stat-value: #a8a1c9;
 
-  --df-chat-soft-fill: rgba(254, 243, 199, 0.14);
-  --df-chat-soft-border: rgba(254, 243, 199, 0.35);
+  --df-chat-soft-fill: rgba(253, 230, 138, 0.16);
+  --df-chat-soft-border: rgba(253, 230, 138, 0.32);
+  --df-bubble-coach-fill: rgba(251, 207, 232, 0.13);
+  --df-bubble-coach-border: rgba(251, 207, 232, 0.24);
   --df-chat-code: #332d52;
   --df-empty-cell: rgba(255, 255, 255, 0.07);
 
@@ -507,6 +534,16 @@
     rgba(165, 180, 252, 0.3),
     rgba(165, 180, 252, 0.12)
   );
+
+  /* --- Phase 10 signature surfaces (dark) — hero / landing ---
+     Hero inverts to a raised plum gradient with a lavender sheen;
+     landing tokens are light-only (the marketing page is always
+     rendered in its lime day). */
+  --df-hero-panel: linear-gradient(135deg, #38315c 0%, #2a2547 100%);
+  --df-hero-panel-edge: rgba(255, 255, 255, 0.08);
+  --df-hero-panel-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  --df-hero-badge-fill: rgba(30, 27, 46, 0.55);
+  --df-hero-badge-border: rgba(255, 255, 255, 0.14);
 
   /* --- Phase 8: Dia chat shell (dark) --- */
   --df-chrome-fill: #252043;
