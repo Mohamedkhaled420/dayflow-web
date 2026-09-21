@@ -264,7 +264,7 @@ export function TimelineView() {
               style={{
                 background: "var(--df-hero-badge-fill)",
                 border: "0.5px solid var(--df-hero-badge-border)",
-                color: "var(--df-streak)",
+                color: "var(--df-text-primary)",
               }}
               aria-label={`${dayEvents.length} ${dayEvents.length === 1 ? "block" : "blocks"} on the timeline`}
             >
