@@ -56,7 +56,7 @@ function ChromeIconButton({
       disabled={disabled}
       aria-label={label}
       title={label}
-      className="df-press grid h-7 w-7 shrink-0 place-items-center rounded-md disabled:opacity-35"
+      className="df-press grid h-7 w-7 shrink-0 place-items-center rounded-full disabled:opacity-35"
       style={{ color: "var(--df-text-secondary)" }}
     >
       {children}
@@ -196,7 +196,7 @@ export function DiaChrome({
               : "Open Coach Notes"
           }
           title="Coach Notes — the coach's takeaways and suggested logs"
-          className="df-press relative grid h-7 w-7 shrink-0 place-items-center rounded-md"
+          className="df-press relative grid h-7 w-7 shrink-0 place-items-center rounded-full"
           style={{ color: "var(--df-text-secondary)" }}
         >
           <StickyNote className="h-3.5 w-3.5" strokeWidth={2} />

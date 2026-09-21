@@ -90,7 +90,7 @@ export function InstallAppCard() {
 
   return (
     <section
-      className="rounded-lg p-4 mt-4"
+      className="rounded-[20px] p-4 mt-4"
       style={{
         background: "var(--df-daily-grid-fill)",
         border: "0.5px solid var(--df-daily-grid-border)",
@@ -139,7 +139,7 @@ export function InstallAppCard() {
 
         {state === "ios" && (
           <div
-            className="rounded-md px-3 py-2.5 flex items-start gap-2.5"
+            className="rounded-[14px] px-3 py-2.5 flex items-start gap-2.5"
             style={{
               background: "var(--df-chip-fill)",
               border: "0.5px solid var(--df-chip-border)",

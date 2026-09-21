@@ -51,6 +51,19 @@ const nowHM = () => {
   return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
+/** Phase 11 — the reference add-schedule time grid: on-the-hour
+ *  start pills, 06:00 → 22:00. */
+const QUICK_START_TIMES: string[] = Array.from({ length: 17 }, (_, i) =>
+  `${pad(6 + i)}:00`
+);
+
+/** "HH:MM" + minutes → "HH:MM", wrapping past midnight. */
+const addMinutes = (hm: string, minutes: number): string => {
+  const total =
+    (Number(hm.slice(0, 2)) * 60 + Number(hm.slice(3, 5)) + minutes) % (24 * 60);
+  return `${pad(Math.floor(total / 60))}:${pad(total % 60)}`;
+};
+
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -472,7 +485,7 @@ function FormBody(p: FormBodyProps) {
         >
           Workout
         </label>
-        <div className="df-input-glass mt-1.5 rounded-md px-3 min-h-12 flex items-center">
+        <div className="df-input-glass mt-1.5 rounded-full px-4 min-h-12 flex items-center">
           <input
             value={p.title}
             onChange={(e) => p.setTitle(e.target.value)}
@@ -501,7 +514,7 @@ function FormBody(p: FormBodyProps) {
             >
               {f.label}
             </label>
-            <div className="df-input-glass mt-1.5 rounded-md px-2.5 h-11 flex items-center gap-2">
+            <div className="df-input-glass mt-1.5 rounded-full px-4 h-11 flex items-center gap-2">
               <Clock className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--df-text-muted)" }} />
               <input
                 type="time"
@@ -534,6 +547,57 @@ function FormBody(p: FormBodyProps) {
         {p.duration <= 0 && "End must be after start (or before it for overnight sleep)"}
       </div>
 
+      {/* quick start times (Phase 11) — the reference add-schedule
+          time grid: on-the-hour pills from 06:00 to 22:00. Picking
+          one sets the START and keeps the current duration; the
+          active pill rides the mint signature. */}
+      <div className="mt-3">
+        <label
+          className="text-[10.5px] font-bold uppercase tracking-[0.06em]"
+          style={{ color: "var(--df-text-secondary)" }}
+        >
+          Start at…
+        </label>
+        <div
+          className="mt-1.5 grid grid-cols-4 gap-1.5"
+          role="group"
+          aria-label="Quick start times"
+        >
+          {QUICK_START_TIMES.map((t) => {
+            const active = p.start === t;
+            return (
+              <button
+                key={t}
+                type="button"
+                onClick={() => {
+                  p.setStart(t);
+                  if (p.duration > 0) {
+                    // keep the block's length when the start moves
+                    p.setEnd(addMinutes(t, p.duration));
+                  }
+                }}
+                aria-pressed={active}
+                className="df-press h-8 rounded-full text-[11.5px] font-bold tabular-nums"
+                style={
+                  active
+                    ? {
+                        background: "var(--df-time-pill-active)",
+                        color: "var(--df-time-pill-active-ink)",
+                      }
+                    : {
+                        background: "var(--df-time-pill-fill)",
+                        border: "0.5px solid var(--df-time-pill-border)",
+                        color: "var(--df-text-primary)",
+                      }
+                }
+              >
+                {t}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* metric — resting HR for sleep, active calories for workouts */}
       <div className="mt-3.5">
         <label
@@ -545,7 +609,7 @@ function FormBody(p: FormBodyProps) {
             (optional — {p.isSleep ? "bpm" : "kcal"})
           </span>
         </label>
-        <div className="df-input-glass mt-1.5 rounded-md px-3 min-h-12 flex items-center">
+        <div className="df-input-glass mt-1.5 rounded-full px-4 min-h-12 flex items-center">
           <input
             value={p.metric}
             onChange={(e) => p.setMetric(e.target.value.replace(/[^0-9]/g, ""))}

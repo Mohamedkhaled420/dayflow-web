@@ -96,7 +96,7 @@ export function ExercisePicker({ picked, onPick, onBack, history, recent }: Prop
     <div className="flex flex-col min-h-0 flex-1">
       {/* search */}
       <div
-        className="rounded-md px-3 h-11 flex items-center gap-2.5 shrink-0"
+        className="rounded-full px-4 h-11 flex items-center gap-2.5 shrink-0"
         style={{
           background: "var(--df-input-fill)",
           border: "0.5px solid var(--df-input-border)",
@@ -257,7 +257,7 @@ export function ExercisePicker({ picked, onPick, onBack, history, recent }: Prop
                 onClick={() => toggleInfo(ex.id)}
                 aria-label={`How to do ${ex.name}`}
                 aria-expanded={infoId === ex.id}
-                className="df-press shrink-0 h-8 w-8 grid place-items-center rounded-md"
+                className="df-press shrink-0 h-8 w-8 grid place-items-center rounded-full"
                 style={{
                   color: infoId === ex.id ? FITNESS : "var(--df-text-muted)",
                   background:
@@ -276,7 +276,7 @@ export function ExercisePicker({ picked, onPick, onBack, history, recent }: Prop
             </div>
             {infoId === ex.id && (
               <div
-                className="my-1.5 rounded-md px-3 py-2.5 text-[12px] leading-relaxed"
+                className="my-1.5 rounded-[14px] px-3 py-2.5 text-[12px] leading-relaxed"
                 style={{
                   background: "var(--df-daily-grid-fill)",
                   border: "0.5px solid var(--df-chip-border)",

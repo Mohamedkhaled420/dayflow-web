@@ -449,7 +449,7 @@ export function DailyView() {
               <button
                 key={i}
                 onClick={() => setChecked((c) => ({ ...c, [i]: !c[i] }))}
-                className="df-press flex items-start gap-2 text-left w-full rounded-md px-1.5 py-1 -mx-1.5"
+                className="df-press flex items-start gap-2 text-left w-full rounded-[12px] px-1.5 py-1 -mx-1.5"
                 aria-pressed={!!checked[i]}
               >
                 <CheckCircle2
@@ -476,7 +476,7 @@ export function DailyView() {
               recap.watchouts.map((w, i) => (
                 <div
                   key={i}
-                  className="flex items-start gap-2 rounded-md px-2 py-1.5"
+                  className="flex items-start gap-2 rounded-[12px] px-2 py-1.5"
                   style={{
                     background: "color-mix(in srgb, var(--df-destructive-soft) 12%, transparent)",
                     border: "0.5px solid color-mix(in srgb, var(--df-destructive-soft) 30%, transparent)",
@@ -632,7 +632,7 @@ function MealRow({ meal, onDelete }: { meal: MealLogRow; onDelete: () => void })
   });
   return (
     <div
-      className="group flex items-center gap-2.5 rounded-md px-2 py-1.5"
+      className="group flex items-center gap-2.5 rounded-[12px] px-2 py-1.5"
       style={{ background: "var(--df-input-fill)" }}
     >
       <span

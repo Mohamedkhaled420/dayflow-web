@@ -529,7 +529,7 @@ function BuildStep(p: BuildProps) {
   return (
     <div className="mt-3 flex flex-col min-h-0 flex-1 overflow-y-auto df-scroll -mx-1 px-1">
       {/* title + when */}
-      <div className="df-input-glass rounded-md px-3 h-12 flex items-center shrink-0">
+      <div className="df-input-glass rounded-full px-4 h-12 flex items-center shrink-0">
         <input
           value={p.title}
           onChange={(e) => p.setTitle(e.target.value.slice(0, 60))}
@@ -554,7 +554,7 @@ function BuildStep(p: BuildProps) {
       {p.repeatLast && p.session.length === 0 && (
         <button
           onClick={p.repeatLast}
-          className="df-press mt-2.5 rounded-md px-3 h-10 flex items-center gap-2 text-[12.5px] font-semibold shrink-0"
+          className="df-press mt-2.5 rounded-full px-4 h-10 flex items-center gap-2 text-[12.5px] font-semibold shrink-0"
           style={{
             background: `color-mix(in srgb, ${FITNESS} 10%, transparent)`,
             border: `0.5px solid color-mix(in srgb, ${FITNESS} 35%, transparent)`,
@@ -589,7 +589,7 @@ function BuildStep(p: BuildProps) {
           triggerHaptic();
           p.addExercise();
         }}
-        className="df-press mt-2.5 rounded-md px-3 h-11 flex items-center justify-center gap-1.5 text-[13px] font-semibold shrink-0"
+        className="df-press mt-2.5 rounded-full px-4 h-11 flex items-center justify-center gap-1.5 text-[13px] font-semibold shrink-0"
         style={{
           background: "var(--df-input-fill)",
           border: `1px dashed color-mix(in srgb, ${FITNESS} 45%, transparent)`,
@@ -659,7 +659,7 @@ function BuildStep(p: BuildProps) {
 
         {p.askClose && (
           <div
-            className="mb-2 rounded-md px-3 py-2.5 flex items-center gap-2"
+            className="mb-2 rounded-[16px] px-3 py-2.5 flex items-center gap-2"
             style={{
               background: "var(--df-daily-grid-fill)",
               border: "0.5px solid var(--df-chip-border)",
@@ -676,7 +676,7 @@ function BuildStep(p: BuildProps) {
             </button>
             <button
               onClick={p.discard}
-              className="df-press h-8 px-3 rounded-md text-[12px] font-semibold"
+              className="df-press h-8 px-3.5 rounded-full text-[12px] font-semibold"
               style={{
                 background: "color-mix(in srgb, var(--df-destructive-soft) 16%, transparent)",
                 color: "var(--df-destructive-text)",
@@ -856,7 +856,7 @@ function ExerciseCard({
 
       <button
         onClick={addSet}
-        className="df-press mt-2 h-8 w-full rounded-md text-[11.5px] font-semibold flex items-center justify-center gap-1"
+        className="df-press mt-2 h-8 w-full rounded-full text-[11.5px] font-semibold flex items-center justify-center gap-1"
         style={{ background: "var(--df-chip-fill)", color: "var(--df-text-secondary)" }}
       >
         <Plus className="h-3 w-3" />
@@ -886,7 +886,7 @@ function SetRow({
   return (
     <div className="flex items-center gap-1.5">
       <span
-        className="shrink-0 h-9 w-7 grid place-items-center rounded-md text-[11px] font-bold tabular-nums"
+        className="shrink-0 h-9 w-7 grid place-items-center rounded-full text-[11px] font-bold tabular-nums"
         style={{
           background: set.c
             ? `color-mix(in srgb, ${FITNESS} 18%, transparent)`
@@ -934,7 +934,7 @@ function SetRow({
         onClick={onToggle}
         aria-label={`Mark set ${index + 1} ${set.c ? "undone" : "done"}`}
         aria-pressed={!!set.c}
-        className="df-press shrink-0 h-9 w-9 grid place-items-center rounded-md"
+        className="df-press shrink-0 h-9 w-9 grid place-items-center rounded-full"
         style={{
           background: set.c ? FITNESS : "var(--df-chip-fill)",
           border: `0.5px solid ${set.c ? FITNESS : "var(--df-chip-border)"}`,
@@ -948,7 +948,7 @@ function SetRow({
         <button
           onClick={onDelete}
           aria-label={`Delete set ${index + 1}`}
-          className="df-press shrink-0 h-9 w-7 grid place-items-center rounded-md opacity-50 hover:opacity-90"
+          className="df-press shrink-0 h-9 w-7 grid place-items-center rounded-full opacity-50 hover:opacity-90"
           style={{ background: "var(--df-chip-fill)", color: "var(--df-text-muted)" }}
         >
           <X className="h-3.5 w-3.5" />
@@ -975,7 +975,7 @@ function NumCell({
 }) {
   return (
     <div
-      className={`${width} h-9 rounded-md px-2.5 flex items-center gap-1 min-w-0`}
+      className={`${width} h-9 rounded-full px-3 flex items-center gap-1 min-w-0`}
       style={{
         background: "var(--df-input-fill)",
         border: "0.5px solid var(--df-input-border)",
@@ -1009,7 +1009,7 @@ function TimeField({
   return (
     <div>
       <FieldLabel>{label}</FieldLabel>
-      <div className="df-input-glass mt-1 rounded-md px-2 h-10 flex items-center gap-1">
+      <div className="df-input-glass mt-1 rounded-full px-3.5 h-10 flex items-center gap-1">
         <Clock className="h-3 w-3 shrink-0" style={{ color: "var(--df-text-muted)" }} />
         <input
           type="time"
@@ -1038,7 +1038,7 @@ function NumField({
   return (
     <div className="min-w-0">
       <FieldLabel>{label}</FieldLabel>
-      <div className="df-input-glass mt-1 rounded-md px-2.5 h-10 flex items-center">
+      <div className="df-input-glass mt-1 rounded-full px-4 h-10 flex items-center">
         <input
           value={value}
           onChange={(e) => onChange(e.target.value.replace(/[^0-9]/g, "").slice(0, 4))}

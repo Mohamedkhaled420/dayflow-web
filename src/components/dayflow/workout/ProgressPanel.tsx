@@ -55,7 +55,7 @@ export function ProgressPanel({ open, onToggle }: Props) {
 
   return (
     <div
-      className="mt-2 rounded-md"
+      className="mt-2 rounded-[16px]"
       style={{ background: "var(--df-input-fill)" }}
       role="region"
       aria-label="Training progress"

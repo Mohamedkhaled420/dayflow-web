@@ -57,6 +57,9 @@ interface JournalComposerProps {
   onSubmit: () => void;
   placeholder?: string;
   ariaLabel?: string;
+  /** Phase 11: increment to focus the editor (the chat hero's
+   *  “Start writing” CTA). No-op until it changes. */
+  focusSignal?: number;
 }
 
 interface ToolDef {
@@ -94,6 +97,7 @@ export function JournalComposer({
   onSubmit,
   placeholder = "How did today go?",
   ariaLabel = "Journal entry",
+  focusSignal = 0,
 }: JournalComposerProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   // The editor owns the DOM; React only pushes EXTERNAL resets
@@ -139,6 +143,15 @@ export function JournalComposer({
       refreshStats();
     }
   }, [value]);
+
+  // Phase 11 — hero CTA focus request: place the caret + a gentle
+  // scroll so the composer is in view (the hero can sit above the
+  // fold on tall quick-action grids).
+  useEffect(() => {
+    if (focusSignal <= 0) return;
+    editorRef.current?.focus();
+    editorRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [focusSignal]);
 
   const exec = (tool: ToolDef) => {
     editorRef.current?.focus();
@@ -192,7 +205,7 @@ export function JournalComposer({
               onClick={() => exec(tool)}
               aria-label={tool.label}
               title={tool.label}
-              className="df-press grid h-7 w-7 place-items-center rounded-md"
+              className="df-press grid h-7 w-7 place-items-center rounded-full"
               style={{ color: "var(--df-text-secondary)" }}
             >
               <tool.Icon className="h-3.5 w-3.5" strokeWidth={2} />
@@ -204,7 +217,7 @@ export function JournalComposer({
             onClick={insertLink}
             aria-label="Insert link"
             title="Insert link"
-            className="df-press grid h-7 w-7 place-items-center rounded-md"
+            className="df-press grid h-7 w-7 place-items-center rounded-full"
             style={{ color: "var(--df-text-secondary)" }}
           >
             <Link2 className="h-3.5 w-3.5" strokeWidth={2} />
@@ -220,7 +233,7 @@ export function JournalComposer({
             aria-label={fullscreen ? "Exit fullscreen editor" : "Expand editor to fullscreen"}
             title={fullscreen ? "Exit fullscreen (Esc)" : "Fullscreen"}
             aria-pressed={fullscreen}
-            className="df-press ml-auto grid h-7 w-7 place-items-center rounded-md"
+            className="df-press ml-auto grid h-7 w-7 place-items-center rounded-full"
             style={{ color: "var(--df-text-secondary)" }}
           >
             {fullscreen ? (

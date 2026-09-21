@@ -199,7 +199,7 @@ export function HabitsView() {
 
       {/* habits */}
       <section
-        className="mt-5 rounded-lg p-4"
+        className="mt-5 rounded-[20px] p-4"
         style={{
           background: "var(--df-daily-grid-fill)",
           border: "0.5px solid var(--df-daily-grid-border)",
@@ -357,7 +357,7 @@ export function HabitsView() {
             onChange={(e) => setNewHabit(e.target.value)}
             placeholder="New habit…"
             aria-label="New habit name"
-            className="flex-1 min-w-0 min-h-11 rounded-md px-2.5 bg-transparent outline-none text-base placeholder:text-[var(--df-text-muted)]"
+            className="flex-1 min-w-0 min-h-11 rounded-full px-4 bg-transparent outline-none text-base placeholder:text-[var(--df-text-muted)]"
             style={{
               color: "var(--df-text-primary)",
               background: "var(--df-input-fill)",
@@ -367,7 +367,7 @@ export function HabitsView() {
           <button
             type="submit"
             disabled={!newHabit.trim()}
-            className="df-press df-btn-primary min-h-11 shrink-0 px-3.5 rounded-md text-[12px] font-semibold flex items-center gap-1.5 disabled:opacity-40"
+            className="df-press df-btn-primary min-h-11 shrink-0 px-4 rounded-full text-[12px] font-semibold flex items-center gap-1.5 disabled:opacity-40"
           >
             <Plus className="h-3.5 w-3.5" />
             Add habit
@@ -620,7 +620,7 @@ function WorkoutCard({
 
   return (
     <section
-      className="mt-4 rounded-lg p-4"
+      className="mt-4 rounded-[20px] p-4"
       style={{
         background: "var(--df-daily-grid-fill)",
         border: "0.5px solid var(--df-daily-grid-border)",
@@ -642,7 +642,7 @@ function WorkoutCard({
           type="button"
           onClick={generate}
           disabled={busy}
-          className="df-press df-btn-secondary min-h-11 px-4 rounded-md text-[12.5px] font-semibold flex items-center gap-1.5 disabled:opacity-50"
+          className="df-press df-btn-secondary min-h-11 px-4 rounded-full text-[12.5px] font-semibold flex items-center gap-1.5 disabled:opacity-50"
         >
           {busy ? <LogoLoop size="sm" /> : <Sparkles className="h-3.5 w-3.5" />}
           {busy ? "thinking…" : plan ? "Regenerate workout" : "Generate Workout"}
@@ -674,13 +674,13 @@ function WorkoutCard({
       </div>
 
       {error && (
-        <p className="mt-3 text-[12px] rounded-md px-3 py-2" role="alert" style={{ color: "var(--df-destructive-text)", background: "color-mix(in srgb, var(--df-destructive) 12%, transparent)" }}>
+        <p className="mt-3 text-[12px] rounded-[14px] px-3 py-2" role="alert" style={{ color: "var(--df-destructive-text)", background: "color-mix(in srgb, var(--df-destructive) 12%, transparent)" }}>
           {error}
         </p>
       )}
 
       {plan && (
-        <div className="mt-3 rounded-lg p-3.5" style={{ background: "var(--df-chip-fill)", border: "0.5px solid var(--df-chip-border)" }}>
+        <div className="mt-3 rounded-[16px] p-3.5" style={{ background: "var(--df-chip-fill)", border: "0.5px solid var(--df-chip-border)" }}>
           <p className="text-[13px] font-bold" style={{ color: "var(--df-text-primary)" }}>
             {plan.title}
             {plan.durationMinutes ? <span className="font-medium" style={{ color: "var(--df-text-muted)" }}> · {fmtDuration(plan.durationMinutes)}</span> : null}

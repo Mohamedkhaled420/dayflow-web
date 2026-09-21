@@ -350,6 +350,44 @@
   --df-landing-fab: #4ade80;
   --df-landing-fab-ink: #052e16;
 
+  /* --- Phase 11 signature surfaces — progress card / calendar /
+     time pills / quick actions (reference screens 2026-09-22). ---
+     Progress: the CHARCOAL hero card with the sunny yellow ring
+     ("Excellent! Your today's plan is almost done" · 75%).
+     Calendar: warm-yellow header band; date pills (selected =
+     charcoal capsule, rest = white). TimeGrid: mint selected
+     start-time pill in the add-block sheet. QuickActions: the
+     pastel category cards under "How can I help you today?"
+     (tourism / cooking / sport / art) — card fills are content
+     colors (fixed pastels, ink stays charcoal in both modes). */
+  --df-progress-card-fill: linear-gradient(135deg, #292524 0%, #1c1917 100%);
+  --df-progress-card-edge: rgba(255, 255, 255, 0.14);
+  --df-progress-card-shadow: 0 8px 22px rgba(28, 25, 23, 0.32);
+  --df-progress-card-ink: #fffbf5;
+  --df-progress-card-ink-soft: rgba(255, 251, 245, 0.74);
+  --df-progress-ring: #fcd34d;
+  --df-progress-ring-track: rgba(255, 251, 245, 0.16);
+  --df-calendar-head: linear-gradient(135deg, #fef08a 0%, #fcd34d 100%);
+  --df-calendar-head-ink: #1c1917;
+  --df-date-pill-fill: #ffffff;
+  --df-date-pill-border: rgba(28, 25, 23, 0.14);
+  --df-date-pill-active: #1c1917;
+  --df-date-pill-active-ink: #fffbf5;
+  --df-time-pill-fill: #f1f5f9;
+  --df-time-pill-border: rgba(28, 25, 23, 0.08);
+  --df-time-pill-active: #6ee7b7;
+  --df-time-pill-active-ink: #0f172a;
+  --df-quick-ink: #1c1917;
+  --df-quick-tag-fill: rgba(255, 255, 255, 0.93);
+  --df-quick-tag-ink: #1c1917;
+  /* quick-action card art (fixed family — dark inherits) */
+  --df-quick-art-ink: #1c1917;
+  --df-quick-art-accent: #ffffff;
+  --df-quick-art-shadow: rgba(28, 25, 23, 0.14);
+  --df-quick-card-shadow: 0 4px 14px rgba(28, 25, 23, 0.1);
+  --df-quick-ring-bg: rgba(255, 255, 255, 0.55);
+  --df-quick-ring-shadow: 0 4px 10px rgba(28, 25, 23, 0.16);
+
   /* --- Legacy logo tokens (v0 LogoBadge — component is retired;
      values preserved for reference, nothing consumes them). --- */
   --df-logo-gradient: linear-gradient(
@@ -546,6 +584,35 @@
   --df-hero-panel-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
   --df-hero-badge-fill: rgba(30, 27, 46, 0.55);
   --df-hero-badge-border: rgba(255, 255, 255, 0.14);
+
+  /* --- Phase 11 signature surfaces (dark) ---
+     Progress card inverts to the raised plum panel with a soft
+     gold ring. Calendar head drops the yellow band for the plum
+     gradient; selected date pill = lavender (the dark-mode CTA
+     inversion). Time pills ride the plum control tints with the
+     mint active state kept (6.9:1 on mint). Quick-action card
+     fills stay the fixed pastels — ink stays charcoal in both
+     modes, so they read as bright tiles on the plum night. */
+  --df-progress-card-fill: linear-gradient(135deg, #38315c 0%, #252043 100%);
+  --df-progress-card-edge: rgba(255, 255, 255, 0.12);
+  --df-progress-card-shadow: 0 8px 22px rgba(0, 0, 0, 0.45);
+  --df-progress-card-ink: #f5f3ff;
+  --df-progress-card-ink-soft: rgba(245, 243, 255, 0.74);
+  --df-progress-ring: #fde68a;
+  --df-progress-ring-track: rgba(255, 255, 255, 0.14);
+  --df-calendar-head: linear-gradient(135deg, #38315c 0%, #2a2547 100%);
+  --df-calendar-head-ink: #f5f3ff;
+  --df-date-pill-fill: #332d52;
+  --df-date-pill-border: #474070;
+  --df-date-pill-active: #ddd6fe;
+  --df-date-pill-active-ink: #1e1b2e;
+  --df-time-pill-fill: #332d52;
+  --df-time-pill-border: #474070;
+  --df-time-pill-active: #6ee7b7;
+  --df-time-pill-active-ink: #0f172a;
+  --df-quick-ink: #1c1917;
+  --df-quick-tag-fill: rgba(255, 255, 255, 0.93);
+  --df-quick-tag-ink: #1c1917;
 
   /* --- Phase 8: Dia chat shell (dark) --- */
   --df-chrome-fill: #252043;

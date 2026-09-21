@@ -153,7 +153,7 @@ export function ShortcutsSetupCard() {
 
   return (
     <section
-      className="rounded-lg p-4 mt-4"
+      className="rounded-[20px] p-4 mt-4"
       style={{
         background: "var(--df-daily-grid-fill)",
         border: "0.5px solid var(--df-daily-grid-border)",
@@ -188,7 +188,7 @@ export function ShortcutsSetupCard() {
         </label>
         <div className="mt-1.5 flex gap-2 max-w-full items-center">
           <code
-            className="flex-1 min-w-0 truncate rounded-md px-3 h-9 flex items-center text-[12px]"
+            className="flex-1 min-w-0 truncate rounded-full px-3.5 h-9 flex items-center text-[12px]"
             style={{
               background: "var(--df-input-fill)",
               border: "0.5px solid var(--df-input-border)",
@@ -220,7 +220,7 @@ export function ShortcutsSetupCard() {
         </label>
         <div className="mt-1.5 flex gap-2 max-w-full items-center">
           <code
-            className="flex-1 min-w-0 truncate rounded-md px-3 h-9 flex items-center text-[12px]"
+            className="flex-1 min-w-0 truncate rounded-full px-3.5 h-9 flex items-center text-[12px]"
             style={{
               background: "var(--df-input-fill)",
               border: "0.5px solid var(--df-input-border)",
@@ -293,7 +293,7 @@ export function ShortcutsSetupCard() {
         </div>
         <div className="mt-2 flex gap-2 max-w-full items-start">
           <pre
-            className="flex-1 min-w-0 overflow-x-auto rounded-md px-3 py-2.5 text-[11.5px] leading-relaxed"
+            className="flex-1 min-w-0 overflow-x-auto rounded-[14px] px-3 py-2.5 text-[11.5px] leading-relaxed"
             style={{
               background: "var(--df-input-fill)",
               border: "0.5px solid var(--df-input-border)",

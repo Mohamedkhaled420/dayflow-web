@@ -33,6 +33,18 @@ export const CATEGORY_COLORS = {
 /** Fallback color for events whose category was deleted. */
 export const UNTRACKED_COLOR = "#A1A1AA";
 
+/** Phase 11 — quick-action category card fills (the reference
+ *  chat home's "How can I help you today?" grid). The
+ *  300-generation pastels: card SURFACES, not event fills, so
+ *  they sit one step lighter than CATEGORY_COLORS. Fixed in both
+ *  modes — ink stays charcoal (--df-quick-ink). */
+export const QUICK_ACTION_COLORS = {
+  trip: "#FDE047", // yellow-300 (reference: tourism)
+  cooking: "#FDBA74", // orange-300 (reference: cooking)
+  sport: "#F9A8D4", // pink-300 (reference: sport)
+  art: "#86EFAC", // green-300 (reference: art)
+} as const satisfies Record<string, string>;
+
 /** The 12 swatches offered in Settings → Categories. */
 export const CATEGORY_SWATCHES = [
   "#818CF8",

@@ -379,7 +379,7 @@ export function WeeklyView() {
             ).map(({ day, dateLabel, event }) => (
               <div
                 key={event.id}
-                className="flex items-center gap-2.5 rounded-md px-2.5 py-2"
+                className="flex items-center gap-2.5 rounded-[14px] px-2.5 py-2"
                 style={{
                   background: "var(--df-chip-fill)",
                   border: "0.5px solid var(--df-chip-border)",

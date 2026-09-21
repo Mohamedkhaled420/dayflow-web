@@ -263,7 +263,7 @@ function MealCaptureForm({ onClose, dateKey }: { onClose: () => void; dateKey?: 
       <Header step={step} onClose={onClose} />
       {error && (
         <div
-          className="mt-3 rounded-md px-3 py-2 text-[12px]"
+          className="mt-3 rounded-[14px] px-3 py-2 text-[12px]"
           style={{
             background: "color-mix(in srgb, var(--df-destructive-soft) 12%, transparent)",
             border: "0.5px solid color-mix(in srgb, var(--df-destructive-soft) 30%, transparent)",
@@ -339,7 +339,7 @@ function MealCaptureForm({ onClose, dateKey }: { onClose: () => void; dateKey?: 
               onChange={(e) => setNote(e.target.value.slice(0, 200))}
               placeholder="e.g. large plate, half eaten"
               aria-label="Photo note"
-              className="df-input-glass w-full rounded-md px-3 h-11 outline-none text-base"
+              className="df-input-glass w-full rounded-full px-4 h-11 outline-none text-base"
               style={{
                 color: "var(--df-text-primary)",
               }}
@@ -371,7 +371,7 @@ function MealCaptureForm({ onClose, dateKey }: { onClose: () => void; dateKey?: 
             placeholder="2 eggs and toast with avocado"
             aria-label="Meal description"
             rows={3}
-            className="df-input-glass w-full rounded-md px-3 py-2.5 outline-none text-base resize-none"
+            className="df-input-glass w-full rounded-[16px] px-4 py-2.5 outline-none text-base resize-none"
             style={{
               color: "var(--df-text-primary)",
             }}
@@ -397,7 +397,7 @@ function MealCaptureForm({ onClose, dateKey }: { onClose: () => void; dateKey?: 
         <div className="mt-4">
           {step === "confirm" && (
             <div
-              className="mb-3 rounded-md px-3 py-2 text-[11px] font-semibold"
+              className="mb-3 rounded-full px-3.5 py-2 text-[11px] font-semibold"
               style={{
                 background:
                   source === "ai"
@@ -418,7 +418,7 @@ function MealCaptureForm({ onClose, dateKey }: { onClose: () => void; dateKey?: 
             onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value.slice(0, 80) }))}
             placeholder="Grilled chicken salad"
             aria-label="Meal name"
-            className="w-full rounded-md px-3 h-12 outline-none text-base"
+            className="w-full rounded-full px-4 h-12 outline-none text-base"
             style={{
               background: "var(--df-input-fill)",
               border: "0.5px solid var(--df-input-border)",
@@ -590,7 +590,7 @@ function MacroInput({
         <span className="normal-case font-medium opacity-70"> ({unit})</span>
       </FieldLabel>
       <div
-        className="df-input-glass mt-1.5 rounded-md px-3 h-12 flex items-center"
+        className="df-input-glass mt-1.5 rounded-full px-4 h-12 flex items-center"
         style={{
           border: `0.5px solid color-mix(in srgb, ${color} 30%, var(--df-input-border))`,
         }}

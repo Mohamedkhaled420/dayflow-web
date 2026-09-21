@@ -128,6 +128,21 @@ export function TimelineView() {
 
   const dateKey = keyForOffset(dayOffset);
   const dayEvents = useMemo(() => eventsForDay(data.events, dateKey), [data.events, dateKey]);
+  const trackedMin = useMemo(
+    () => totalTracked(data.events, dateKey),
+    [data.events, dateKey]
+  );
+  // Up next (Phase 11): today's remaining blocks for the horizontal
+  // "Today's Schedule" rail from the reference home screen — blocks
+  // whose latest minute is still ahead of now (ongoing included).
+  const upNext = useMemo(() => {
+    if (dayOffset !== 0) return [];
+    const now = nowMinutes() - 15;
+    return dayEvents
+      .filter((e) => Math.max(toMinutes(e.start), toMinutes(e.end)) > now)
+      .sort((a, b) => toMinutes(a.start) - toMinutes(b.start))
+      .slice(0, 8);
+  }, [dayEvents, dayOffset]);
 
   // Circadian zones (T1c): MCTQ windows from the profile's
   // chronobiology section — naturalWakeTime + target sleep duration.
@@ -231,12 +246,14 @@ export function TimelineView() {
     <div className="flex flex-col lg:flex-row h-full min-h-0">
       {/* ------- timeline column ------- */}
       <div className="flex-1 min-w-0 min-h-0 flex flex-col">
-        {/* Lively Pastel hero (Phase 10) — the periwinkle greeting
-            card from the reference home screen: "Hey, {name}" + a
-            white streak badge + the ONE charcoal pill CTA. Sits at
-            the top of the timeline on every breakpoint. */}
+        {/* Lively Pastel hero (Phase 10 + 11) — the reference home:
+            periwinkle greeting card ("Hey, {name}" + streak badge +
+            the ONE charcoal pill CTA) beside the CHARCOAL progress
+            card with the sunny yellow ring ("Excellent! · % of the
+            day mapped"). Stacks on phones, pairs from sm up. */}
+        <div className="df-rise mx-4 mt-4 mb-1 flex shrink-0 flex-col gap-2 sm:mx-5 sm:flex-row">
         <section
-          className="df-rise relative mx-4 mt-4 mb-1 shrink-0 overflow-hidden rounded-[24px] px-5 py-4 sm:mx-5"
+          className="relative flex-1 min-w-0 overflow-hidden rounded-[24px] px-5 py-4"
           style={{
             background: "var(--df-hero-panel)",
             border: "0.5px solid var(--df-hero-panel-edge)",
@@ -280,6 +297,25 @@ export function TimelineView() {
             Plan today
           </button>
         </section>
+          <ProgressHeroCard trackedMin={trackedMin} blocks={dayEvents.length} />
+        </div>
+
+        {/* Up next — the reference's horizontal "Today's Schedule"
+            rail: the day's remaining blocks as pastel cards with the
+            circular category medallions; tap selects + scrolls the
+            timeline to the block. */}
+        {mode === "day" && (
+          <UpNextRail
+            events={upNext}
+            onSelect={(id) => {
+              hapticSelect();
+              setSelectedId(id);
+              document
+                .querySelector(`[data-seg-id="${id}"]`)
+                ?.scrollIntoView({ behavior: "smooth", block: "center" });
+            }}
+          />
+        )}
 
         <header className="df-timeline-header px-4 sm:px-5 pt-3 pb-2.5 flex flex-wrap items-center gap-x-2 gap-y-2">
           <div className="flex items-center gap-1.5">
@@ -436,9 +472,87 @@ export function TimelineView() {
                 border: "0.5px solid var(--df-card-border)",
                 boxShadow: "var(--df-material-shadow)",
               }}
-              className="relative z-[60] mx-4 sm:mx-5 mb-3 rounded-lg p-3 backdrop-blur-xl saturate-180 w-[266px]"
+              className="relative z-[60] mx-4 mb-3 w-[282px] overflow-hidden rounded-[20px] backdrop-blur-xl saturate-180 sm:mx-5"
             >
-              <div className="grid grid-cols-7 gap-1.5">
+              {/* Phase 11 — warm-yellow head band (the reference
+                  calendar screen): month label + a Today quick-jump. */}
+              <div
+                className="flex items-center justify-between gap-2 px-3.5 py-2"
+                style={{ background: "var(--df-calendar-head)" }}
+              >
+                <p
+                  className="text-[12px] font-extrabold capitalize leading-none"
+                  style={{ color: "var(--df-calendar-head-ink)" }}
+                >
+                  {new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+                </p>
+                <button
+                  onClick={() => {
+                    setDayOffset(0);
+                    setSelectedId(null);
+                    setShowCalendar(false);
+                  }}
+                  className="df-press rounded-full px-2.5 py-1 text-[10px] font-bold leading-none"
+                  style={{
+                    background: "var(--df-date-pill-fill)",
+                    border: "0.5px solid var(--df-date-pill-border)",
+                    color: "var(--df-text-primary)",
+                  }}
+                >
+                  Today
+                </button>
+              </div>
+
+              {/* date pill strip — ±3 days around the selection (the
+                  reference date pills: white capsules, selected =
+                  charcoal capsule with stacked weekday + number) */}
+              <div className="df-scroll flex gap-1.5 overflow-x-auto px-3 py-2.5">
+                {[-3, -2, -1, 0, 1, 2, 3].map((o) => {
+                  const d = new Date();
+                  d.setDate(d.getDate() + o);
+                  const active = o === dayOffset;
+                  return (
+                    <button
+                      key={o}
+                      disabled={o > 0}
+                      onClick={() => {
+                        setDayOffset(o);
+                        setSelectedId(null);
+                        setShowCalendar(false);
+                      }}
+                      className="df-press flex h-[46px] w-[36px] shrink-0 flex-col items-center justify-center gap-[2px] rounded-[14px] disabled:opacity-35"
+                      style={
+                        active
+                          ? {
+                              background: "var(--df-date-pill-active)",
+                              color: "var(--df-date-pill-active-ink)",
+                            }
+                          : {
+                              background: "var(--df-date-pill-fill)",
+                              border: "0.5px solid var(--df-date-pill-border)",
+                              color: "var(--df-text-primary)",
+                            }
+                      }
+                      aria-pressed={active}
+                      aria-label={d.toLocaleDateString("en-US", {
+                        weekday: "long",
+                        month: "long",
+                        day: "numeric",
+                      })}
+                    >
+                      <span className="text-[8.5px] font-bold uppercase leading-none">
+                        {d.toLocaleDateString("en-US", { weekday: "short" })}
+                      </span>
+                      <span className="text-[13px] font-extrabold leading-none">
+                        {d.getDate()}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* month grid — day cells become full pills */}
+              <div className="grid grid-cols-7 gap-1.5 px-3 pb-3">
                 {["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].map((d) => (
                   <span
                     key={d}
@@ -461,13 +575,12 @@ export function TimelineView() {
                         setSelectedId(null);
                         setShowCalendar(false);
                       }}
-                      className="df-press h-8 rounded-md text-[12px] font-medium disabled:opacity-30"
+                      className="df-press h-8 rounded-full text-[12px] font-medium disabled:opacity-30"
                       style={
                         d.offset === dayOffset
                           ? {
-                              background: "var(--df-primary-btn-fill)",
-                              color: "var(--df-white)",
-                              boxShadow: "inset 0 0 0 1.5px var(--df-primary-btn-border)",
+                              background: "var(--df-date-pill-active)",
+                              color: "var(--df-date-pill-active-ink)",
                             }
                           : {
                               background: "var(--df-chip-fill)",
@@ -587,6 +700,182 @@ export function TimelineView() {
 }
 
 /* ---------------- small pieces ---------------- */
+
+/** Phase 11 — the charcoal "day mapped" card from the reference
+ *  home screen: thick sunny-yellow progress ring on charcoal, a
+ *  tiered headline ("Excellent!" at ≥70%) and the tracked total.
+ *  Coverage = tracked minutes against a 16h waking span — honest
+ *  about being a mapping metric, not a completion promise. */
+function ProgressHeroCard({
+  trackedMin,
+  blocks,
+}: {
+  trackedMin: number;
+  blocks: number;
+}) {
+  const span = 16 * 60;
+  const pct = Math.max(0, Math.min(1, trackedMin / span));
+  const pctLabel = Math.round(pct * 100);
+  const headline =
+    pct >= 0.7
+      ? "Excellent!"
+      : pct >= 0.35
+        ? "Taking shape…"
+        : trackedMin > 0
+          ? "Good start!"
+          : "Nothing tracked yet";
+  const sub =
+    trackedMin > 0
+      ? `${fmtDuration(trackedMin)} mapped · ${blocks} ${blocks === 1 ? "block" : "blocks"}`
+      : "Plan your first block";
+  const r = 25.5;
+  const c = 2 * Math.PI * r;
+  return (
+    <section
+      className="relative flex items-center gap-3.5 overflow-hidden rounded-[24px] px-4 py-3 sm:w-[228px]"
+      style={{
+        background: "var(--df-progress-card-fill)",
+        border: "0.5px solid var(--df-progress-card-edge)",
+        boxShadow: "var(--df-progress-card-shadow)",
+      }}
+      aria-label="Share of the day mapped"
+    >
+      <svg
+        width="60"
+        height="60"
+        viewBox="0 0 60 60"
+        role="img"
+        aria-label={`${pctLabel}% of a 16-hour waking day mapped`}
+        className="shrink-0"
+      >
+        <circle
+          cx="30"
+          cy="30"
+          r={r}
+          fill="none"
+          stroke="var(--df-progress-ring-track)"
+          strokeWidth="9"
+        />
+        <circle
+          cx="30"
+          cy="30"
+          r={r}
+          fill="none"
+          stroke="var(--df-progress-ring)"
+          strokeWidth="9"
+          strokeLinecap="round"
+          strokeDasharray={`${(c * pct).toFixed(2)} ${c.toFixed(2)}`}
+          transform="rotate(-90 30 30)"
+        />
+        <text
+          x="30"
+          y="31"
+          textAnchor="middle"
+          fontSize="13"
+          fontWeight="800"
+          fill="var(--df-progress-card-ink)"
+        >
+          {pctLabel}%
+        </text>
+      </svg>
+      <div className="min-w-0">
+        <p
+          className="truncate text-[13px] font-extrabold leading-tight"
+          style={{ color: "var(--df-progress-card-ink)" }}
+        >
+          {headline}
+        </p>
+        <p
+          className="mt-0.5 text-[10.5px] font-medium leading-tight"
+          style={{ color: "var(--df-progress-card-ink-soft)" }}
+        >
+          {sub}
+        </p>
+      </div>
+    </section>
+  );
+}
+
+/** Phase 11 — "Up next": the reference home's horizontal
+ *  Today's-Schedule rail. Pastel-washed cards with the circular
+ *  white-ringed category medallions; the edge fade signals the
+ *  rail scrolls. Tap = select + scroll the block into view. */
+function UpNextRail({
+  events,
+  onSelect,
+}: {
+  events: TrackEvent[];
+  onSelect: (id: string) => void;
+}) {
+  if (events.length === 0) return null;
+  return (
+    <div className="mx-4 mt-2.5 sm:mx-5" aria-label="Up next today">
+      <div className="flex items-baseline justify-between px-0.5 pb-1.5">
+        <p
+          className="text-[12.5px] font-extrabold leading-none"
+          style={{ color: "var(--df-text-primary)" }}
+        >
+          Up next
+        </p>
+        <p
+          className="text-[10.5px] font-semibold leading-none"
+          style={{ color: "var(--df-text-muted)" }}
+        >
+          {events.length} {events.length === 1 ? "block" : "blocks"} to go
+        </p>
+      </div>
+      <div
+        className="df-scroll df-edge-fade-x -mx-1 flex gap-2 overflow-x-auto px-1 pb-1"
+        role="list"
+        aria-label="Remaining blocks today"
+      >
+        {events.map((event) => {
+          const cat = categoryById(LOGGABLE_CATEGORIES, event.categoryId);
+          return (
+            <button
+              key={event.id}
+              role="listitem"
+              onClick={() => onSelect(event.id)}
+              className="df-press flex w-[156px] shrink-0 items-center gap-2.5 rounded-[16px] px-3 py-2.5 text-left"
+              style={{
+                background: `color-mix(in srgb, ${cat.colorHex} 14%, var(--df-card-fill))`,
+                border: `0.5px solid color-mix(in srgb, ${cat.colorHex} 30%, transparent)`,
+              }}
+              aria-label={`${event.title}, ${cat.name}, ${fmtRange(event)}`}
+            >
+              <span
+                className="grid size-9 shrink-0 place-items-center rounded-full"
+                style={{
+                  background: `color-mix(in srgb, ${cat.colorHex} 26%, var(--df-card-fill))`,
+                  border: "2px solid var(--df-white)",
+                  boxShadow: `0 0 0 2px color-mix(in srgb, ${cat.colorHex} 32%, transparent)`,
+                  color: `color-mix(in srgb, ${cat.colorHex} 62%, var(--df-text-primary))`,
+                }}
+                aria-hidden="true"
+              >
+                <CategoryIcon name={cat.icon} className="h-4 w-4" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span
+                  className="block truncate text-[11.5px] font-bold leading-tight"
+                  style={{ color: "var(--df-text-primary)" }}
+                >
+                  {event.title}
+                </span>
+                <span
+                  className="mt-0.5 block truncate text-[9.5px] font-medium leading-tight"
+                  style={{ color: "var(--df-text-muted)" }}
+                >
+                  {fmtRange(event)}
+                </span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 function NavArrow({
   dir,
@@ -804,6 +1093,7 @@ function DayTimeline({
               return (
                 <button
                   key={event.id}
+                  data-seg-id={event.id}
                   onClick={() => onSelect(event.id)}
                   className="df-mobile-event df-card df-lift flex min-h-16 w-full items-center gap-3 px-3 py-2.5 text-left df-press"
                   style={{
@@ -950,6 +1240,7 @@ function DayTimeline({
           <motion.div
             key={seg.key}
             role="listitem"
+            data-seg-id={seg.event.id}
             initial={{ opacity: 0, x: 14 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{
@@ -1199,7 +1490,7 @@ function WeekTimeline({ dateKey }: { dateKey: string }) {
                 })}
                 {acts.length === 0 && (
                   <div
-                    className="text-[10px] rounded-md py-2 text-center"
+                    className="text-[10px] rounded-[14px] py-2 text-center"
                     style={{ color: "var(--df-text-muted)" }}
                   >
                     {d.isFuture ? "—" : "no data"}
@@ -1301,7 +1592,7 @@ function DaySummaryContent({ dateKey }: { dateKey: string }) {
             return (
               <div
                 key={g.key}
-                className="rounded-md px-2.5 py-2"
+                className="rounded-[14px] px-2.5 py-2"
                 style={{
                   background: "var(--df-chip-fill)",
                   border: "0.5px solid var(--df-chip-border)",
@@ -1349,7 +1640,7 @@ function DaySummaryContent({ dateKey }: { dateKey: string }) {
           Hydration
         </h3>
         <div
-          className="mt-2 rounded-lg p-3"
+          className="mt-2 rounded-[16px] p-3"
           style={{
             background: `color-mix(in srgb, ${WATER} 10%, transparent)`,
             border: `0.5px solid color-mix(in srgb, ${WATER} 38%, transparent)`,
@@ -1564,7 +1855,7 @@ function DetailBody({
 
       <div className="mt-2.5 flex items-center gap-2 flex-wrap">
         <span
-          className="rounded-md px-2.5 py-1 text-[11.5px] font-semibold tabular-nums"
+          className="rounded-full px-2.5 py-1 text-[11.5px] font-semibold tabular-nums"
           style={{
             background: "var(--df-chip-fill)",
             border: "0.5px solid var(--df-chip-border)",
@@ -1575,7 +1866,7 @@ function DetailBody({
           {isOvernight(event) && " +1"}
         </span>
         <span
-          className="rounded-md px-2.5 py-1 text-[11.5px] font-semibold tabular-nums"
+          className="rounded-full px-2.5 py-1 text-[11.5px] font-semibold tabular-nums"
           style={{
             background: "var(--df-chip-fill)",
             border: "0.5px solid var(--df-chip-border)",
@@ -1613,7 +1904,7 @@ function DetailBody({
         </button>
         <button
           onClick={onDelete}
-          className="df-press h-9 px-3.5 rounded-md text-[12px] font-semibold flex items-center gap-1.5"
+          className="df-press h-9 px-3.5 rounded-full text-[12px] font-semibold flex items-center gap-1.5"
           style={{
             background: "color-mix(in srgb, var(--df-destructive) 12%, transparent)",
             border: "0.5px solid color-mix(in srgb, var(--df-destructive) 35%, transparent)",
