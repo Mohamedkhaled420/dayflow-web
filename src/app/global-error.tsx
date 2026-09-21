@@ -29,8 +29,8 @@ export default function GlobalError({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          backgroundColor: "#FAF5EC",
-          color: "#362D20",
+          backgroundColor: "#A5B4FC",
+          color: "#1E293B",
           fontFamily:
             "-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif",
         }}
@@ -49,7 +49,7 @@ export default function GlobalError({
               fontSize: "0.8125rem",
               letterSpacing: "0.08em",
               textTransform: "uppercase",
-              color: "#A99D89",
+              color: "#3F4668",
             }}
           >
             Dayflow
@@ -69,7 +69,7 @@ export default function GlobalError({
               margin: "0 0 1.75rem",
               fontSize: "0.9375rem",
               lineHeight: 1.6,
-              color: "#7A6F5D",
+              color: "#3F4668",
             }}
           >
             An unexpected error interrupted this page. Your data is safe — it
@@ -77,7 +77,7 @@ export default function GlobalError({
             {error?.digest ? (
               <>
                 <br />
-                <span style={{ fontSize: "0.8125rem", color: "#A99D89" }}>
+                <span style={{ fontSize: "0.8125rem", color: "#3F4668" }}>
                   Reference: {error.digest}
                 </span>
               </>
@@ -88,10 +88,10 @@ export default function GlobalError({
             onClick={() => reset()}
             style={{
               appearance: "none",
-              border: "1px solid #362D20",
-              borderRadius: "0.5rem",
-              backgroundColor: "#D9480F",
-              borderColor: "#D9480F",
+              border: "1px solid #1C1917",
+              borderRadius: "9999px",
+              backgroundColor: "#1C1917",
+              borderColor: "#1C1917",
               color: "#ffffff",
               fontSize: "0.9375rem",
               fontWeight: 500,

@@ -9,27 +9,33 @@
       extracted from globals.css so it is the ONLY stylesheet
       allowed to hold literal color values (PRD §5.2).
 
-   Phase 9 — "Sunrise Flow" rebrand (2026-09):
+   Phase 10 — "Lively Pastel" revamp (2026-09):
    The §df-* legacy layer was VALUE-REMAPPED in place (same
-   discipline as Phase 8). Token NAMES are frozen (six legacy
-   views + dialogs reference them), so the rebrand lands
-   atomically across Timeline / Daily / Weekly / Habits /
-   Journal / Settings without touching view code.
-   Palette: Warm Ivory light surfaces (#FAF5EC window,
-   #FFFCF5 cards, espresso #362D20 ink) with Electric
-   Tangerine #FF5A1F as the brand accent; warm-espresso dark
-   (#1C1917 / #262220 / #2A2520) with #FF7A45 accents.
-   Typography: Bricolage Grotesque (--font-bricolage).
+   discipline as Phases 8/9: token NAMES stay frozen, only
+   values change — six legacy views + dialogs reference them,
+   so the revamp lands atomically without touching view code).
+   Direction: playful AI-assistant aesthetic (reference: elite/
+   Duolingo/Headspace family). Light = soft periwinkle window
+   (#A5B4FC) with cream cards (#FFFBF5), slate-800 ink, pastel
+   category surfaces (lavender / mint / pink / peach / cyan /
+   lime) and CHARCOAL pill CTAs (#1C1917). Dark = deep plum
+   (#1E1B2E / #2A2547) where the charcoal CTA flips to a
+   pastel-lavender pill. Typography: Nunito (--font-nunito).
+   The custom liquid-glass engine is RETAINED and retinted
+   (periwinkle-light sheens, indigo shades, cream frosts).
+   Radii are the signature: panels 24px, cards 20px, buttons
+   FULL PILLS, inputs 16px+ — soft, tactile, capsule-first.
    All TEXT tokens clear WCAG 2.1 AA 4.5:1 against their
-   composited surface: light muted #7A6F5D (4.54:1 on
-   #FAF5EC), light accent-text #C2410C (7.1:1), CTA
-   white-on-#D9480F (5.5:1 — the AA anchor is the gradient
-   MID-STOP; the brighter top stop is a specular highlight,
-   same as the previous blue CTA).
-   CTA discipline: in-app buttons are SOLID (tangerine
-   primary / warm-sand secondary); the tangerine→gold
-   GRADIENT exists only as --df-hero-gradient for the landing
-   hero CTA.
+   composited surface: on periwinkle #A5B4FC — primary ink
+   #1E293B (7.3:1), secondary/muted #3F4668 (4.58:1), accent-
+   text #3730A3 (4.98:1); on cream #FFFBF5 all exceed 8:1.
+   On dark card #2A2547 — foreground #F5F3FF (15:1), muted
+   #B4AECF (6.8:1), accent-text #C7D2FE (9.7:1).
+   CTA discipline: in-app buttons are SOLID (charcoal primary /
+   translucent-white secondary in light; lavender pill in dark);
+   the indigo→charcoal GRADIENT exists only as --df-hero-gradient
+   for the landing hero CTA (the lime landing is painted by the
+   marketing layer).
    Performance discipline: --df-chat-aurora is STATIC (no
    animated blur/gradient inside the authenticated app).
    ============================================================ */
@@ -68,7 +74,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-bricolage);
+  --font-sans: var(--font-nunito);
   --font-mono: var(--font-geist-mono);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -101,135 +107,135 @@
 }
 
 /* ============================================================
-   3. Dayflow tokens — Phase 9 "Sunrise Flow" values
+   3. Dayflow tokens — Phase 10 "Lively Pastel" values
    Light values in :root, dark values in .dark.
    Every literal color used by the app lives HERE.
    ============================================================ */
 
 :root {
-  --radius: 0.375rem;
+  --radius: 1rem;
 
-  /* shadcn base (Sunrise Flow light — Warm Ivory, kept for ui components) */
-  --background: #faf5ec;
-  --foreground: #362d20;
-  --card: #fffcf5;
-  --card-foreground: #362d20;
-  --popover: #fffcf5;
-  --popover-foreground: #362d20;
-  --primary: #d9480f;
+  /* shadcn base (Lively Pastel light — periwinkle + cream) */
+  --background: #a5b4fc;
+  --foreground: #1e293b;
+  --card: #fffbf5;
+  --card-foreground: #1e293b;
+  --popover: #ffffff;
+  --popover-foreground: #1e293b;
+  --primary: #1c1917;
   --primary-foreground: #ffffff;
-  --secondary: #f3ecdd;
-  --secondary-foreground: #362d20;
-  --muted: #f3ecdd;
-  --muted-foreground: #7a6f5d;
-  --accent: #f5edde;
-  --accent-foreground: #362d20;
+  --secondary: #e4e2fb;
+  --secondary-foreground: #1e293b;
+  --muted: #e4e2fb;
+  --muted-foreground: #3f4668;
+  --accent: #ede9fe;
+  --accent-foreground: #1e293b;
   --destructive: #e03e3e;
   --destructive-foreground: #ffffff;
-  --border: #eae1cf;
-  --input: #ddd2ba;
-  --ring: #ff5a1f;
-  --sidebar: #f7f1e4;
-  --sidebar-foreground: #362d20;
-  --sidebar-primary: #d9480f;
+  --border: rgba(255, 255, 255, 0.55);
+  --input: #d6d3f8;
+  --ring: #6366f1;
+  --sidebar: #b9c3fd;
+  --sidebar-foreground: #1e293b;
+  --sidebar-primary: #1c1917;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #f0e7d5;
-  --sidebar-accent-foreground: #362d20;
-  --sidebar-border: #e7dcc6;
-  --sidebar-ring: #ff5a1f;
+  --sidebar-accent: #ffffff;
+  --sidebar-accent-foreground: #1e293b;
+  --sidebar-border: rgba(255, 255, 255, 0.45);
+  --sidebar-ring: #6366f1;
 
-  /* --- Dayflow light theme (Sunrise Flow — Warm Ivory) --- */
-  --df-window-bg: #faf5ec;
-  --df-window-border: #eae1cf;
-  --df-panel-fill: #fffcf5;
-  --df-panel-border: #eae1cf;
-  --df-panel-shadow: rgba(84, 56, 20, 0.08);
+  /* --- Dayflow light theme (Lively Pastel — periwinkle day) --- */
+  --df-window-bg: #a5b4fc;
+  --df-window-border: #8b93f2;
+  --df-panel-fill: #fffbf5;
+  --df-panel-border: rgba(255, 255, 255, 0.55);
+  --df-panel-shadow: 0 6px 20px rgba(67, 56, 202, 0.15);
   --df-panel-inner-glow: rgba(255, 255, 255, 0);
 
-  --df-sidebar-selected-fill: #f0e7d5;
-  --df-sidebar-selected-border: #e3d7bc;
-  --df-sidebar-selected-glow: rgba(255, 255, 255, 0);
-  --df-sidebar-label: #7a6f5d;
-  --df-sidebar-label-active: #362d20;
+  --df-sidebar-selected-fill: #ffffff;
+  --df-sidebar-selected-border: rgba(255, 255, 255, 0.7);
+  --df-sidebar-selected-glow: 0 2px 8px rgba(67, 56, 202, 0.15);
+  --df-sidebar-label: #3f4668;
+  --df-sidebar-label-active: #1e293b;
 
-  --df-text-primary: #362d20;
-  --df-text-secondary: #6b5f4e;
-  --df-text-tertiary: #857a67;
-  --df-text-muted: #7a6f5d;
-  --df-accent: #ff5a1f;
-  --df-accent-text: #c2410c;
+  --df-text-primary: #1e293b;
+  --df-text-secondary: #3f4668;
+  --df-text-tertiary: #475569;
+  --df-text-muted: #3f4668;
+  --df-accent: #6366f1;
+  --df-accent-text: #3730a3;
 
-  --df-control-fill: #f3ecdd;
-  --df-control-border: #e3d7bc;
-  --df-control-glow: rgba(255, 255, 255, 0);
-  --df-control-text: #362d20;
+  --df-control-fill: #ffffff;
+  --df-control-border: rgba(255, 255, 255, 0.6);
+  --df-control-glow: 0 2px 8px rgba(67, 56, 202, 0.12);
+  --df-control-text: #1e293b;
 
-  --df-segment-track: #f3ecdd;
-  --df-segment-track-border: #eae1cf;
-  --df-segment-inactive: #857a67;
+  --df-segment-track: rgba(255, 255, 255, 0.55);
+  --df-segment-track-border: rgba(255, 255, 255, 0.4);
+  --df-segment-inactive: #3f4668;
 
-  --df-card-fill: #fffcf5;
-  --df-card-border: #eae1cf;
-  --df-card-glow: rgba(255, 255, 255, 0);
-  --df-card-time: #857a67;
+  --df-card-fill: #fffbf5;
+  --df-card-border: rgba(255, 255, 255, 0.5);
+  --df-card-glow: 0 4px 14px rgba(67, 56, 202, 0.12);
+  --df-card-time: #475569;
 
-  --df-hour-label: #7a6f5d;
-  --df-hour-label-future: #a99d89;
-  --df-hour-line: rgba(54, 45, 32, 0.12);
+  --df-hour-label: #3f4668;
+  --df-hour-label-future: #6e76b8;
+  --df-hour-line: rgba(30, 41, 59, 0.1);
 
-  --df-right-panel-fill: #f7f1e4;
-  --df-right-panel-border: #eae1cf;
-  --df-right-panel-divider: #ede4d0;
+  --df-right-panel-fill: #ffffff;
+  --df-right-panel-border: rgba(255, 255, 255, 0.6);
+  --df-right-panel-divider: #ede9fe;
 
-  --df-summary-card-fill: #f7f1e4;
-  --df-summary-card-border: #ede4d0;
-  --df-summary-value: #c2410c;
+  --df-summary-card-fill: #f5f3ff;
+  --df-summary-card-border: #e4e1fb;
+  --df-summary-value: #4338ca;
 
-  --df-donut-ring-bg: #f3ecdd;
-  --df-donut-center: #fffcf5;
+  --df-donut-ring-bg: rgba(255, 255, 255, 0.6);
+  --df-donut-center: #fffbf5;
 
   /* fill moved to the Liquid Glass T2 block below (translucent) */
-  --df-secondary-btn-border: #ddd2ba;
-  --df-secondary-btn-text: #362d20;
+  --df-secondary-btn-border: rgba(255, 255, 255, 0.65);
+  --df-secondary-btn-text: #1e293b;
 
   --df-primary-btn-fill: linear-gradient(
     180deg,
-    #ee5d2a 0%,
-    #d9480f 52%,
-    #bc410d 100%
+    #2e2a35 0%,
+    #1c1917 100%
   );
-  --df-primary-btn-border: #c2410c;
+  --df-primary-btn-border: #1c1917;
   --df-primary-btn-text: #ffffff;
 
   --df-chip-fill: linear-gradient(
     180deg,
-    rgba(255, 252, 245, 0.92) 0%,
-    rgba(255, 252, 245, 0.38) 100%
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(255, 255, 255, 0.55) 100%
   );
-  --df-chip-border: #d9ccb0;
+  --df-chip-border: rgba(255, 255, 255, 0.6);
 
-  --df-input-fill: #fffcf5;
-  --df-input-border: #ddd2ba;
+  --df-input-fill: #ffffff;
+  --df-input-border: #d6d3f8;
 
-  --df-daily-grid-fill: #f7f1e4;
-  --df-daily-grid-border: #ede4d0;
-  --df-daily-empty: rgba(54, 45, 32, 0.05);
-  --df-daily-stat-value: #857a67;
+  --df-daily-grid-fill: #fffbf5;
+  --df-daily-grid-border: rgba(255, 255, 255, 0.5);
+  --df-daily-empty: rgba(30, 41, 59, 0.06);
+  --df-daily-stat-value: #475569;
 
-  --df-chat-soft-fill: #fdebdd;
-  --df-chat-soft-border: rgba(255, 90, 31, 0.3);
-  --df-chat-code: #f3ecdd;
-  --df-empty-cell: rgba(54, 45, 32, 0.05);
-  --df-mobile-nav-fill: rgba(255, 252, 245, 0.92);
+  --df-chat-soft-fill: #fef3c7;
+  --df-chat-soft-border: rgba(245, 158, 11, 0.25);
+  --df-chat-code: #f5f3ff;
+  --df-empty-cell: rgba(30, 41, 59, 0.06);
+  --df-mobile-nav-fill: rgba(255, 255, 255, 0.85);
 
-  /* --- Floating material layer (light) --- */
-  --df-material-bg: rgba(255, 252, 245, 0.88);
-  --df-material-edge: rgba(255, 252, 245, 0.75);
-  --df-material-shadow: 0 8px 30px rgba(84, 56, 20, 0.12),
-    0 1px 3px rgba(84, 56, 20, 0.06);
-  --df-dock-bg: rgba(255, 252, 245, 0.92);
-  --df-dock-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.85),
-    0 12px 38px rgba(66, 42, 10, 0.18), 0 2px 6px rgba(66, 42, 10, 0.09);
+  /* --- Floating material layer (light) ---
+     Cream frosted glass floating over the periwinkle day. */
+  --df-material-bg: rgba(255, 251, 245, 0.85);
+  --df-material-edge: rgba(255, 255, 255, 0.7);
+  --df-material-shadow: 0 10px 34px rgba(67, 56, 202, 0.22),
+    0 2px 6px rgba(67, 56, 202, 0.1);
+  --df-dock-bg: rgba(255, 255, 255, 0.78);
+  --df-dock-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.9),
+    0 12px 32px rgba(67, 56, 202, 0.28), 0 2px 8px rgba(67, 56, 202, 0.12);
 
   /* --- Liquid Glass T2 — buttons, chips, inputs (v3, 2026-09) ---
      Gradient-glass control surfaces in the callstack/liquid-glass
@@ -237,79 +243,85 @@
      translucency. Deliberately NO backdrop-filter here — these ride
      INSIDE frosted sheets and panels (ban list #12: never stack
      backdrop-filter on backdrop-filter); the liquid read comes from
-     layered light, not live refraction. */
-  --df-glass-sheen: rgba(255, 255, 255, 0.65);
-  --df-glass-sheen-soft: rgba(255, 255, 255, 0.45);
-  --df-glass-shade: rgba(97, 48, 10, 0.13);
-  --df-glass-sweep: rgba(255, 255, 255, 0.5);
-  --df-primary-btn-sheen: rgba(255, 255, 255, 0.7);
-  --df-primary-btn-shade: rgba(74, 30, 5, 0.32);
-  /* light pool under primary CTAs */
-  --df-primary-btn-halo: color-mix(in srgb, #ff5a1f 55%, transparent);
+     layered light, not live refraction. Lively Pastel retint: the
+     sheen family stays white (it reads as glare on glass) while the
+     shade/halo family moves from umber to INDIGO so glass casts
+     violet-tinged shadows on the periwinkle day. */
+  --df-glass-sheen: rgba(255, 255, 255, 0.7);
+  --df-glass-sheen-soft: rgba(255, 255, 255, 0.5);
+  --df-glass-shade: rgba(49, 46, 129, 0.12);
+  --df-glass-sweep: rgba(255, 255, 255, 0.55);
+  --df-primary-btn-sheen: rgba(255, 255, 255, 0.22);
+  --df-primary-btn-shade: rgba(0, 0, 0, 0.3);
+  /* indigo light pool under charcoal CTAs */
+  --df-primary-btn-halo: color-mix(in srgb, #6366f1 50%, transparent);
   --df-secondary-btn-fill: linear-gradient(
     180deg,
-    rgba(255, 252, 245, 0.78) 0%,
-    rgba(255, 252, 245, 0.42) 100%
+    rgba(255, 255, 255, 0.85) 0%,
+    rgba(255, 255, 255, 0.5) 100%
   );
-  --df-secondary-btn-sheen: rgba(255, 255, 255, 0.6);
-  --df-input-inset: inset 0 1px 2px rgba(54, 45, 32, 0.06);
-  --df-input-glow-ring: color-mix(in srgb, #ff5a1f 15%, transparent);
-  --df-input-glow-border: color-mix(in srgb, #ff5a1f 55%, transparent);
-  --df-footer-veil: rgba(250, 245, 236, 0.92);
+  --df-secondary-btn-sheen: rgba(255, 255, 255, 0.65);
+  --df-input-inset: inset 0 1px 2px rgba(30, 41, 59, 0.06);
+  --df-input-glow-ring: color-mix(in srgb, #6366f1 18%, transparent);
+  --df-input-glow-border: color-mix(in srgb, #6366f1 55%, transparent);
+  --df-footer-veil: rgba(165, 180, 252, 0.9);
 
-  /* --- Phase 0 tokenized chrome (Sunrise Flow values) --- */
+  /* --- Phase 0 tokenized chrome (Lively Pastel values) --- */
   --df-white: #ffffff;
-  --df-scrim: rgba(46, 32, 14, 0.4);
-  --df-sheet-shadow: inset 0 1px 0 rgba(54, 45, 32, 0.05), 0 18px 48px rgba(74, 48, 14, 0.2);
+  --df-scrim: rgba(30, 27, 75, 0.4);
+  --df-sheet-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    0 18px 48px rgba(49, 46, 129, 0.3);
   --df-water-ink: #0e7490;
   --df-destructive: #e03e3e;
   --df-destructive-text: #b3261e;
-  --df-destructive-soft: #f3c2c2;
-  --df-streak: #d9730d;
-  --df-streak-fill: rgba(217, 115, 13, 0.15);
+  --df-destructive-soft: #fecaca;
+  --df-streak: #d97706;
+  --df-streak-fill: rgba(217, 119, 6, 0.18);
 
-  --df-radius-panel: 8px;
-  --df-radius-card: 6px;
-  --df-radius-card-lg: 10px;
-  --df-radius-control: 7px;
-  --df-radius-btn: 10px;
-  --df-radius-focus: 6px;
+  /* --- THE SIGNATURE: capsule radii (Phase 10) --- */
+  --df-radius-panel: 24px;
+  --df-radius-card: 20px;
+  --df-radius-card-lg: 24px;
+  --df-radius-control: 16px;
+  --df-radius-btn: 9999px;
+  --df-radius-focus: 12px;
 
-  --df-primary-btn-glow: 0 1px 2px rgba(74, 30, 5, 0.22);
-  --df-lift-shadow: 0 6px 18px rgba(84, 56, 20, 0.1);
+  --df-primary-btn-glow: 0 4px 14px rgba(28, 25, 23, 0.28);
+  --df-lift-shadow: 0 8px 22px rgba(67, 56, 202, 0.16);
   --df-generating-bg: linear-gradient(
     90deg,
-    rgba(255, 90, 31, 0.24),
-    rgba(255, 90, 31, 0.08)
+    rgba(99, 102, 241, 0.3),
+    rgba(99, 102, 241, 0.12)
   );
 
-  /* --- Phase 8: Dia chat shell (Sunrise Flow, functional) --- */
-  /* Browser chrome bar for the Journal/Coach shell. */
-  --df-chrome-fill: #f7f1e4;
-  --df-chrome-border: #eae1cf;
-  --df-omnibar-fill: #fffcf5;
-  --df-omnibar-border: #e3d7bc;
+  /* --- Phase 8: Dia chat shell (Lively Pastel, functional) --- */
+  /* Browser chrome bar for the Journal/Coach shell. The chat surface
+     drops to warm cream so pastel bubbles pop. */
+  --df-chrome-fill: #fff8f0;
+  --df-chrome-border: rgba(30, 41, 59, 0.08);
+  --df-omnibar-fill: #ffffff;
+  --df-omnibar-border: #e8e2d4;
   /* Traffic lights = live sync status (wired to isSyncing +
      navigator.onLine + syncError). Graphics-level contrast. */
-  --df-sync-ok: #1f883d;
-  --df-sync-pending: #d29922;
-  --df-sync-error: #e03e3e;
+  --df-sync-ok: #16a34a;
+  --df-sync-pending: #d97706;
+  --df-sync-error: #dc2626;
   /* Composer glow (2026-09): the journal/chat composer lights
      up the moment the user starts typing — accent ring + soft
      outer halo, plus a gentle breathe while typing. */
-  --df-composer-glow-ring: color-mix(in srgb, #ff5a1f 22%, transparent);
-  --df-composer-glow-halo: color-mix(in srgb, #ff5a1f 30%, transparent);
-  --df-composer-glow-border: color-mix(in srgb, #ff5a1f 55%, transparent);
+  --df-composer-glow-ring: color-mix(in srgb, #6366f1 22%, transparent);
+  --df-composer-glow-halo: color-mix(in srgb, #6366f1 30%, transparent);
+  --df-composer-glow-border: color-mix(in srgb, #6366f1 55%, transparent);
   /* STATIC aurora tint — never animated inside the app
      (perf budget: no infinite blur/path animations). */
   --df-chat-aurora: radial-gradient(
     120% 90% at 50% 115%,
-    rgba(255, 90, 31, 0.12),
-    rgba(245, 158, 11, 0.07) 45%,
-    rgba(255, 255, 255, 0) 70%
+    rgba(147, 197, 253, 0.25),
+    rgba(253, 186, 116, 0.18) 45%,
+    rgba(255, 248, 240, 0) 70%
   );
   /* Landing-page-only hero CTA gradient (in-app CTAs stay solid). */
-  --df-hero-gradient: linear-gradient(135deg, #ff5a1f 0%, #f59e0b 100%);
+  --df-hero-gradient: linear-gradient(135deg, #4338ca 0%, #1c1917 100%);
 
   /* --- Legacy logo tokens (v0 LogoBadge — component is retired;
      values preserved for reference, nothing consumes them). --- */
@@ -334,149 +346,150 @@
 }
 
 .dark {
-  /* shadcn base (Sunrise Flow dark — warm espresso) */
-  --background: #1c1917;
-  --foreground: #f7f2e9;
-  --card: #262220;
-  --card-foreground: #f7f2e9;
-  --popover: #262220;
-  --popover-foreground: #f7f2e9;
-  --primary: #d9480f;
-  --primary-foreground: #ffffff;
-  --secondary: #2e2924;
-  --secondary-foreground: #e8e0d2;
-  --muted: #2e2924;
-  --muted-foreground: #aba294;
-  --accent: #332d26;
-  --accent-foreground: #f7f2e9;
+  /* shadcn base (Lively Pastel dark — deep plum) */
+  --background: #1e1b2e;
+  --foreground: #f5f3ff;
+  --card: #2a2547;
+  --card-foreground: #f5f3ff;
+  --popover: #2a2547;
+  --popover-foreground: #f5f3ff;
+  --primary: #ddd6fe;
+  --primary-foreground: #1e1b2e;
+  --secondary: #332d52;
+  --secondary-foreground: #e4e1f9;
+  --muted: #332d52;
+  --muted-foreground: #b4aecf;
+  --accent: #38315c;
+  --accent-foreground: #f5f3ff;
   --destructive: #f85149;
   --destructive-foreground: #ffffff;
-  --border: #373028;
-  --input: #453d33;
-  --ring: #ff7a45;
-  --sidebar: #1c1917;
-  --sidebar-foreground: #f7f2e9;
-  --sidebar-primary: #d9480f;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #332d26;
-  --sidebar-accent-foreground: #f7f2e9;
-  --sidebar-border: #373028;
-  --sidebar-ring: #ff7a45;
+  --border: #3a3360;
+  --input: #474070;
+  --ring: #a5b4fc;
+  --sidebar: #1e1b2e;
+  --sidebar-foreground: #f5f3ff;
+  --sidebar-primary: #ddd6fe;
+  --sidebar-primary-foreground: #1e1b2e;
+  --sidebar-accent: #38315c;
+  --sidebar-accent-foreground: #f5f3ff;
+  --sidebar-border: #3a3360;
+  --sidebar-ring: #a5b4fc;
 
-  /* --- Dayflow dark theme (warm espresso) --- */
-  --df-window-bg: #1c1917;
-  --df-window-border: #373028;
-  --df-panel-fill: #262220;
-  --df-panel-border: #373028;
+  /* --- Dayflow dark theme (deep plum, pastel accents) --- */
+  --df-window-bg: #1e1b2e;
+  --df-window-border: #3a3360;
+  --df-panel-fill: #2a2547;
+  --df-panel-border: #3a3360;
   --df-panel-shadow: rgba(0, 0, 0, 0.42);
   --df-panel-inner-glow: rgba(255, 255, 255, 0);
 
-  --df-sidebar-selected-fill: #332d26;
-  --df-sidebar-selected-border: #453d33;
+  --df-sidebar-selected-fill: #38315c;
+  --df-sidebar-selected-border: #474070;
   --df-sidebar-selected-glow: rgba(255, 255, 255, 0);
-  --df-sidebar-label: #aba294;
-  --df-sidebar-label-active: #f7f2e9;
+  --df-sidebar-label: #b4aecf;
+  --df-sidebar-label-active: #f5f3ff;
 
-  --df-text-primary: #f7f2e9;
-  --df-text-secondary: #d8d0c2;
-  --df-text-tertiary: #aba294;
-  --df-text-muted: #aba294;
-  --df-accent: #ff7a45;
-  --df-accent-text: #ffa37a;
+  --df-text-primary: #f5f3ff;
+  --df-text-secondary: #d9d4f0;
+  --df-text-tertiary: #b4aecf;
+  --df-text-muted: #b4aecf;
+  --df-accent: #a5b4fc;
+  --df-accent-text: #c7d2fe;
 
-  --df-control-fill: #353028;
-  --df-control-border: #474035;
+  --df-control-fill: #332d52;
+  --df-control-border: #474070;
   --df-control-glow: rgba(255, 255, 255, 0);
-  --df-control-text: #f7f2e9;
+  --df-control-text: #f5f3ff;
 
-  --df-segment-track: #2b2620;
-  --df-segment-track-border: #453d33;
-  --df-segment-inactive: #aba294;
+  --df-segment-track: #292541;
+  --df-segment-track-border: #3a3360;
+  --df-segment-inactive: #b4aecf;
 
-  --df-card-fill: #2a2520;
-  --df-card-border: #403a30;
+  --df-card-fill: #2e2850;
+  --df-card-border: #3a3360;
   --df-card-glow: rgba(255, 255, 255, 0);
-  --df-card-time: #aba294;
+  --df-card-time: #b4aecf;
 
-  --df-hour-label: #d8d0c2;
-  --df-hour-label-future: #8a8172;
-  --df-hour-line: rgba(255, 255, 255, 0.13);
+  --df-hour-label: #d9d4f0;
+  --df-hour-label-future: #8a83b0;
+  --df-hour-line: rgba(255, 255, 255, 0.12);
 
-  --df-right-panel-fill: #221e1a;
-  --df-right-panel-border: #373028;
-  --df-right-panel-divider: #3a342c;
+  --df-right-panel-fill: #252043;
+  --df-right-panel-border: #3a3360;
+  --df-right-panel-divider: #332d52;
 
-  --df-summary-card-fill: #2a2520;
-  --df-summary-card-border: #403a30;
-  --df-summary-value: #ffa37a;
+  --df-summary-card-fill: #2e2850;
+  --df-summary-card-border: #3a3360;
+  --df-summary-value: #c7d2fe;
 
   --df-donut-ring-bg: rgba(255, 255, 255, 0.12);
-  --df-donut-center: #1c1917;
+  --df-donut-center: #1e1b2e;
 
   /* fill moved to the Liquid Glass T2 dark block below (translucent) */
-  --df-secondary-btn-border: #453d33;
-  --df-secondary-btn-text: #e8e0d2;
+  --df-secondary-btn-border: #474070;
+  --df-secondary-btn-text: #e4e1f9;
 
   /* flat base — the T2 dark block overrides with the glass gradient */
 
-  --df-chip-fill: #2e2924;
-  --df-chip-border: #453d33;
+  --df-chip-fill: #332d52;
+  --df-chip-border: #474070;
 
-  --df-input-fill: #221e1a;
-  --df-input-border: #453d33;
+  --df-input-fill: #252043;
+  --df-input-border: #474070;
 
-  --df-daily-grid-fill: #221e1a;
-  --df-daily-grid-border: #363026;
-  --df-daily-empty: rgba(255, 255, 255, 0.06);
-  --df-daily-stat-value: #9a9182;
+  --df-daily-grid-fill: #252043;
+  --df-daily-grid-border: #332d52;
+  --df-daily-empty: rgba(255, 255, 255, 0.07);
+  --df-daily-stat-value: #a8a1c9;
 
-  --df-chat-soft-fill: rgba(255, 122, 69, 0.16);
-  --df-chat-soft-border: rgba(255, 138, 95, 0.4);
-  --df-chat-code: #2e2924;
-  --df-empty-cell: rgba(255, 255, 255, 0.06);
+  --df-chat-soft-fill: rgba(254, 243, 199, 0.14);
+  --df-chat-soft-border: rgba(254, 243, 199, 0.35);
+  --df-chat-code: #332d52;
+  --df-empty-cell: rgba(255, 255, 255, 0.07);
 
   /* --- Floating material layer (dark) --- */
-  --df-material-bg: rgba(38, 34, 30, 0.82);
-  --df-material-edge: rgba(255, 255, 255, 0.09);
-  --df-material-shadow: 0 10px 34px rgba(0, 0, 0, 0.4),
-    0 1px 3px rgba(0, 0, 0, 0.3);
-  --df-dock-bg: rgba(32, 28, 24, 0.9);
+  --df-material-bg: rgba(42, 37, 71, 0.85);
+  --df-material-edge: rgba(255, 255, 255, 0.1);
+  --df-material-shadow: 0 10px 34px rgba(0, 0, 0, 0.45),
+    0 2px 6px rgba(0, 0, 0, 0.32);
+  --df-dock-bg: rgba(37, 32, 67, 0.9);
   --df-dock-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.12),
     0 14px 42px rgba(0, 0, 0, 0.55);
 
-  /* --- Liquid Glass T2 (dark) — see light block for rationale --- */
-  --df-glass-sheen: rgba(255, 255, 255, 0.22);
-  --df-glass-sheen-soft: rgba(255, 255, 255, 0.12);
-  --df-glass-shade: rgba(0, 0, 0, 0.32);
-  --df-glass-sweep: rgba(255, 255, 255, 0.2);
+  /* --- Liquid Glass T2 (dark) — see light block for rationale ---
+     Dark-mode flip: the pastel rebrand inverts the CTA — instead of
+     charcoal-on-light it becomes a LAVENDER glass pill on plum. */
+  --df-glass-sheen: rgba(255, 255, 255, 0.2);
+  --df-glass-sheen-soft: rgba(255, 255, 255, 0.1);
+  --df-glass-shade: rgba(0, 0, 0, 0.3);
+  --df-glass-sweep: rgba(255, 255, 255, 0.18);
   --df-primary-btn-fill: linear-gradient(
     180deg,
-    #f0663a 0%,
-    #d9480f 55%,
-    #b83e0c 100%
+    #e4ddfe 0%,
+    #c7bffa 100%
   );
-  --df-primary-btn-sheen: rgba(255, 255, 255, 0.42);
-  --df-primary-btn-shade: rgba(0, 0, 0, 0.34);
-  /* light pool under primary CTAs (dark) */
-  --df-primary-btn-halo: color-mix(in srgb, #ff5a1f 70%, transparent);
+  --df-primary-btn-sheen: rgba(255, 255, 255, 0.35);
+  --df-primary-btn-shade: rgba(30, 27, 46, 0.25);
+  /* indigo light pool under lavender CTAs (dark) */
+  --df-primary-btn-halo: color-mix(in srgb, #a5b4fc 65%, transparent);
   --df-secondary-btn-fill: linear-gradient(
     180deg,
     rgba(255, 255, 255, 0.12) 0%,
     rgba(255, 255, 255, 0.04) 100%
   );
   --df-secondary-btn-sheen: rgba(255, 255, 255, 0.14);
-  --df-input-inset: inset 0 1px 2px rgba(0, 0, 0, 0.24);
-  --df-input-glow-ring: color-mix(in srgb, #ff7a45 19%, transparent);
-  --df-input-glow-border: color-mix(in srgb, #ff7a45 58%, transparent);
-  --df-footer-veil: rgba(26, 23, 20, 0.93);
+  --df-input-inset: inset 0 1px 2px rgba(0, 0, 0, 0.25);
+  --df-input-glow-ring: color-mix(in srgb, #a5b4fc 19%, transparent);
+  --df-input-glow-border: color-mix(in srgb, #a5b4fc 58%, transparent);
+  --df-footer-veil: rgba(30, 27, 46, 0.93);
 
   /* translucent glass chips (dark) — volume gradient */
   --df-chip-fill: linear-gradient(
     180deg,
-    rgba(255, 255, 255, 0.13) 0%,
-    rgba(255, 255, 255, 0.04) 100%
+    rgba(255, 255, 255, 0.14) 0%,
+    rgba(255, 255, 255, 0.05) 100%
   );
-  --df-chip-border: #50483c;
+  --df-chip-border: #50497a;
 
   /* --- Phase 0 tokenized chrome (dark deltas; unlisted = same as light) --- */
   --df-water-ink: #56d4dd;
@@ -485,32 +498,32 @@
   --df-destructive-soft: #6e3a3a;
   --df-streak: #e3b341;
   --df-streak-fill: rgba(227, 179, 65, 0.18);
-  --df-mobile-nav-fill: rgba(28, 25, 22, 0.92);
+  --df-mobile-nav-fill: rgba(30, 27, 46, 0.92);
 
-  --df-primary-btn-glow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --df-primary-btn-glow: 0 4px 14px rgba(0, 0, 0, 0.4);
   --df-lift-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
   --df-generating-bg: linear-gradient(
     90deg,
-    rgba(255, 122, 69, 0.3),
-    rgba(255, 122, 69, 0.12)
+    rgba(165, 180, 252, 0.3),
+    rgba(165, 180, 252, 0.12)
   );
 
   /* --- Phase 8: Dia chat shell (dark) --- */
-  --df-chrome-fill: #221e1a;
-  --df-chrome-border: #373028;
-  --df-omnibar-fill: #2b2620;
-  --df-omnibar-border: #453d33;
-  --df-sync-ok: #57ab5a;
-  --df-sync-pending: #e3b341;
-  --df-sync-error: #f85149;
+  --df-chrome-fill: #252043;
+  --df-chrome-border: #3a3360;
+  --df-omnibar-fill: #2e2850;
+  --df-omnibar-border: #474070;
+  --df-sync-ok: #4ade80;
+  --df-sync-pending: #fbbf24;
+  --df-sync-error: #f87171;
   /* Composer glow (dark). */
-  --df-composer-glow-ring: color-mix(in srgb, #ff7a45 26%, transparent);
-  --df-composer-glow-halo: color-mix(in srgb, #ff7a45 32%, transparent);
-  --df-composer-glow-border: color-mix(in srgb, #ff7a45 60%, transparent);
+  --df-composer-glow-ring: color-mix(in srgb, #a5b4fc 26%, transparent);
+  --df-composer-glow-halo: color-mix(in srgb, #a5b4fc 32%, transparent);
+  --df-composer-glow-border: color-mix(in srgb, #a5b4fc 60%, transparent);
   --df-chat-aurora: radial-gradient(
     120% 90% at 50% 115%,
-    rgba(255, 90, 31, 0.24),
-    rgba(245, 158, 11, 0.13) 45%,
-    rgba(28, 25, 22, 0) 70%
+    rgba(165, 180, 252, 0.15),
+    rgba(253, 186, 116, 0.08) 45%,
+    rgba(30, 27, 46, 0) 70%
   );
 }
