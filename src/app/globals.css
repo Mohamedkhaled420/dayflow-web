@@ -44,7 +44,7 @@ body {
   background: var(--df-window-bg);
   background-attachment: fixed;
   color: var(--df-text-primary);
-  font-family: var(--font-figtree), var(--font-geist-sans), system-ui,
+  font-family: var(--font-bricolage), var(--font-geist-sans), system-ui,
     sans-serif;
   -webkit-font-smoothing: antialiased;
   font-optical-sizing: auto;
