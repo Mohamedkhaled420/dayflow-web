@@ -31,11 +31,13 @@ body {
   --lg-rim-opacity: 0.6;
   --lg-radius: var(--radius-panel);
   /* Liquid Glass v2 — per-variant geometry + material tokens
-     (see src/components/ui/LiquidGlass.tsx). */
-  --lg-radius-dock: 26px;
+     (see src/components/ui/LiquidGlass.tsx). Lively Pastel: the
+     dock is a full CAPSULE (half its ~64px height) — the floating
+     frosted pill from the reference. */
+  --lg-radius-dock: 32px;
   --lg-radius-cta: 22px;
   --lg-radius-rail: 26px;
-  --lg-radius-header: 21px;
+  --lg-radius-header: 22px;
   --lg-tint-opacity: 0.2;
   --lg-effect-ms: 320ms;
 }
