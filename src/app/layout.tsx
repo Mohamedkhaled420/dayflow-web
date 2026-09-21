@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Figtree, Geist_Mono } from "next/font/google";
+import { Bricolage_Grotesque, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { DeferredToaster } from "@/components/ui/deferred-toaster";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -7,8 +7,8 @@ import { ServiceWorkerRegistrar } from "@/components/dayflow/ServiceWorkerRegist
 import { ChromeThemeSync } from "@/components/dayflow/ChromeThemeSync";
 import { THEME_META_COLORS } from "@/styles/palette";
 
-const figtree = Figtree({
-  variable: "--font-figtree",
+const bricolage = Bricolage_Grotesque({
+  variable: "--font-bricolage",
   subsets: ["latin"],
   display: "swap",
 });
@@ -65,8 +65,8 @@ export const viewport: Viewport = {
   // Browser chrome must BLEND with the app surface or the phone reads
   // "website", not "app": the address-bar area is tinted per color
   // scheme (light chrome on light, dark on dark). THEME_META_COLORS
-  // values mirror --df-window-bg in theme.css (#ffffff light /
-  // #191919 dark). ChromeThemeSync re-syncs this meta when the user
+  // values mirror --df-window-bg in theme.css (#FAF5EC light /
+  // #1C1917 dark). ChromeThemeSync re-syncs this meta when the user
   // toggles the in-app theme manually (the media pair only reacts to
   // the OS scheme).
   themeColor: [
@@ -83,7 +83,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="bg-background" suppressHydrationWarning>
       <body
-        className={`${figtree.variable} ${geistMono.variable} font-sans antialiased`}
+        className={`${bricolage.variable} ${geistMono.variable} font-sans antialiased`}
       >
         <ThemeProvider
           attribute="class"

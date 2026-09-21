@@ -48,41 +48,45 @@ export const CATEGORY_SWATCHES = [
 
 /** Appearance picker preview gradients (Settings → Appearance). */
 export const THEME_SWATCHES = {
-  light: "linear-gradient(135deg, #FFE6CF, #D6E8FF)",
-  dark: "linear-gradient(135deg, #303C5B, #3B2B4B)",
-  system: "linear-gradient(135deg, #FFE6CF 50%, #3B2B4B 50%)",
+  light: "linear-gradient(135deg, #FFE3CE, #FFC9A8)",
+  dark: "linear-gradient(135deg, #3A322A, #4A2C1B)",
+  system: "linear-gradient(135deg, #FFE3CE 50%, #4A2C1B 50%)",
 } as const;
 
 /** Browser chrome theme-color metadata (app/layout.tsx viewport +
- *  ChromeThemeSync). Values mirror --df-window-bg 1:1 (#ffffff light /
- *  #191919 dark in theme.css) so the address-bar band on phones blends
+ *  ChromeThemeSync). Values mirror --df-window-bg 1:1 (#FAF5EC light /
+ *  #1C1917 dark in theme.css) so the address-bar band on phones blends
  *  EXACTLY into the app surface — any tint difference reads as a
  *  "browser band" and kills the native feel. */
 export const THEME_META_COLORS = {
-  light: "#ffffff",
-  dark: "#191919",
+  light: "#FAF5EC",
+  dark: "#1C1917",
 } as const;
 
 /**
  * PWA install surfaces (Phase 4 ship): manifest theme_color /
  * background_color and the browser <meta name="theme-color">, pinned
- * to --color-surface (#0e1117) so the installed app shell, splash
- * background, and address-bar chrome all read as one surface.
+ * to the Sunrise Flow light window surface (--df-window-bg #FAF5EC —
+ * the app defaults to light) so the installed app shell, splash
+ * background, and address-bar chrome all read as one warm-ivory
+ * surface.
  */
 export const PWA_SURFACE_COLORS = {
-  theme: "#0e1117",
-  background: "#0e1117",
+  theme: "#FAF5EC",
+  background: "#FAF5EC",
 } as const;
 
 /**
- * Open Graph text colors (Phase 6.5 / B4) — the §9.1 ink tokens
- * materialized for satori (next/og renders standalone, so CSS
- * custom properties cannot resolve there). Values mirror
- * --color-ink / --color-ink-muted 1:1.
+ * Open Graph text colors (Phase 6.5 / B4) — satori cannot resolve
+ * CSS custom properties (next/og renders standalone), so the ink
+ * tokens are materialized here. Values mirror the Sunrise Flow
+ * --df-text-primary / --df-text-secondary 1:1 (#362D20 / #6B5F4E)
+ * because the OG canvas is the warm-ivory PWA surface — light ink
+ * would vanish on it.
  */
 export const OG_TEXT_COLORS = {
-  ink: "#f0f6fc",
-  inkMuted: "#8b949e",
+  ink: "#362D20",
+  inkMuted: "#6B5F4E",
 } as const;
 
 /**
