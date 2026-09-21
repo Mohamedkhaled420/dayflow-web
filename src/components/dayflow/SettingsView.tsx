@@ -133,7 +133,7 @@ function SectionCard({
 }) {
   return (
     <section
-      className={`rounded-lg p-4 mt-4 ${className ?? ""}`}
+      className={`rounded-[20px] p-4 mt-4 ${className ?? ""}`}
       style={{
         background: "var(--df-daily-grid-fill)",
         border: "0.5px solid var(--df-daily-grid-border)",
@@ -175,7 +175,7 @@ function TextInput({
 }) {
   return (
     <div
-      className="mt-1.5 rounded-md px-3 h-10 flex items-center"
+      className="mt-1.5 rounded-full px-4 h-10 flex items-center"
       style={{
         background: "var(--df-input-fill)",
         border: "0.5px solid var(--df-input-border)",
@@ -241,7 +241,7 @@ function ProfileSection() {
         <div>
           <FieldLabel>Avatar</FieldLabel>
           <div
-            className="mt-1.5 grid grid-cols-4 gap-1.5 rounded-lg p-2"
+            className="mt-1.5 grid grid-cols-4 gap-1.5 rounded-[16px] p-2"
             style={{
               background: "var(--df-chip-fill)",
               border: "0.5px solid var(--df-chip-border)",
@@ -253,7 +253,7 @@ function ProfileSection() {
                 onClick={() => updateProfile({ emoji: a })}
                 aria-label={`Set avatar ${a}`}
                 aria-pressed={data.profile.emoji === a}
-                className="df-press h-9 rounded-md grid place-items-center text-[19px]"
+                className="df-press h-9 rounded-full grid place-items-center text-[19px]"
                 style={{
                   background:
                     data.profile.emoji === a ? "var(--df-control-fill)" : "transparent",
@@ -298,7 +298,7 @@ function ProfileSection() {
                   key={ml}
                   onClick={() => updateProfile({ waterGlassMl: ml })}
                   aria-pressed={data.profile.waterGlassMl === ml}
-                  className="df-press h-9 px-3.5 rounded-md text-[12px] font-semibold"
+                  className="df-press h-9 px-3.5 rounded-full text-[12px] font-semibold"
                   style={{
                     background:
                       data.profile.waterGlassMl === ml
@@ -332,7 +332,7 @@ function ProfileSection() {
 function TeamModeCard() {
   return (
     <section
-      className="rounded-lg p-4 mt-4"
+      className="rounded-[20px] p-4 mt-4"
       style={{
         background: "var(--df-daily-grid-fill)",
         border: "0.5px solid var(--df-daily-grid-border)",
@@ -479,7 +479,7 @@ function GoalsSection() {
 
       {/* Morning anchor (PRD §4.9 / T1d) — arms the Focus-tab gate. */}
       <div
-        className="mt-4 max-w-[520px] rounded-md px-3.5 py-3"
+        className="mt-4 max-w-[520px] rounded-[16px] px-3.5 py-3"
         style={{
           background: "var(--df-chip-fill)",
           border: "0.5px solid var(--df-chip-border)",
@@ -557,7 +557,7 @@ function AppearanceSection({
           <button
             key={opt.id}
             onClick={() => setTheme(opt.id)}
-            className="df-press rounded-lg p-2.5 flex flex-col items-center gap-2"
+            className="df-press rounded-[16px] p-2.5 flex flex-col items-center gap-2"
             aria-pressed={theme === opt.id}
             style={{
               background: "var(--df-chip-fill)",
@@ -567,7 +567,7 @@ function AppearanceSection({
                   : "0.5px solid var(--df-chip-border)",
             }}
           >
-            <span className="h-12 w-full rounded-md" style={{ background: opt.swatch }} />
+            <span className="h-12 w-full rounded-[10px]" style={{ background: opt.swatch }} />
             <span
               className="flex items-center gap-1 text-[11.5px] font-semibold"
               style={{ color: "var(--df-text-primary)" }}
@@ -689,7 +689,7 @@ function DataSection({
           Shortcuts, another device) are pulled on the next boot.
         </p>
         <div
-          className="mt-3 rounded-md px-3.5 py-3 max-w-[460px]"
+          className="mt-3 rounded-[16px] px-3.5 py-3 max-w-[460px]"
           style={{
             background: "var(--df-chip-fill)",
             border: "0.5px solid var(--df-chip-border)",
@@ -763,7 +763,7 @@ function DataSection({
           on a shared device (F-3 remediation). Your rows remain safe in Supabase and re-sync
           the next time you sign in.
         </p>
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 max-w-[460px] rounded-md px-3.5 py-3"
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 max-w-[460px] rounded-[16px] px-3.5 py-3"
           style={{ background: "var(--df-chip-fill)", border: "0.5px solid var(--df-chip-border)" }}>
           <div>
             <div className="text-[12.5px] font-semibold" style={{ color: "var(--df-text-primary)" }}>
@@ -777,13 +777,13 @@ function DataSection({
             onClick={() => void signOut()}
             disabled={signingOut}
             aria-busy={signingOut}
-            className="df-press df-btn-secondary h-9 px-3.5 rounded-md text-[12.5px] font-semibold flex items-center gap-1.5 disabled:opacity-50"
+            className="df-press df-btn-secondary h-9 px-3.5 rounded-full text-[12.5px] font-semibold flex items-center gap-1.5 disabled:opacity-50"
           >
             <LogOut className="h-3.5 w-3.5" />
             {signingOut ? "Signing out…" : "Sign out"}
           </button>
         </div>
-        <div className="mt-3 max-w-[460px] rounded-md px-3.5 py-3"
+        <div className="mt-3 max-w-[460px] rounded-[16px] px-3.5 py-3"
           style={{
             background: "color-mix(in srgb, var(--df-destructive) 6%, transparent)",
             border: "0.5px solid color-mix(in srgb, var(--df-destructive) 22%, transparent)",
@@ -809,7 +809,7 @@ function DataSection({
           Nothing on the server is deleted — this is a cache reset, not a data reset.
         </p>
         <div
-          className="mt-3 flex items-center justify-between max-w-[460px] rounded-md px-3.5 py-3"
+          className="mt-3 flex items-center justify-between max-w-[460px] rounded-[16px] px-3.5 py-3"
           style={{
             background: "var(--df-chip-fill)",
             border: "0.5px solid var(--df-chip-border)",
@@ -827,7 +827,7 @@ function DataSection({
             {confirmReset && (
               <button
                 onClick={() => setConfirmReset(false)}
-                className="df-press df-btn-secondary h-9 px-3 rounded-md text-[12px] font-semibold"
+                className="df-press df-btn-secondary h-9 px-3.5 rounded-full text-[12px] font-semibold"
               >
                 Cancel
               </button>
@@ -842,7 +842,7 @@ function DataSection({
                 setConfirmReset(false);
                 onToast({ title: "Local cache cleared", description: "Re-pulling your rows from Supabase." });
               }}
-              className="df-press h-9 px-3 rounded-md text-[12px] font-semibold flex items-center gap-1.5"
+              className="df-press h-9 px-3.5 rounded-full text-[12px] font-semibold flex items-center gap-1.5"
               style={{
                 background: "color-mix(in srgb, var(--df-destructive) 12%, transparent)",
                 border: "0.5px solid color-mix(in srgb, var(--df-destructive) 35%, transparent)",

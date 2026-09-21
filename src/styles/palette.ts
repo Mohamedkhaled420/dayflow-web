@@ -16,77 +16,91 @@
 
 import type { GoalProgress } from "@/lib/types";
 
-/** Default colors for the six goal categories + leisure. */
+/** Default colors for the six goal categories + leisure.
+ *  Lively Pastel family (Phase 10): saturated enough to read as
+ *  timeline EVENT fills, each one generation-linked to its pastel
+ *  surface token (indigo→lavender, pink→pink-200, etc.). */
 export const CATEGORY_COLORS = {
-  work: "#8BAAFF",
-  personal: "#B984FF",
-  fitness: "#FF706B",
-  meals: "#F6BE74",
-  sleep: "#6E66D4",
-  water: "#56CFEE",
-  leisure: "#88E5DF",
+  work: "#818CF8", // indigo-400
+  personal: "#34D399", // emerald-400
+  fitness: "#F472B6", // pink-400
+  meals: "#FB923C", // orange-400
+  sleep: "#A78BFA", // violet-400
+  water: "#22D3EE", // cyan-400
+  leisure: "#A3E635", // lime-400
 } as const satisfies Record<string, string>;
 
 /** Fallback color for events whose category was deleted. */
-export const UNTRACKED_COLOR = "#A0AEC0";
+export const UNTRACKED_COLOR = "#A1A1AA";
+
+/** Phase 11 — quick-action category card fills (the reference
+ *  chat home's "How can I help you today?" grid). The
+ *  300-generation pastels: card SURFACES, not event fills, so
+ *  they sit one step lighter than CATEGORY_COLORS. Fixed in both
+ *  modes — ink stays charcoal (--df-quick-ink). */
+export const QUICK_ACTION_COLORS = {
+  trip: "#FDE047", // yellow-300 (reference: tourism)
+  cooking: "#FDBA74", // orange-300 (reference: cooking)
+  sport: "#F9A8D4", // pink-300 (reference: sport)
+  art: "#86EFAC", // green-300 (reference: art)
+} as const satisfies Record<string, string>;
 
 /** The 12 swatches offered in Settings → Categories. */
 export const CATEGORY_SWATCHES = [
-  "#8BAAFF",
-  "#CF8FFF",
-  "#90DDF0",
-  "#6E66D4",
-  "#88E5DF",
-  "#B984FF",
-  "#FF706B",
-  "#F6BE74",
-  "#56CFEE",
-  "#FF5950",
-  "#A0AEC0",
-  "#6AADFF",
+  "#818CF8",
+  "#A78BFA",
+  "#F472B6",
+  "#FB923C",
+  "#FDE68A",
+  "#34D399",
+  "#22D3EE",
+  "#A3E635",
+  "#C084FC",
+  "#F87171",
+  "#38BDF8",
+  "#A1A1AA",
 ] as const;
 
 /** Appearance picker preview gradients (Settings → Appearance). */
 export const THEME_SWATCHES = {
-  light: "linear-gradient(135deg, #FFE3CE, #FFC9A8)",
-  dark: "linear-gradient(135deg, #3A322A, #4A2C1B)",
-  system: "linear-gradient(135deg, #FFE3CE 50%, #4A2C1B 50%)",
+  light: "linear-gradient(135deg, #A5B4FC, #D9F99D)",
+  dark: "linear-gradient(135deg, #2A2547, #4C1D95)",
+  system: "linear-gradient(135deg, #A5B4FC 50%, #4C1D95 50%)",
 } as const;
 
 /** Browser chrome theme-color metadata (app/layout.tsx viewport +
- *  ChromeThemeSync). Values mirror --df-window-bg 1:1 (#FAF5EC light /
- *  #1C1917 dark in theme.css) so the address-bar band on phones blends
+ *  ChromeThemeSync). Values mirror --df-window-bg 1:1 (#A5B4FC light /
+ *  #1E1B2E dark in theme.css) so the address-bar band on phones blends
  *  EXACTLY into the app surface — any tint difference reads as a
  *  "browser band" and kills the native feel. */
 export const THEME_META_COLORS = {
-  light: "#FAF5EC",
-  dark: "#1C1917",
+  light: "#A5B4FC",
+  dark: "#1E1B2E",
 } as const;
 
 /**
  * PWA install surfaces (Phase 4 ship): manifest theme_color /
  * background_color and the browser <meta name="theme-color">, pinned
- * to the Sunrise Flow light window surface (--df-window-bg #FAF5EC —
+ * to the Lively Pastel light window surface (--df-window-bg #A5B4FC —
  * the app defaults to light) so the installed app shell, splash
- * background, and address-bar chrome all read as one warm-ivory
+ * background, and address-bar chrome all read as one periwinkle
  * surface.
  */
 export const PWA_SURFACE_COLORS = {
-  theme: "#FAF5EC",
-  background: "#FAF5EC",
+  theme: "#A5B4FC",
+  background: "#A5B4FC",
 } as const;
 
 /**
  * Open Graph text colors (Phase 6.5 / B4) — satori cannot resolve
  * CSS custom properties (next/og renders standalone), so the ink
- * tokens are materialized here. Values mirror the Sunrise Flow
- * --df-text-primary / --df-text-secondary 1:1 (#362D20 / #6B5F4E)
- * because the OG canvas is the warm-ivory PWA surface — light ink
- * would vanish on it.
+ * tokens are materialized here. Values mirror the Lively Pastel
+ * --df-text-primary / --df-text-secondary 1:1 (#1E293B / #3F4668);
+ * both clear WCAG AA on the periwinkle OG canvas.
  */
 export const OG_TEXT_COLORS = {
-  ink: "#362D20",
-  inkMuted: "#6B5F4E",
+  ink: "#1E293B",
+  inkMuted: "#3F4668",
 } as const;
 
 /**
@@ -103,11 +117,12 @@ export const CIRCADIAN_COLORS = {
  * Nutrition macro colors (Phase 9) — DATA colors for the DailyView
  * nutrition card bars. Calorie ring uses the meals category amber;
  * macros get distinct hues so the three bars never read as one.
+ * Retinted to the Lively Pastel family (pink/cyan/violet).
  */
 export const MACRO_COLORS = {
-  protein: "#FF706B",
-  carbs: "#56CFEE",
-  fat: "#B984FF",
+  protein: "#F472B6",
+  carbs: "#22D3EE",
+  fat: "#A78BFA",
 } as const;
 
 /** Convenience: every fallback used by the goals layer (lib/compute). */

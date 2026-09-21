@@ -350,21 +350,30 @@ export default function OnboardingPage() {
 
   if (offerPasskey) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-(--color-surface) p-4 font-sans">
-        <GlassPanel className="w-full max-w-md p-6 sm:p-8">
+      <main className="df-window flex min-h-screen items-center justify-center p-4 font-sans">
+        <GlassPanel
+        hairline="none"
+        className="w-full max-w-md p-6 sm:p-8"
+        style={{
+          background: "color-mix(in srgb, var(--df-panel-fill) 90%, transparent)",
+          border: "0.5px solid var(--df-panel-border)",
+          borderRadius: "var(--df-radius-panel)",
+          boxShadow: "var(--df-hero-panel-shadow)",
+        }}
+      >
           <LogoMark size={30} />
-          <p className="mt-3 text-xs font-semibold tracking-[0.22em] text-(--color-accent-focus)">
+          <p className="mt-3 text-xs font-bold tracking-[0.22em] text-(--df-accent-text)">
             DAYFLOW AI
           </p>
-          <h1 className="mt-3 text-2xl font-semibold text-(--color-ink)">
+          <h1 className="mt-3 text-2xl font-extrabold tracking-tight text-(--df-text-primary)">
             One less password day
           </h1>
-          <p className="mt-2 text-sm leading-6 text-(--color-ink-muted)">
+          <p className="mt-2 text-sm leading-6 text-(--df-text-secondary)">
             Enable Face ID / a device passkey and tomorrow&apos;s sign-in is a glance.
             You can skip this and use your email any time.
           </p>
           {passkeyNote && (
-            <p role="status" className="mt-4 text-sm text-(--color-accent-focus)">
+            <p role="status" className="mt-4 text-sm text-(--df-accent-text)">
               {passkeyNote}
             </p>
           )}
@@ -373,7 +382,7 @@ export default function OnboardingPage() {
               type="button"
               onClick={enroll}
               disabled={passkeyBusy}
-              className="min-h-12 rounded-(--radius-pill) bg-(--color-ink) px-4 text-base font-semibold text-(--color-accent-focus) transition-[transform,opacity] duration-(--duration-press) ease-(--ease-spring-critical) hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+              className="df-press df-btn-primary min-h-12 px-4 text-base font-bold disabled:cursor-not-allowed disabled:opacity-60"
             >
               {passkeyBusy ? "Waiting for your device…" : "Enable Face ID"}
             </button>
@@ -383,7 +392,7 @@ export default function OnboardingPage() {
                 router.replace("/");
                 router.refresh();
               }}
-              className="min-h-11 rounded-(--radius-pill) px-4 text-sm font-medium text-(--color-ink-muted) transition-colors hover:bg-(--color-surface-subtle)"
+              className="df-press df-chip min-h-11 rounded-full px-4 text-sm font-semibold"
             >
               Skip for now
             </button>
@@ -394,10 +403,19 @@ export default function OnboardingPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-(--color-surface) p-4 font-sans">
-      <GlassPanel className="w-full max-w-md p-6 sm:p-8">
+    <main className="df-window flex min-h-screen items-center justify-center p-4 font-sans">
+      <GlassPanel
+        hairline="none"
+        className="w-full max-w-md p-6 sm:p-8"
+        style={{
+          background: "color-mix(in srgb, var(--df-panel-fill) 90%, transparent)",
+          border: "0.5px solid var(--df-panel-border)",
+          borderRadius: "var(--df-radius-panel)",
+          boxShadow: "var(--df-hero-panel-shadow)",
+        }}
+      >
         <LogoMark size={30} />
-        <p className="mt-3 text-xs font-semibold tracking-[0.22em] text-(--color-accent-focus)">
+        <p className="mt-3 text-xs font-bold tracking-[0.22em] text-(--df-accent-text)">
           DAYFLOW AI
         </p>
 
@@ -406,26 +424,26 @@ export default function OnboardingPage() {
           {[0, 1, 2].map((i) => (
             <span
               key={i}
-              className="h-1 flex-1 rounded-(--radius-pill) transition-colors duration-200"
+              className="h-1 flex-1 rounded-full transition-colors duration-200"
               style={{
                 background:
                   i <= step
-                    ? "var(--color-accent-focus)"
-                    : "var(--color-surface-subtle)",
+                    ? "var(--df-accent)"
+                    : "var(--df-segment-track)",
               }}
             />
           ))}
         </div>
-        <p className="mt-2 text-xs text-(--color-ink-faint)">
+        <p className="mt-2 text-xs text-(--df-text-muted)">
           Step {step + 1} of 3
         </p>
 
         {/* step header */}
         <div className="mt-5">
-          <h1 className="text-2xl font-semibold text-(--color-ink)">
+          <h1 className="text-2xl font-extrabold tracking-tight text-(--df-text-primary)">
             {meta.title}
           </h1>
-          <p className="mt-1 text-sm text-(--color-ink-muted)">{meta.sub}</p>
+          <p className="mt-1 text-sm text-(--df-text-secondary)">{meta.sub}</p>
         </div>
 
         {/* step body */}
@@ -433,7 +451,7 @@ export default function OnboardingPage() {
           {step === 0 && (
             <>
               <label className="flex flex-col gap-2">
-                <span className="text-sm font-medium text-(--color-ink-muted)">
+                <span className="text-sm font-medium text-(--df-text-secondary)">
                   Display name
                 </span>
                 <input
@@ -443,14 +461,14 @@ export default function OnboardingPage() {
                   placeholder="Alex"
                   autoComplete="name"
                   maxLength={40}
-                  className="min-h-12 rounded-(--radius-panel) border border-(--hairline) bg-(--color-surface-subtle) px-4 text-base text-(--color-ink) outline-none transition-colors placeholder:text-(--color-ink-faint) focus:border-(--hairline-accent)"
+                  className="min-h-12 df-input-glass px-4 text-base text-(--df-text-primary) outline-none transition-colors placeholder:text-(--df-text-muted)"
                 />
               </label>
 
-              <div className="flex min-h-12 items-center justify-between rounded-(--radius-panel) border border-(--hairline) bg-(--color-surface-subtle) px-4">
-                <span className="text-sm text-(--color-ink-muted)">Timezone</span>
-                <span className="flex items-center gap-1.5 text-sm text-(--color-ink)">
-                  <MapPin className="size-4 text-(--color-accent-focus)" aria-hidden />
+              <div className="df-chip flex min-h-12 items-center justify-between rounded-[16px] px-4">
+                <span className="text-sm text-(--df-text-secondary)">Timezone</span>
+                <span className="flex items-center gap-1.5 text-sm text-(--df-text-primary)">
+                  <MapPin className="size-4 text-(--df-accent-text)" aria-hidden />
                   {timezone || "Detecting…"}
                 </span>
               </div>
@@ -460,19 +478,19 @@ export default function OnboardingPage() {
           {step === 1 && (
             <>
               <label className="flex flex-col gap-2">
-                <span className="text-sm font-medium text-(--color-ink-muted)">
+                <span className="text-sm font-medium text-(--df-text-secondary)">
                   Natural wake time
                 </span>
                 <input
                   type="time"
                   value={wakeTime}
                   onChange={(e) => setWakeTime(e.target.value)}
-                  className="min-h-12 rounded-(--radius-panel) border border-(--hairline) bg-(--color-surface-subtle) px-4 text-base text-(--color-ink) outline-none transition-colors focus:border-(--hairline-accent)"
+                  className="min-h-12 df-input-glass px-4 text-base text-(--df-text-primary) outline-none transition-colors"
                 />
               </label>
 
               <div className="flex flex-col gap-2">
-                <span className="text-sm font-medium text-(--color-ink-muted)">
+                <span className="text-sm font-medium text-(--df-text-secondary)">
                   Target sleep
                 </span>
                 <Segmented
@@ -483,10 +501,10 @@ export default function OnboardingPage() {
                 />
               </div>
 
-              <div className="flex items-center gap-2 rounded-(--radius-pill) border border-(--hairline) bg-(--color-surface-subtle) px-4 py-2.5 text-sm text-(--color-ink-muted)">
-                <ChronoIcon className="size-4 shrink-0 text-(--color-accent-recovery)" aria-hidden />
+              <div className="df-chip flex items-center gap-2 rounded-full px-4 py-2.5 text-sm text-(--df-text-secondary)">
+                <ChronoIcon className="size-4 shrink-0 text-(--df-streak)" aria-hidden />
                 <span>Derived chronotype:</span>
-                <span className="font-medium text-(--color-ink)">
+                <span className="font-medium text-(--df-text-primary)">
                   {CHRONOTYPE_LABELS[chronotype]}
                 </span>
               </div>
@@ -498,7 +516,7 @@ export default function OnboardingPage() {
                   setSleepMinutes(480);
                   setStep(2);
                 }}
-                className="self-start text-sm font-medium text-(--color-ink-muted) underline decoration-(--hairline) underline-offset-4 transition-opacity duration-(--duration-press) hover:opacity-80"
+                className="self-start text-sm font-medium text-(--df-text-secondary) underline decoration-(--df-input-border) underline-offset-4 transition-opacity duration-(--duration-press) hover:opacity-80"
               >
                 Skip — use defaults
               </button>
@@ -508,7 +526,7 @@ export default function OnboardingPage() {
           {step === 2 && (
             <>
               <fieldset className="flex flex-col gap-2">
-                <legend className="mb-1 text-sm font-medium text-(--color-ink-muted)">
+                <legend className="mb-1 text-sm font-medium text-(--df-text-secondary)">
                   Work status
                 </legend>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -516,11 +534,11 @@ export default function OnboardingPage() {
                     <label
                       key={id}
                       className={[
-                        "flex min-h-12 cursor-pointer items-center gap-3 rounded-(--radius-panel) border px-4 py-3 transition-colors duration-(--duration-press)",
+                        "flex min-h-12 cursor-pointer items-center gap-3 rounded-[20px] border px-4 py-3 transition-colors duration-(--duration-press)",
                         id === "sabbatical" ? "sm:col-span-2" : "",
                         status === id
-                          ? "border-(--hairline-accent) bg-(--color-surface-elevated)"
-                          : "border-(--hairline) bg-(--color-surface-subtle)",
+                          ? "border-(--df-accent) bg-(--df-control-fill)"
+                          : "border-(--df-chip-border) bg-(--df-chip-fill)",
                       ].join(" ")}
                     >
                       <input
@@ -535,8 +553,8 @@ export default function OnboardingPage() {
                         className={[
                           "size-5 shrink-0",
                           status === id
-                            ? "text-(--color-accent-focus)"
-                            : "text-(--color-ink-muted)",
+                            ? "text-(--df-accent-text)"
+                            : "text-(--df-text-secondary)",
                         ].join(" ")}
                         aria-hidden
                       />
@@ -544,15 +562,15 @@ export default function OnboardingPage() {
                         className={[
                           "text-sm",
                           status === id
-                            ? "font-medium text-(--color-ink)"
-                            : "text-(--color-ink-muted)",
+                            ? "font-medium text-(--df-text-primary)"
+                            : "text-(--df-text-secondary)",
                         ].join(" ")}
                       >
                         {label}
                       </span>
                       {status === id && (
                         <Check
-                          className="ml-auto size-4 text-(--color-accent-focus)"
+                          className="ml-auto size-4 text-(--df-accent-text)"
                           aria-hidden
                         />
                       )}
@@ -562,7 +580,7 @@ export default function OnboardingPage() {
               </fieldset>
 
               <div className="flex flex-col gap-2">
-                <span className="text-sm font-medium text-(--color-ink-muted)">
+                <span className="text-sm font-medium text-(--df-text-secondary)">
                   Daily career target
                 </span>
                 <Segmented
@@ -574,7 +592,7 @@ export default function OnboardingPage() {
               </div>
 
               <div className="flex flex-col gap-2">
-                <span className="text-sm font-medium text-(--color-ink-muted)">
+                <span className="text-sm font-medium text-(--df-text-secondary)">
                   Daily personal craft target
                 </span>
                 <Segmented
@@ -589,7 +607,7 @@ export default function OnboardingPage() {
         </div>
 
         {error ? (
-          <p role="alert" className="mt-4 text-sm text-(--df-destructive)">
+          <p role="alert" className="mt-4 text-sm text-(--df-destructive-text)">
             {error}
           </p>
         ) : null}
@@ -600,7 +618,7 @@ export default function OnboardingPage() {
             <button
               type="button"
               onClick={() => setStep(step - 1)}
-              className="flex min-h-11 items-center gap-1.5 rounded-(--radius-pill) px-4 text-sm font-medium text-(--color-ink-muted) transition-[transform,opacity] duration-(--duration-press) ease-(--ease-spring-critical) hover:opacity-80 active:scale-[0.98]"
+              className="df-press flex min-h-11 items-center gap-1.5 rounded-full px-4 text-sm font-semibold text-(--df-text-secondary) hover:opacity-80"
             >
               <ArrowLeft className="size-4" aria-hidden />
               Back
@@ -610,7 +628,7 @@ export default function OnboardingPage() {
             type="button"
             onClick={step < 2 ? () => setStep(step + 1) : finish}
             disabled={pending}
-            className="ml-auto min-h-12 flex-1 rounded-(--radius-pill) bg-(--color-ink) px-4 text-base font-semibold text-(--color-accent-focus) transition-[transform,opacity] duration-(--duration-press) ease-(--ease-spring-critical) hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none sm:px-10"
+            className="df-press df-btn-primary ml-auto min-h-12 flex-1 px-4 text-base font-bold disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none sm:px-10"
           >
             {pending ? "Saving…" : step < 2 ? "Continue" : "Finish setup"}
           </button>

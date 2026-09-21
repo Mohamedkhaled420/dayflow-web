@@ -368,11 +368,11 @@ export default function TeamPage() {
   const showDashboard = teamLoaded && !!team;
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-(--color-surface) p-4 font-sans">
+    <main className="df-window flex min-h-screen items-center justify-center p-4 font-sans">
       <div className="df-rise w-full max-w-md">
         <Link
           href="/"
-          className="mb-4 inline-flex min-h-11 items-center gap-1.5 rounded-(--radius-pill) px-3 text-sm font-medium text-(--color-ink-muted) transition-opacity duration-(--duration-press) hover:opacity-80"
+          className="mb-4 inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-(--df-text-secondary) transition-opacity duration-(--duration-press) hover:opacity-80"
         >
           <ArrowLeft className="size-4" aria-hidden />
           <LogoMark size={20} className="-my-1.5" />
@@ -381,14 +381,23 @@ export default function TeamPage() {
 
         {/* ---------- incoming invite ---------- */}
         {showInviteCard && (
-          <GlassPanel className="p-6 sm:p-8">
-            <p className="text-xs font-semibold tracking-[0.22em] text-(--color-accent-focus)">
+          <GlassPanel
+          hairline="none"
+          className="p-6 sm:p-8"
+          style={{
+            background: "color-mix(in srgb, var(--df-panel-fill) 90%, transparent)",
+            border: "0.5px solid var(--df-panel-border)",
+            borderRadius: "var(--df-radius-panel)",
+            boxShadow: "var(--df-hero-panel-shadow)",
+          }}
+        >
+            <p className="text-xs font-semibold tracking-[0.22em] text-(--df-accent-text)">
               TEAM MODE
             </p>
-            <h1 className="mt-4 text-2xl font-semibold text-(--color-ink)">
+            <h1 className="mt-4 text-2xl font-semibold text-(--df-text-primary)">
               You&apos;ve got a teammate request
             </h1>
-            <p className="mt-1 text-sm text-(--color-ink-muted)">
+            <p className="mt-1 text-sm text-(--df-text-secondary)">
               Someone thinks you&apos;ll actually show up. Teams in Dayflow
               are pairs — one teammate, zero audience.
             </p>
@@ -396,7 +405,7 @@ export default function TeamPage() {
               type="button"
               onClick={acceptIncoming}
               disabled={accepting}
-              className="mt-6 min-h-12 w-full rounded-(--radius-pill) bg-(--color-ink) px-4 text-base font-semibold text-(--color-accent-focus) transition-[transform,opacity] duration-(--duration-press) ease-(--ease-spring-critical) hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+              className="mt-6 df-press df-btn-primary min-h-12 w-full px-4 text-base font-bold disabled:cursor-not-allowed disabled:opacity-60"
             >
               {accepting ? "Linking your team…" : "Accept invite"}
             </button>
@@ -405,21 +414,30 @@ export default function TeamPage() {
 
         {/* ---------- empty state ---------- */}
         {showEmpty && (
-          <GlassPanel className="p-6 sm:p-8">
-            <p className="text-xs font-semibold tracking-[0.22em] text-(--color-accent-focus)">
+          <GlassPanel
+          hairline="none"
+          className="p-6 sm:p-8"
+          style={{
+            background: "color-mix(in srgb, var(--df-panel-fill) 90%, transparent)",
+            border: "0.5px solid var(--df-panel-border)",
+            borderRadius: "var(--df-radius-panel)",
+            boxShadow: "var(--df-hero-panel-shadow)",
+          }}
+        >
+            <p className="text-xs font-semibold tracking-[0.22em] text-(--df-accent-text)">
               TEAM MODE
             </p>
-            <h1 className="mt-4 text-2xl font-semibold text-(--color-ink)">
+            <h1 className="mt-4 text-2xl font-semibold text-(--df-text-primary)">
               No teammate yet
             </h1>
-            <p className="mt-1 text-sm text-(--color-ink-muted)">
+            <p className="mt-1 text-sm text-(--df-text-secondary)">
               Dayflow teams are pairs. Share habit status, streaks, and a
               little thunder — never your journal. Invite someone who&apos;ll
               actually show up.
             </p>
 
             <label className="mt-6 flex flex-col gap-2">
-              <span className="text-sm font-medium text-(--color-ink-muted)">
+              <span className="text-sm font-medium text-(--df-text-secondary)">
                 Their email
               </span>
               <input
@@ -432,21 +450,21 @@ export default function TeamPage() {
                 placeholder="teammate@example.com"
                 autoComplete="email"
                 inputMode="email"
-                className="min-h-12 rounded-(--radius-panel) border border-(--hairline) bg-(--color-surface-subtle) px-4 text-base text-(--color-ink) outline-none transition-colors placeholder:text-(--color-ink-faint) focus:border-(--hairline-accent)"
+                className="df-input-glass min-h-12 px-4 text-base text-(--df-text-primary) outline-none transition-colors placeholder:text-(--df-text-muted)"
               />
             </label>
             <button
               type="button"
               onClick={() => void submitInvite()}
               disabled={inviteBusy}
-              className="mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-(--radius-pill) bg-(--color-ink) px-4 text-base font-semibold text-(--color-accent-focus) transition-[transform,opacity] duration-(--duration-press) ease-(--ease-spring-critical) hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+              className="df-press df-btn-primary mt-3 flex min-h-12 w-full items-center justify-center gap-2 px-4 text-base font-bold disabled:cursor-not-allowed disabled:opacity-60"
             >
               <UserPlus className="size-4" aria-hidden />
               {inviteBusy ? "Sending…" : "Invite a teammate"}
             </button>
 
             {inviteError ? (
-              <p role="alert" className="mt-3 text-sm text-(--df-destructive)">
+              <p role="alert" className="mt-3 text-sm text-(--df-destructive-text)">
                 {inviteError}
               </p>
             ) : null}
@@ -456,16 +474,16 @@ export default function TeamPage() {
                 {sentInvites.map((invite) => (
                   <li
                     key={invite.id}
-                    className="flex min-h-11 items-center gap-2 rounded-(--radius-panel) border border-(--hairline) bg-(--color-surface-subtle) px-4 text-sm text-(--color-ink-muted)"
+                    className="df-chip flex min-h-11 items-center gap-2 rounded-[16px] px-4 text-sm text-(--df-text-secondary)"
                   >
-                    <Clock className="size-4 shrink-0 text-(--color-accent-focus)" aria-hidden />
+                    <Clock className="size-4 shrink-0 text-(--df-accent-text)" aria-hidden />
                     <span>
                       Waiting on{" "}
-                      <span className="font-medium text-(--color-ink)">
+                      <span className="font-medium text-(--df-text-primary)">
                         {invite.invitee_email}
                       </span>
                     </span>
-                    <span className="ml-auto rounded-(--radius-pill) border border-(--hairline) px-2 py-0.5 text-xs text-(--color-ink-faint)">
+                    <span className="ml-auto rounded-full border border-(--df-chip-border) px-2 py-0.5 text-xs text-(--df-text-muted)">
                       pending
                     </span>
                   </li>
@@ -479,21 +497,30 @@ export default function TeamPage() {
         {showDashboard && teammateId && (
           <div className="flex flex-col gap-4">
             {/* teammate card — the pulse target */}
-            <GlassPanel className="relative p-6" hairline="accent">
+            <GlassPanel
+          hairline="none"
+          className="relative p-6"
+          style={{
+            background: "color-mix(in srgb, var(--df-panel-fill) 90%, transparent)",
+            border: "0.5px solid var(--df-panel-border)",
+            borderRadius: "var(--df-radius-panel)",
+            boxShadow: "var(--df-hero-panel-shadow)",
+          }}
+        >
               <div className="flex items-center justify-between gap-3">
-                <p className="text-xs font-semibold tracking-[0.22em] text-(--color-accent-focus)">
+                <p className="text-xs font-semibold tracking-[0.22em] text-(--df-accent-text)">
                   YOUR TEAM
                 </p>
                 <span
-                  className="flex items-center gap-1.5 text-xs text-(--color-ink-muted)"
+                  className="flex items-center gap-1.5 text-xs text-(--df-text-secondary)"
                   aria-label={live ? "Live connection active" : "Connecting"}
                 >
                   <span
                     className="size-2 rounded-(--radius-pill)"
                     style={{
                       background: live
-                        ? "var(--color-accent-fitness)"
-                        : "var(--color-ink-faint)",
+                        ? "var(--df-sync-ok)"
+                        : "var(--df-text-muted)",
                     }}
                     aria-hidden
                   />
@@ -503,19 +530,19 @@ export default function TeamPage() {
 
               <div key={pulseKey} className="df-pulse mt-4 flex items-center gap-4">
                 <span
-                  className="flex size-14 shrink-0 items-center justify-center rounded-(--radius-pill) border border-(--hairline) bg-(--color-surface-elevated) text-xl font-semibold text-(--color-ink)"
+                  className="flex size-14 shrink-0 items-center justify-center rounded-full border border-(--df-chip-border) bg-(--df-secondary) text-xl font-extrabold text-(--df-text-primary)"
                   aria-hidden
                 >
                   {teammateName.slice(0, 1).toUpperCase()}
                 </span>
                 <div className="min-w-0">
-                  <p className="truncate text-lg font-semibold text-(--color-ink)">
+                  <p className="truncate text-lg font-semibold text-(--df-text-primary)">
                     {teammateName}
                   </p>
-                  <p className="truncate text-sm text-(--color-ink-muted)">
+                  <p className="truncate text-sm text-(--df-text-secondary)">
                     {teammateEmail ?? "Teammate"}
                   </p>
-                  <p className="mt-0.5 flex items-center gap-1.5 text-xs text-(--color-ink-faint)">
+                  <p className="mt-0.5 flex items-center gap-1.5 text-xs text-(--df-text-muted)">
                     <Clock className="size-3.5" aria-hidden />
                     {teammatePresence ? `last seen ${teammatePresence}` : "no presence yet"}
                   </p>
@@ -524,7 +551,7 @@ export default function TeamPage() {
                 <span
                   key={`tick-${pulseKey}`}
                   className="df-tick ml-auto size-2.5 shrink-0 rounded-(--radius-pill)"
-                  style={{ background: "var(--color-accent-focus)" }}
+                  style={{ background: "var(--df-accent)" }}
                   aria-hidden
                 />
               </div>
@@ -538,8 +565,16 @@ export default function TeamPage() {
             </GlassPanel>
 
             {/* praise presets */}
-            <GlassPanel surface="subtle" className="p-5">
-              <p className="text-sm font-medium text-(--color-ink-muted)">
+            <GlassPanel
+          hairline="none"
+          className="p-5"
+          style={{
+            background: "var(--df-summary-card-fill)",
+            border: "0.5px solid var(--df-summary-card-border)",
+            borderRadius: "var(--df-radius-panel)",
+          }}
+        >
+              <p className="text-sm font-medium text-(--df-text-secondary)">
                 Send a little thunder
               </p>
               <div className="mt-3 grid grid-cols-2 gap-2">
@@ -549,12 +584,12 @@ export default function TeamPage() {
                     type="button"
                     onClick={() => praise(message)}
                     aria-label={`Send praise to ${teammateName}: ${message}`}
-                    className="flex min-h-11 items-center justify-center gap-2 rounded-(--radius-pill) border border-(--hairline) bg-(--color-surface-elevated) px-3 text-sm font-medium text-(--color-ink) transition-[transform,opacity] duration-(--duration-press) ease-(--ease-spring-critical) hover:opacity-90 active:scale-[0.97]"
+                    className="df-press df-chip flex min-h-11 items-center justify-center gap-2 rounded-full px-3 text-sm font-semibold text-(--df-text-primary)"
                   >
-                    <Icon className="size-4 text-(--color-accent-recovery)" aria-hidden />
+                    <Icon className="size-4 text-(--df-streak)" aria-hidden />
                     {praiseSent === message ? (
                       <span className="flex items-center gap-1.5">
-                        <Check className="size-4 text-(--color-accent-fitness)" aria-hidden />
+                        <Check className="size-4 text-(--df-sync-ok)" aria-hidden />
                         Sent
                       </span>
                     ) : (
@@ -566,15 +601,23 @@ export default function TeamPage() {
             </GlassPanel>
 
             {/* my status */}
-            <GlassPanel surface="subtle" className="flex items-center gap-4 p-5">
+            <GlassPanel
+          hairline="none"
+          className="flex items-center gap-4 p-5"
+          style={{
+            background: "var(--df-summary-card-fill)",
+            border: "0.5px solid var(--df-summary-card-border)",
+            borderRadius: "var(--df-radius-panel)",
+          }}
+        >
               <span
-                className="flex size-11 shrink-0 items-center justify-center rounded-(--radius-pill) border border-(--hairline) bg-(--color-surface) text-sm font-semibold text-(--color-ink-muted)"
+                className="flex size-11 shrink-0 items-center justify-center rounded-full border border-(--df-chip-border) bg-(--df-chip-fill) text-sm font-bold text-(--df-text-secondary)"
                 aria-hidden
               >
                 You
               </span>
-              <p className="text-sm text-(--color-ink-muted)">
-                <span className="font-medium text-(--color-ink)">
+              <p className="text-sm text-(--df-text-secondary)">
+                <span className="font-medium text-(--df-text-primary)">
                   {myHabits.todayCount} today
                 </span>{" "}
                 · {myHabits.weekCount} this week · {myHabits.streak}d streak
@@ -582,8 +625,18 @@ export default function TeamPage() {
             </GlassPanel>
 
             {/* activity feed — status-only events */}
-            <GlassPanel className="p-5" edgeFade>
-              <p className="flex items-center gap-2 text-sm font-medium text-(--color-ink-muted)">
+            <GlassPanel
+              hairline="none"
+              className="p-5"
+              edgeFade
+              style={{
+                background: "color-mix(in srgb, var(--df-panel-fill) 90%, transparent)",
+                border: "0.5px solid var(--df-panel-border)",
+                borderRadius: "var(--df-radius-panel)",
+                boxShadow: "var(--df-hero-panel-shadow)",
+              }}
+            >
+              <p className="flex items-center gap-2 text-sm font-medium text-(--df-text-secondary)">
                 <Users className="size-4" aria-hidden />
                 Team activity
               </p>
@@ -592,23 +645,23 @@ export default function TeamPage() {
                 aria-live="polite"
               >
                 {feed.length === 0 && (
-                  <li className="text-sm text-(--color-ink-faint)">
+                  <li className="text-sm text-(--df-text-muted)">
                     Quiet in here. Complete a habit or send some praise.
                   </li>
                 )}
                 {feed.map((row) => (
                   <li
                     key={row.id}
-                    className="flex min-h-11 items-center gap-2.5 text-sm text-(--color-ink-muted)"
+                    className="flex min-h-11 items-center gap-2.5 text-sm text-(--df-text-secondary)"
                   >
                     <FeedIcon type={row.activity_type} self={row.user_id === myId} />
                     <span className="min-w-0 flex-1 truncate">
-                      <span className="font-medium text-(--color-ink)">
+                      <span className="font-medium text-(--df-text-primary)">
                         {row.user_id === myId ? "You" : teammateName}
                       </span>{" "}
                       {feedText(row)}
                     </span>
-                    <span className="shrink-0 text-xs tabular-nums text-(--color-ink-faint)">
+                    <span className="shrink-0 text-xs tabular-nums text-(--df-text-muted)">
                       {clockTime(row.timestamp)}
                     </span>
                   </li>
@@ -620,11 +673,20 @@ export default function TeamPage() {
 
         {/* ---------- loading ---------- */}
         {!teamLoaded && (
-          <GlassPanel className="p-6 sm:p-8">
-            <p className="text-xs font-semibold tracking-[0.22em] text-(--color-accent-focus)">
+          <GlassPanel
+          hairline="none"
+          className="p-6 sm:p-8"
+          style={{
+            background: "color-mix(in srgb, var(--df-panel-fill) 90%, transparent)",
+            border: "0.5px solid var(--df-panel-border)",
+            borderRadius: "var(--df-radius-panel)",
+            boxShadow: "var(--df-hero-panel-shadow)",
+          }}
+        >
+            <p className="text-xs font-semibold tracking-[0.22em] text-(--df-accent-text)">
               TEAM MODE
             </p>
-            <p className="mt-4 animate-pulse text-sm text-(--color-ink-muted)">
+            <p className="mt-4 animate-pulse text-sm text-(--df-text-secondary)">
               Checking for your team…
             </p>
           </GlassPanel>
@@ -638,27 +700,27 @@ export default function TeamPage() {
 
 function StatusChip({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex min-h-11 flex-col items-center justify-center rounded-(--radius-panel) border border-(--hairline) bg-(--color-surface-subtle) px-2 py-1.5">
-      <span className="text-base font-semibold tabular-nums text-(--color-ink)">{value}</span>
-      <span className="text-xs text-(--color-ink-faint)">{label}</span>
+    <div className="df-chip flex min-h-11 flex-col items-center justify-center rounded-[16px] px-2 py-1.5">
+      <span className="text-base font-semibold tabular-nums text-(--df-text-primary)">{value}</span>
+      <span className="text-xs text-(--df-text-muted)">{label}</span>
     </div>
   );
 }
 
 function FeedIcon({ type, self }: { type: string; self: boolean }) {
   if (type === "praise") {
-    return <Heart className="size-4 shrink-0 text-(--color-accent-recovery)" aria-hidden />;
+    return <Heart className="size-4 shrink-0 text-(--df-streak)" aria-hidden />;
   }
   if (type === "join") {
-    return <Users className="size-4 shrink-0 text-(--color-accent-craft)" aria-hidden />;
+    return <Users className="size-4 shrink-0 text-(--df-accent)" aria-hidden />;
   }
   if (type === "presence") {
-    return <Clock className="size-4 shrink-0 text-(--color-ink-faint)" aria-hidden />;
+    return <Clock className="size-4 shrink-0 text-(--df-text-muted)" aria-hidden />;
   }
   return self ? (
-    <Check className="size-4 shrink-0 text-(--color-accent-fitness)" aria-hidden />
+    <Check className="size-4 shrink-0 text-(--df-sync-ok)" aria-hidden />
   ) : (
-    <Flame className="size-4 shrink-0 text-(--color-accent-focus)" aria-hidden />
+    <Flame className="size-4 shrink-0 text-(--df-accent-text)" aria-hidden />
   );
 }
 

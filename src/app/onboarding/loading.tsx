@@ -7,7 +7,16 @@ export default function OnboardingLoading() {
   return (
     <main className="df-window w-full min-h-[100dvh] overflow-x-hidden sm:p-[15px]">
       <div className="mx-auto flex max-w-[560px] items-center justify-center p-6">
-        <GlassPanel className="grid w-full place-items-center px-6 py-14">
+        <GlassPanel
+          hairline="none"
+          className="grid w-full place-items-center px-6 py-14"
+          style={{
+            background: "color-mix(in srgb, var(--df-panel-fill) 90%, transparent)",
+            border: "0.5px solid var(--df-panel-border)",
+            borderRadius: "var(--df-radius-panel)",
+            boxShadow: "var(--df-hero-panel-shadow)",
+          }}
+        >
           <div className="flex flex-col items-center gap-4">
             <LogoLoop size="md" label="Loading onboarding" />
             <p

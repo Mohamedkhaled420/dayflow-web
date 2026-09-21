@@ -165,7 +165,7 @@ export function CoachNotesSheet({
                     onClearAll();
                   }}
                   aria-label="Clear all Coach Notes"
-                  className="df-press flex h-7 items-center gap-1 rounded-md px-2 text-[10.5px] font-semibold"
+                  className="df-press flex h-7 items-center gap-1 rounded-full px-2.5 text-[10.5px] font-semibold"
                   style={{ color: "var(--df-text-muted)" }}
                 >
                   <Trash2 className="h-3 w-3" aria-hidden="true" />
@@ -176,7 +176,7 @@ export function CoachNotesSheet({
                 type="button"
                 onClick={onClose}
                 aria-label="Close Coach Notes"
-                className="df-press grid h-7 w-7 shrink-0 place-items-center rounded-md"
+                className="df-press grid h-7 w-7 shrink-0 place-items-center rounded-full"
                 style={{ color: "var(--df-text-secondary)" }}
               >
                 <X className="h-3.5 w-3.5" aria-hidden="true" />
@@ -227,7 +227,7 @@ export function CoachNotesSheet({
                             onDismiss(note);
                           }}
                           aria-label="Dismiss this note"
-                          className="df-press grid h-6 w-6 shrink-0 place-items-center rounded-md"
+                          className="df-press grid h-6 w-6 shrink-0 place-items-center rounded-full"
                           style={{ color: "var(--df-text-muted)" }}
                         >
                           <X className="h-3 w-3" aria-hidden="true" />
@@ -252,7 +252,7 @@ export function CoachNotesSheet({
                                   }}
                                   disabled={applied || busy}
                                   aria-label={`${applied ? "Logged" : "Log"} ${coachActionLabel(action)}`}
-                                  className="df-press flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[11.5px] font-medium disabled:cursor-default"
+                                  className="df-press flex w-full items-center gap-2 rounded-[14px] px-2.5 py-2 text-left text-[11.5px] font-medium disabled:cursor-default"
                                   style={{
                                     background: applied
                                       ? "color-mix(in srgb, var(--df-sync-ok) 14%, transparent)"
@@ -283,7 +283,7 @@ export function CoachNotesSheet({
                                     </span>
                                   ) : (
                                     <span
-                                      className="shrink-0 rounded-md px-2 py-[3px] text-[10px] font-bold uppercase tracking-wide"
+                                      className="shrink-0 rounded-full px-2 py-[3px] text-[10px] font-bold uppercase tracking-wide"
                                       style={{
                                         background: "color-mix(in srgb, var(--df-accent) 16%, transparent)",
                                         color: "var(--df-accent-text)",

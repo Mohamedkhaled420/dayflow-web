@@ -321,7 +321,7 @@ function RoutineBuilder({
 
           <SectionLabel>Anything to work around? <span className="opacity-60 normal-case tracking-normal">optional</span></SectionLabel>
           <div
-            className="mt-1.5 rounded-md px-3 min-h-11 py-2.5 df-input-glass"
+            className="mt-1.5 rounded-full px-4 min-h-11 py-2.5 df-input-glass"
           >
             <input
               value={notes}
@@ -335,7 +335,7 @@ function RoutineBuilder({
 
           {/* history context */}
           <div
-            className="mt-3 rounded-md px-3 py-2 flex items-center gap-2 text-[11px]"
+            className="mt-3 rounded-[16px] px-3 py-2 flex items-center gap-2 text-[11px]"
             style={{
               background: "var(--df-input-fill)",
               color: "var(--df-text-muted)",
@@ -351,7 +351,7 @@ function RoutineBuilder({
 
           {error && (
             <div
-              className="mt-3 rounded-md px-3 py-2.5 text-[12px]"
+              className="mt-3 rounded-[14px] px-3 py-2.5 text-[12px]"
               style={{
                 background: "color-mix(in srgb, var(--df-destructive-soft) 12%, transparent)",
                 border: "0.5px solid color-mix(in srgb, var(--df-destructive-soft) 30%, transparent)",
@@ -547,7 +547,7 @@ function PlanStep({
       {/* science card */}
       {plan.science && (
         <div
-          className="mt-2.5 rounded-lg p-3.5 shrink-0"
+          className="mt-2.5 rounded-[16px] p-3.5 shrink-0"
           style={{
             background: "var(--df-daily-grid-fill)",
             border: "0.5px solid var(--df-chip-border)",
@@ -608,7 +608,7 @@ function PlanStep({
             >
               <div className="flex items-start gap-2.5">
                 <span
-                  className="shrink-0 h-7 w-7 grid place-items-center rounded-lg text-[11.5px] font-bold tabular-nums"
+                  className="shrink-0 h-7 w-7 grid place-items-center rounded-full text-[11.5px] font-bold tabular-nums"
                   style={{
                     background:
                       i === 0
@@ -724,7 +724,7 @@ function PlanStep({
 function MiniList({ title, items, accent }: { title: string; items: string[]; accent?: boolean }) {
   return (
     <div
-      className="mt-2.5 rounded-lg px-3.5 py-3 shrink-0"
+      className="mt-2.5 rounded-[16px] px-3.5 py-3 shrink-0"
       style={{
         background: "var(--df-input-fill)",
         border: "0.5px solid var(--df-input-border)",

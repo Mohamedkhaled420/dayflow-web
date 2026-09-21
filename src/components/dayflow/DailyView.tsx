@@ -209,7 +209,7 @@ export function DailyView() {
 
       {/* nutrition — Cal AI-style calories & macros (Phase 9) */}
       <section
-        className="mt-5 rounded-lg p-4"
+        className="mt-5 rounded-[20px] p-4"
         style={{
           background: "var(--df-daily-grid-fill)",
           border: "0.5px solid var(--df-daily-grid-border)",
@@ -270,7 +270,7 @@ export function DailyView() {
           {nutrition.meals.length === 0 ? (
             <button
               onClick={() => setMealSheetOpen(true)}
-              className="df-press w-full rounded-lg py-4 flex flex-col items-center gap-1.5"
+              className="df-press w-full rounded-[20px] py-4 flex flex-col items-center gap-1.5"
               style={{
                 background: "var(--df-input-fill)",
                 border: `1.5px dashed color-mix(in srgb, ${CATEGORY_COLORS.meals} 40%, transparent)`,
@@ -316,7 +316,7 @@ export function DailyView() {
       <div className="mt-5 grid xl:grid-cols-[1fr_360px] gap-4">
         {/* category activity grid */}
         <section
-          className="rounded-lg p-4"
+          className="rounded-[20px] p-4"
           style={{
             background: "var(--df-daily-grid-fill)",
             border: "0.5px solid var(--df-daily-grid-border)",
@@ -423,7 +423,7 @@ export function DailyView() {
 
         {/* daily recap card */}
         <section
-          className="rounded-lg p-4 relative overflow-hidden"
+          className="rounded-[20px] p-4 relative overflow-hidden"
           style={{
             border: "0.5px solid var(--df-daily-grid-border)",
             background:
@@ -449,7 +449,7 @@ export function DailyView() {
               <button
                 key={i}
                 onClick={() => setChecked((c) => ({ ...c, [i]: !c[i] }))}
-                className="df-press flex items-start gap-2 text-left w-full rounded-md px-1.5 py-1 -mx-1.5"
+                className="df-press flex items-start gap-2 text-left w-full rounded-[12px] px-1.5 py-1 -mx-1.5"
                 aria-pressed={!!checked[i]}
               >
                 <CheckCircle2
@@ -476,7 +476,7 @@ export function DailyView() {
               recap.watchouts.map((w, i) => (
                 <div
                   key={i}
-                  className="flex items-start gap-2 rounded-md px-2 py-1.5"
+                  className="flex items-start gap-2 rounded-[12px] px-2 py-1.5"
                   style={{
                     background: "color-mix(in srgb, var(--df-destructive-soft) 12%, transparent)",
                     border: "0.5px solid color-mix(in srgb, var(--df-destructive-soft) 30%, transparent)",
@@ -632,7 +632,7 @@ function MealRow({ meal, onDelete }: { meal: MealLogRow; onDelete: () => void })
   });
   return (
     <div
-      className="group flex items-center gap-2.5 rounded-md px-2 py-1.5"
+      className="group flex items-center gap-2.5 rounded-[12px] px-2 py-1.5"
       style={{ background: "var(--df-input-fill)" }}
     >
       <span

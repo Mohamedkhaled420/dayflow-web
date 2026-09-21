@@ -84,7 +84,7 @@ export function TrainingSection({ dateKey, onLogWorkout, onEditWorkout, onGenera
 
   return (
     <section
-      className="mt-5 rounded-lg p-4"
+      className="mt-5 rounded-[20px] p-4"
       style={{
         background: "var(--df-daily-grid-fill)",
         border: "0.5px solid var(--df-daily-grid-border)",
@@ -145,7 +145,7 @@ export function TrainingSection({ dateKey, onLogWorkout, onEditWorkout, onGenera
               triggerHaptic();
               onLogWorkout();
             }}
-            className="df-press w-full rounded-lg py-4 flex flex-col items-center gap-1.5"
+            className="df-press w-full rounded-[20px] py-4 flex flex-col items-center gap-1.5"
             style={{
               background: "var(--df-input-fill)",
               border: `1.5px dashed color-mix(in srgb, ${FITNESS} 40%, transparent)`,
@@ -164,7 +164,7 @@ export function TrainingSection({ dateKey, onLogWorkout, onEditWorkout, onGenera
               triggerHaptic();
               onGenerateRoutine();
             }}
-            className="df-press w-full rounded-lg py-3 flex flex-col items-center gap-1"
+            className="df-press w-full rounded-[16px] py-3 flex flex-col items-center gap-1"
             style={{
               background: `color-mix(in srgb, ${FITNESS} 7%, transparent)`,
               border: `1px dashed color-mix(in srgb, ${FITNESS} 30%, transparent)`,
@@ -198,7 +198,7 @@ export function TrainingSection({ dateKey, onLogWorkout, onEditWorkout, onGenera
       {/* weekly rollup */}
       {(week.volumeKg > 0 || week.sets > 0) && (
         <div
-          className="mt-3 rounded-md px-3 py-2 flex items-center gap-2 text-[11px] font-semibold flex-wrap"
+          className="mt-3 rounded-[14px] px-3 py-2 flex items-center gap-2 text-[11px] font-semibold flex-wrap"
           style={{
             background: "var(--df-input-fill)",
             color: "var(--df-text-secondary)",
@@ -243,7 +243,7 @@ function SessionRow({
 
   return (
     <div
-      className="rounded-md px-3 py-2.5 flex items-center gap-2.5"
+      className="rounded-[14px] px-3 py-2.5 flex items-center gap-2.5"
       style={{ background: "var(--df-input-fill)" }}
     >
       <button

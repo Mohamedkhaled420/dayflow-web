@@ -168,7 +168,7 @@ export function OptimizationSection({ dateKey }: { dateKey: string }) {
 
   return (
     <section
-      className="mt-5 rounded-lg p-4"
+      className="mt-5 rounded-[20px] p-4"
       style={{
         background: "var(--df-daily-grid-fill)",
         border: "0.5px solid var(--df-daily-grid-border)",
@@ -214,7 +214,7 @@ export function OptimizationSection({ dateKey }: { dateKey: string }) {
       {/* calibrate row — body weight + daily burn → energy math unlocks */}
       {editing && (
         <div
-          className="mt-3 rounded-md px-3 py-2.5 flex items-end gap-2.5 flex-wrap"
+          className="mt-3 rounded-[14px] px-3 py-2.5 flex items-end gap-2.5 flex-wrap"
           style={{ background: "var(--df-input-fill)", border: "0.5px solid var(--df-input-border)" }}
         >
           <label className="text-[11px] flex flex-col gap-1" style={{ color: "var(--df-text-secondary)" }}>
@@ -228,7 +228,7 @@ export function OptimizationSection({ dateKey }: { dateKey: string }) {
               value={weightInput}
               onChange={(e) => setWeightInput(e.target.value)}
               placeholder="72"
-              className="h-9 w-28 px-2.5 rounded-md text-[13px] tabular-nums"
+              className="h-9 w-28 px-3 rounded-full text-[13px] tabular-nums"
               style={{
                 background: "var(--df-daily-grid-fill)",
                 border: "0.5px solid var(--df-chip-border)",
@@ -247,7 +247,7 @@ export function OptimizationSection({ dateKey }: { dateKey: string }) {
               value={tdeeInput}
               onChange={(e) => setTdeeInput(e.target.value)}
               placeholder="2400"
-              className="h-9 w-28 px-2.5 rounded-md text-[13px] tabular-nums"
+              className="h-9 w-28 px-3 rounded-full text-[13px] tabular-nums"
               style={{
                 background: "var(--df-daily-grid-fill)",
                 border: "0.5px solid var(--df-chip-border)",

@@ -53,6 +53,7 @@ import {
   type DiaSyncState,
 } from "@/components/dayflow/DiaChatShell";
 import { JournalComposer } from "@/components/dayflow/JournalComposer";
+import { QuickActionGrid } from "@/components/dayflow/QuickActions";
 import { journalHtmlToText, sanitizeJournalHtml } from "@/lib/journal-html";
 import { stripReasoning } from "@/lib/coach-text";
 import { renderCoachMarkdown } from "@/lib/coach-markdown";
@@ -746,6 +747,9 @@ export function ChatView() {
   };
 
   const firstName = data.profile.name.split(" ")[0];
+  // Phase 11 — the chat hero's "Start writing" CTA focuses the
+  // composer via this signal (see JournalComposer.focusSignal).
+  const [focusSignal, setFocusSignal] = useState(0);
 
   return (
     <div className="relative flex h-full min-h-0 flex-col lg:mx-auto lg:w-full lg:max-w-[880px]">
@@ -801,6 +805,7 @@ export function ChatView() {
             value={draft}
             onChange={setDraft}
             onSubmit={() => void saveEntry()}
+            focusSignal={focusSignal}
           />
 
           {/* action row — mood for the entry, then save / ask.
@@ -845,7 +850,7 @@ export function ChatView() {
                 type="button"
                 onClick={() => void saveEntry()}
                 disabled={!draftText || saving}
-                className="df-press df-btn-primary min-h-11 flex items-center gap-1.5 rounded-md px-3.5 text-[12.5px] font-semibold disabled:opacity-40"
+                className="df-press df-btn-primary min-h-11 flex items-center gap-1.5 rounded-full px-3.5 text-[12.5px] font-semibold disabled:opacity-40"
               >
                 <NotebookPen className="h-3.5 w-3.5" />
                 {saving ? "Saving…" : "Save entry"}
@@ -864,7 +869,7 @@ export function ChatView() {
                         ? "Ask the coach about your recent entries"
                         : "Ask the coach about your recent workouts"
                 }
-                className="df-press df-btn-secondary min-h-11 flex items-center gap-1.5 rounded-md px-3.5 text-[12.5px] font-semibold disabled:opacity-40"
+                className="df-press df-btn-secondary min-h-11 flex items-center gap-1.5 rounded-full px-3.5 text-[12.5px] font-semibold disabled:opacity-40"
               >
                 {asking ? (
                   <LogoLoop size="sm" />
@@ -897,16 +902,95 @@ export function ChatView() {
           Journal — private to your account, never shared with your team.
         </p>
 
+        {/* Lively Pastel hero (Phase 11) — the reference chat home:
+            periwinkle greeting card ("Hey, {name}" + the white mode
+            capsule + the ONE charcoal pill CTA), then the "How can
+            I help you today?" pastel grid. Shows while no coach
+            reply is on screen — the journal cards render below it. */}
+        {visibleTurns.length === 0 && (
+          <>
+            <section
+              className="df-rise relative mt-3 overflow-hidden rounded-[24px] px-5 py-4"
+              style={{
+                background: "var(--df-hero-panel)",
+                border: "0.5px solid var(--df-hero-panel-edge)",
+                boxShadow: "var(--df-hero-panel-shadow)",
+              }}
+              aria-label="Ask your coach"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h2
+                    className="truncate text-[20px] font-extrabold leading-tight tracking-tight"
+                    style={{ color: "var(--df-text-primary)" }}
+                  >
+                    Hey, {firstName}
+                  </h2>
+                  <p
+                    className="mt-0.5 text-[12px] font-semibold leading-none"
+                    style={{ color: "var(--df-text-secondary)" }}
+                  >
+                    What is the plan for today?
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={cycleMode}
+                  className="df-press flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-[11px] font-bold"
+                  style={{
+                    background: "var(--df-hero-badge-fill)",
+                    border: "0.5px solid var(--df-hero-badge-border)",
+                    color: "var(--df-text-primary)",
+                  }}
+                  aria-label={`Coach context: ${mode}. Activate to switch to ${
+                    mode === "journal" ? "training" : "journal"
+                  } coaching.`}
+                >
+                  <Sparkles
+                    className="h-3.5 w-3.5"
+                    style={{ color: "var(--df-streak)" }}
+                    aria-hidden="true"
+                  />
+                  {mode === "journal" ? "Journal coach" : "Training coach"}
+                </button>
+              </div>
+              <p
+                className="mt-3 max-w-[30ch] text-[15.5px] font-extrabold leading-snug"
+                style={{ color: "var(--df-text-primary)" }}
+              >
+                Design your perfect daily routine with your private coach.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  hapticSelect();
+                  setFocusSignal((n) => n + 1);
+                }}
+                className="df-press df-btn-primary mt-3.5 inline-flex h-10 items-center gap-1.5 px-5 text-[13px] font-bold"
+              >
+                <NotebookPen className="h-4 w-4" aria-hidden="true" />
+                Start writing
+              </button>
+            </section>
+
+            <p
+              className="px-0.5 text-[12.5px] font-extrabold leading-none"
+              style={{ color: "var(--df-text-primary)" }}
+            >
+              How can I help you today?
+            </p>
+            <QuickActionGrid
+              onPick={(a) =>
+                applyPreset({ label: a.label, prompt: a.prompt, mode: a.mode })
+              }
+            />
+          </>
+        )}
+
         {entries.length === 0 && visibleTurns.length === 0 && (
-          <div className="df-card mt-3 p-5 text-center">
-            <p className="text-[13px] font-semibold" style={{ color: "var(--df-text-primary)" }}>
-              Nothing written yet
-            </p>
-            <p className="mt-1 text-[11.5px]" style={{ color: "var(--df-text-secondary)" }}>
-              Hi {firstName} — write the first entry below, or tap Ask Coach to reflect on
-              how things have been going.
-            </p>
-          </div>
+          <p className="mt-3 text-center text-[11px]" style={{ color: "var(--df-text-muted)" }}>
+            Nothing written yet — pick a card above or start typing below.
+          </p>
         )}
 
         {visibleTurns.map((t) => (
@@ -947,7 +1031,7 @@ export function ChatView() {
         )}
 
         {asking && liveReply === null && (
-          <div className="df-generating h-[34px] max-w-[60%] rounded-lg" aria-label="Coach is thinking">
+          <div className="df-generating h-[34px] max-w-[60%] rounded-full" aria-label="Coach is thinking">
             <div className="flex h-full items-center gap-1.5 px-4">
               {[0, 1, 2].map((i) => (
                 <motion.span
@@ -964,11 +1048,12 @@ export function ChatView() {
 
         {coachError && (
           <p
-            className="max-w-[80%] self-start rounded-md px-3 py-2 text-[12px]"
+            className="max-w-[80%] self-start px-3 py-2 text-[12px]"
             role="alert"
             style={{
               color: "var(--df-destructive-text)",
               background: "color-mix(in srgb, var(--df-destructive) 12%, transparent)",
+              borderRadius: "var(--df-bubble-radius)",
             }}
           >
             {coachError}
@@ -982,9 +1067,10 @@ export function ChatView() {
             <article
               key={e.id}
               data-entry-index={i}
-              className="rounded-[12px] px-3.5 py-2.5"
+              className="px-3.5 py-2.5"
               style={{
                 background: "var(--df-card-fill)",
+                borderRadius: "var(--df-bubble-radius)",
                 border: highlighted
                   ? "1.5px solid var(--df-accent)"
                   : "0.5px solid var(--df-card-border)",
@@ -1074,19 +1160,24 @@ function Bubble({
       initial={{ opacity: 0, y: 8, scale: 0.99 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-      className={`max-w-[78%] rounded-[12px] px-3.5 py-2.5 sm:max-w-[62%] ${
+      className={`max-w-[78%] px-3.5 py-2.5 sm:max-w-[62%] ${
         isUser ? "self-end" : "self-start"
       }`}
       style={
         isUser
           ? {
+              /* Lively Pastel: user rides the SUNNY yellow bubble
+                 (yellow-200 over the cream chat surface). */
               background: "var(--df-chat-soft-fill)",
               border: "0.5px solid var(--df-chat-soft-border)",
+              borderRadius: "var(--df-bubble-radius)",
             }
           : {
-              background: "var(--df-card-fill)",
-              border: "0.5px solid var(--df-card-border)",
-              boxShadow: "inset 0 0 0 2px var(--df-card-glow)",
+              /* The coach answers in BLUSH PINK — the pink/yellow
+                 bubble pairing from the reference. */
+              background: "var(--df-bubble-coach-fill)",
+              border: "0.5px solid var(--df-bubble-coach-border)",
+              borderRadius: "var(--df-bubble-radius)",
             }
       }
     >

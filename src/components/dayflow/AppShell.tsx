@@ -265,7 +265,7 @@ export function AppShell() {
           className="df-rise flex-1 min-h-0 min-w-0"
           style={{ animationDelay: "100ms" }}
         >
-          <div className="df-panel h-full min-h-0 overflow-hidden rounded-none sm:rounded-lg pb-[calc(88px+env(safe-area-inset-bottom))] lg:pb-0">
+          <div className="df-panel h-full min-h-0 overflow-hidden rounded-none sm:rounded-[24px] pb-[calc(88px+env(safe-area-inset-bottom))] lg:pb-0">
             {/* popLayout (not "wait"): lazy view chunks can resolve while
                 their tab child is exiting — mode="wait" deadlocks in that
                 window (exit never completes, the next tab never mounts).
@@ -367,17 +367,33 @@ function DockItem({
       onClick={onClick}
       aria-label={label}
       aria-current={active ? "page" : undefined}
-      className="df-press flex-1 min-w-0 h-[52px] rounded-[16px] flex flex-col items-center justify-center gap-[3px]"
+      className="df-press flex-1 min-w-0 h-[52px] rounded-full flex flex-col items-center justify-center gap-[3px]"
       style={{ color: active ? "var(--df-accent-text)" : "var(--df-text-muted)" }}
     >
       <motion.span
-        className="grid place-items-center"
+        className="relative grid size-[30px] place-items-center"
         animate={
           reducedMotion ? undefined : { scale: active ? 1.08 : 1, y: active ? -0.5 : 0 }
         }
         transition={springSoft}
       >
-        {icon}
+        {/* Lively Pastel: the active dock item rides a WHITE cast
+            pill — the selected-state capsule from the reference. */}
+        {active && (
+          <motion.span
+            className="absolute inset-0 rounded-full"
+            initial={reducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.7 }}
+            animate={reducedMotion ? { opacity: 1 } : { opacity: 1, scale: 1 }}
+            transition={springSoft}
+            style={{
+              background: "var(--df-sidebar-selected-fill)",
+              border: "0.5px solid var(--df-sidebar-selected-border)",
+              boxShadow: "0 2px 8px var(--df-sidebar-selected-glow)",
+            }}
+            aria-hidden="true"
+          />
+        )}
+        <span className="relative z-10">{icon}</span>
       </motion.span>
       <span
         className="text-[9.5px] font-semibold leading-none"
@@ -406,12 +422,12 @@ function SidebarButton({
       onClick={onClick}
       aria-label={label}
       aria-current={active ? "page" : undefined}
-      className="df-press group w-[61px] rounded-[14px] py-2 flex flex-col items-center gap-[3px]"
+      className="df-press group w-[61px] rounded-full py-2 flex flex-col items-center gap-[3px]"
     >
       <span className="relative w-[37px] h-[37px] grid place-items-center">
         {active && (
           <motion.span
-            className="absolute inset-0 rounded-[10px]"
+            className="absolute inset-0 rounded-full"
             initial={reducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.88 }}
             animate={reducedMotion ? { opacity: 1 } : { opacity: 1, scale: 1 }}
             transition={springSoft}

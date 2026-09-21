@@ -81,7 +81,7 @@ export function SleepSection({ dateKey }: { dateKey: string }) {
 
   return (
     <section
-      className="mt-5 rounded-lg p-4 relative overflow-hidden"
+      className="mt-5 rounded-[20px] p-4 relative overflow-hidden"
       style={{
         background: `linear-gradient(135deg, color-mix(in srgb, ${SLEEP} 9%, var(--df-daily-grid-fill)), var(--df-daily-grid-fill) 62%)`,
         border: "0.5px solid var(--df-daily-grid-border)",
@@ -188,7 +188,7 @@ export function SleepSection({ dateKey }: { dateKey: string }) {
                   type="time"
                   value={wake}
                   onChange={(e) => setWake(e.target.value)}
-                  className="h-8 px-2 rounded-md text-[12px] tabular-nums"
+                  className="h-8 px-3 rounded-full text-[12px] tabular-nums"
                   style={{
                     background: "var(--df-input-fill)",
                     border: "0.5px solid var(--df-input-border)",
