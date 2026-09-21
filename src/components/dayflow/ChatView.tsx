@@ -845,7 +845,7 @@ export function ChatView() {
                 type="button"
                 onClick={() => void saveEntry()}
                 disabled={!draftText || saving}
-                className="df-press df-btn-primary min-h-11 flex items-center gap-1.5 rounded-md px-3.5 text-[12.5px] font-semibold disabled:opacity-40"
+                className="df-press df-btn-primary min-h-11 flex items-center gap-1.5 rounded-full px-3.5 text-[12.5px] font-semibold disabled:opacity-40"
               >
                 <NotebookPen className="h-3.5 w-3.5" />
                 {saving ? "Saving…" : "Save entry"}
@@ -864,7 +864,7 @@ export function ChatView() {
                         ? "Ask the coach about your recent entries"
                         : "Ask the coach about your recent workouts"
                 }
-                className="df-press df-btn-secondary min-h-11 flex items-center gap-1.5 rounded-md px-3.5 text-[12.5px] font-semibold disabled:opacity-40"
+                className="df-press df-btn-secondary min-h-11 flex items-center gap-1.5 rounded-full px-3.5 text-[12.5px] font-semibold disabled:opacity-40"
               >
                 {asking ? (
                   <LogoLoop size="sm" />
@@ -947,7 +947,7 @@ export function ChatView() {
         )}
 
         {asking && liveReply === null && (
-          <div className="df-generating h-[34px] max-w-[60%] rounded-lg" aria-label="Coach is thinking">
+          <div className="df-generating h-[34px] max-w-[60%] rounded-full" aria-label="Coach is thinking">
             <div className="flex h-full items-center gap-1.5 px-4">
               {[0, 1, 2].map((i) => (
                 <motion.span
@@ -964,11 +964,12 @@ export function ChatView() {
 
         {coachError && (
           <p
-            className="max-w-[80%] self-start rounded-md px-3 py-2 text-[12px]"
+            className="max-w-[80%] self-start px-3 py-2 text-[12px]"
             role="alert"
             style={{
               color: "var(--df-destructive-text)",
               background: "color-mix(in srgb, var(--df-destructive) 12%, transparent)",
+              borderRadius: "var(--df-bubble-radius)",
             }}
           >
             {coachError}
@@ -982,9 +983,10 @@ export function ChatView() {
             <article
               key={e.id}
               data-entry-index={i}
-              className="rounded-[12px] px-3.5 py-2.5"
+              className="px-3.5 py-2.5"
               style={{
                 background: "var(--df-card-fill)",
+                borderRadius: "var(--df-bubble-radius)",
                 border: highlighted
                   ? "1.5px solid var(--df-accent)"
                   : "0.5px solid var(--df-card-border)",
@@ -1074,19 +1076,24 @@ function Bubble({
       initial={{ opacity: 0, y: 8, scale: 0.99 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-      className={`max-w-[78%] rounded-[12px] px-3.5 py-2.5 sm:max-w-[62%] ${
+      className={`max-w-[78%] px-3.5 py-2.5 sm:max-w-[62%] ${
         isUser ? "self-end" : "self-start"
       }`}
       style={
         isUser
           ? {
+              /* Lively Pastel: user rides the SUNNY yellow bubble
+                 (yellow-200 over the cream chat surface). */
               background: "var(--df-chat-soft-fill)",
               border: "0.5px solid var(--df-chat-soft-border)",
+              borderRadius: "var(--df-bubble-radius)",
             }
           : {
-              background: "var(--df-card-fill)",
-              border: "0.5px solid var(--df-card-border)",
-              boxShadow: "inset 0 0 0 2px var(--df-card-glow)",
+              /* The coach answers in BLUSH PINK — the pink/yellow
+                 bubble pairing from the reference. */
+              background: "var(--df-bubble-coach-fill)",
+              border: "0.5px solid var(--df-bubble-coach-border)",
+              borderRadius: "var(--df-bubble-radius)",
             }
       }
     >

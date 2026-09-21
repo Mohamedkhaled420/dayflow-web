@@ -287,7 +287,10 @@ export function JournalComposer({
       }}
       style={{
         background: "var(--df-input-fill)",
-        borderRadius: "10px",
+        /* Lively Pastel control radius — the soft 16px well (a
+           rich-text editor cannot be a full pill; this is the
+           control-tier signature). */
+        borderRadius: "var(--df-radius-control)",
       }}
     >
       {toolbar}
