@@ -315,7 +315,13 @@ export function JournalComposer({
   if (fullscreen) {
     return (
       <div
-        className="fixed inset-0 z-[70] flex flex-col p-3 sm:p-6"
+        /* Standalone (pinned-to-home-screen) fix: the fullscreen
+           editor is fixed inset-0, so in the installed app it spans
+           the notch AND the home indicator. Pad with the safe-area
+           insets (falling back to the base padding in the browser)
+           so the toolbar stays below the status bar and the status
+           bar / bottom controls stay above the home indicator. */
+        className="fixed inset-0 z-[70] flex flex-col pt-[max(0.75rem,var(--safe-area-top,0px))] pb-[max(0.75rem,var(--safe-area-bottom,0px))] px-3 sm:p-6"
         style={{ background: "var(--background)" }}
         role="dialog"
         aria-label="Fullscreen journal editor"

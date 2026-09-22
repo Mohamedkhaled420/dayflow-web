@@ -425,9 +425,12 @@ function RoutineBuilder({
             /* Keyboard lift (shared --keyboard-height): the sheet
                rides above the software keyboard instead of leaving
                the CTA buried underneath it while typing. maxHeight
-               shrinks the panel so it never runs off the top edge. */
+               shrinks the panel so it never runs off the top edge.
+               Standalone (pinned) fix: the cap also reserves the notch
+               band — with the keyboard up the top used to sit at y=0. */
             marginBottom: "var(--keyboard-height, 0px)",
-            maxHeight: "calc(100dvh - var(--keyboard-height, 0px))",
+            maxHeight:
+              "calc(100dvh - var(--keyboard-height, 0px) - max(var(--safe-area-top, 0px), 8px))",
             transition: "margin-bottom 220ms cubic-bezier(0.32, 0.72, 0, 1)",
           }}
           onClick={(e) => e.stopPropagation()}
@@ -436,7 +439,7 @@ function RoutineBuilder({
             className="mx-auto mt-2.5 mb-1 h-[5px] w-9 rounded-full shrink-0"
             style={{ background: "var(--df-chip-border)" }}
           />
-          <div className="flex flex-col min-h-0 flex-1 px-4 pb-[max(12px,env(safe-area-inset-bottom))]">
+          <div className="flex flex-col min-h-0 flex-1 px-4 pb-[max(12px,var(--safe-area-bottom,0px))]">
             {body}
           </div>
         </motion.div>

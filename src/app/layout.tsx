@@ -38,7 +38,7 @@ export const metadata: Metadata = {
     title: "Dayflow",
     // black-translucent: the installed app paints edge-to-edge (under the
     // notch / Dynamic Island); the mobile header already pads
-    // env(safe-area-inset-top). ChromeThemeSync swaps this to "default"
+    // var(--safe-area-top). ChromeThemeSync swaps this to "default"
     // while the LIGHT theme is active so the status-bar text stays
     // readable on the light header.
     statusBarStyle: "black-translucent",
@@ -60,7 +60,7 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   // viewportFit=cover lets the app paint under the notch/home indicator;
-  // the tab dock respects env(safe-area-inset-bottom).
+  // the tab dock respects var(--safe-area-bottom).
   viewportFit: "cover",
   // Browser chrome must BLEND with the app surface or the phone reads
   // "website", not "app": the address-bar area is tinted per color

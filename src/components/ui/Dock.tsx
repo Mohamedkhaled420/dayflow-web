@@ -10,7 +10,7 @@
 // - backdrop-filter capped at blur-xl, forced GPU layer via
 //   translateZ(0) + will-change (WebKit black-box guard).
 // - 48x48 minimum tap targets; labels 10px tracking-wide medium.
-// - Safe-area padding: env(safe-area-inset-bottom) + 8px.
+// - Safe-area padding: var(--safe-area-bottom) + 8px.
 // - contextmenu suppressed (native-feel, PRD §7).
 // - Active indicator = sliding spring thumb on the compositor
 //   (transform only, --ease-spring-critical). Phase 1 swaps the
@@ -62,7 +62,7 @@ export function Dock({
         className
       )}
       style={{
-        paddingBottom: "calc(env(safe-area-inset-bottom) + 8px)",
+        paddingBottom: "calc(var(--safe-area-bottom, 0px) + 8px)",
         background: "var(--color-surface-glass)",
         WebkitBackdropFilter: "blur(24px) saturate(1.7)",
         backdropFilter: "blur(24px) saturate(1.7)",

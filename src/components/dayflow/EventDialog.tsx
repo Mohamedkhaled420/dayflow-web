@@ -219,7 +219,11 @@ export function EventDialog({ open, onClose, event, dateKey }: Props) {
                        --keyboard-height — apply it so the sheet (and its
                        action row) rides above the software keyboard. */
                     marginBottom: "var(--keyboard-height, 0px)",
-                    maxHeight: "calc(100dvh - var(--keyboard-height, 0px))",
+                    /* Standalone (pinned) fix: reserve the notch band at
+                       the TOP too — a tall form used to cap at 100dvh and
+                       put its drag handle + header under the status bar. */
+                    maxHeight:
+                      "calc(100dvh - var(--keyboard-height, 0px) - max(var(--safe-area-top, 0px), 8px))",
                     transition:
                       "margin-bottom 220ms cubic-bezier(0.32, 0.72, 0, 1)",
                   }
@@ -472,7 +476,7 @@ function EventForm({
         <div className="mx-auto mb-2.5 h-[5px] w-9 rounded-full" style={{ background: "var(--df-chip-border)" }} />
         <FormHeader event={event} onClose={onClose} />
       </div>
-      <div className="df-scroll overflow-y-auto px-5 pb-[max(18px,env(safe-area-inset-bottom))]">
+      <div className="df-scroll overflow-y-auto px-5 pb-[max(18px,var(--safe-area-bottom,0px))]">
         <FormBody
           event={event}
           timeCategories={timeCategories}

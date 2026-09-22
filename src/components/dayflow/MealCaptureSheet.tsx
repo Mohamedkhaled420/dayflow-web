@@ -686,15 +686,18 @@ function SheetShell({ onClose, children }: { onClose: () => void; children: Reac
         style={{
           /* Keyboard lift (MealCaptureForm tracks --keyboard-height):
              ride above the software keyboard, cap the panel so it never
-             runs off the top edge. */
+             runs off the top edge. Standalone (pinned) fix: the cap also
+             reserves the notch band — the grab handle used to land
+             under the status bar on tall content. */
           marginBottom: "var(--keyboard-height, 0px)",
-          maxHeight: "calc(100dvh - var(--keyboard-height, 0px))",
+          maxHeight:
+            "calc(100dvh - var(--keyboard-height, 0px) - max(var(--safe-area-top, 0px), 8px))",
           transition: "margin-bottom 220ms cubic-bezier(0.32, 0.72, 0, 1)",
         }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mx-auto mt-2.5 mb-1 h-[5px] w-9 rounded-full" style={{ background: "var(--df-chip-border)" }} />
-        <div className="df-scroll overflow-y-auto px-5 pb-[max(18px,env(safe-area-inset-bottom))] max-h-[calc(82dvh-var(--keyboard-height,0px))]">
+        <div className="df-scroll overflow-y-auto px-5 pb-[max(18px,var(--safe-area-bottom,0px))] max-h-[calc(82dvh-var(--keyboard-height,0px))]">
           {children}
         </div>
       </motion.div>

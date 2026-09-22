@@ -33,6 +33,10 @@ import { cn } from "@/lib/utils";
  * the set-state-in-effect rule never applies, and every open sheet
  * stays in sync through the single shared variable.
  */
+/* Module-level mount counter for the reference-counted cleanup
+   (see useKeyboardTracking). */
+let mountedCount = 0;
+
 export function useKeyboardTracking(): void {
   useEffect(() => {
     const viewport = window.visualViewport;
@@ -47,10 +51,20 @@ export function useKeyboardTracking(): void {
     apply();
     viewport.addEventListener("resize", apply);
     viewport.addEventListener("scroll", apply);
+    // Reference counting (standalone-PWA fix): the tracker is now
+    // mounted globally from the app shell AND per-sheet. The var
+    // must go to 0 only when the LAST listener detaches — otherwise
+    // a sheet closing while the keyboard stays open (e.g. back to
+    // the chat composer) zeroes the lift and buries the composer
+    // until the next visualViewport event that never comes.
+    mountedCount += 1;
     return () => {
+      mountedCount -= 1;
       viewport.removeEventListener("resize", apply);
       viewport.removeEventListener("scroll", apply);
-      document.documentElement.style.setProperty("--keyboard-height", "0px");
+      if (mountedCount === 0) {
+        document.documentElement.style.setProperty("--keyboard-height", "0px");
+      }
     };
   }, []);
 }
@@ -102,10 +116,14 @@ export function Sheet({
 
   if (!open) return null;
 
-  // Keyboard clearance: the sheet rides above the software keyboard
-  // (PRD §7) — safe-area + tracked keyboard height.
+  // Keyboard clearance + standalone safe areas: the sheet rides
+  // above the software keyboard; max() (not a sum — standalone-PWA
+  // fix) because the keyboard height already spans the home
+  // indicator, so adding both double-lifts the sheet ~34px above
+  // the keys.
   const sheetOffsetStyle: CSSProperties = {
-    bottom: "calc(var(--safe-area-bottom, 0px) + var(--keyboard-height, 0px))",
+    bottom:
+      "max(var(--safe-area-bottom, 0px), var(--keyboard-height, 0px))",
   };
 
   // Phase 6 QA finding (hotfix): z-[60] lifts every sheet above the
@@ -148,7 +166,13 @@ export function Sheet({
           willChange: "transform",
         }}
         className={cn(
-          "relative z-10 max-h-[92dvh] w-full max-w-[560px] overflow-hidden",
+          /* Standalone (pinned) fix: cap the sheet so its grab handle
+             can never slide under the notch/status bar. The lift
+             (keyboard OR home-indicator inset) and a 44px top
+             clearance come off the full viewport, not 92dvh — with a
+             keyboard open the old cap let the handle render ~200px
+             above the physical screen. */
+          "relative z-10 max-h-[calc(100dvh-max(var(--safe-area-bottom,0px),var(--keyboard-height,0px))-44px)] w-full max-w-[560px] overflow-hidden",
           "df-edge-fade",
           className
         )}
@@ -175,7 +199,7 @@ export function Sheet({
 
         <div
           data-df-sheet-content=""
-          className="df-scroll max-h-[calc(92dvh-44px)] overflow-y-auto px-4 pb-[calc(env(safe-area-inset-bottom)+16px)]"
+          className="df-scroll max-h-[calc(100dvh-max(var(--safe-area-bottom,0px),var(--keyboard-height,0px))-88px)] overflow-y-auto px-4 pb-[calc(var(--safe-area-bottom,0px)+16px)]"
           style={{ color: "var(--df-text-primary)" }}
         >
           {children}

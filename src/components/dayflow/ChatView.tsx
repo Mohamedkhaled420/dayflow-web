@@ -773,8 +773,16 @@ export function ChatView() {
         }
         footer={
         <div
-          className="px-4 pb-[calc(0.75rem+max(0px,var(--keyboard-height,0px)))] pt-2 sm:px-6"
+          className="px-4 pb-[max(0.75rem,calc(var(--keyboard-height,0px)-var(--safe-area-bottom,0px)-80px))] pt-2 sm:px-6"
         >
+          {/* Keyboard lift (standalone-PWA fix): the composer sits at
+              panel-bottom − this padding. The panel already reserves
+              the dock band (88px + home-indicator inset) BELOW the
+              chat column, and the dock hides while the keyboard is
+              up — so the footer only needs the keyboard height MINUS
+              that reserved band. Old flat "+keyboard-height" padding
+              left a dead 122px gap above the keys; no tracking at all
+              buried the composer entirely. */}
           {/* quick cards — preset prompt chips. 2026-09 iPhone QA
               fix: the edge-fade mask made the last chip read as a
               broken cut-off ("Plan tom…") instead of a scroll hint —

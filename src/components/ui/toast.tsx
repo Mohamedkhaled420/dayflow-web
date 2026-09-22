@@ -22,7 +22,7 @@ const ToastViewport = React.forwardRef<
       // now float ABOVE the dock at the bottom — thumb territory,
       // never covering the header. Desktop/tablet keeps the classic
       // bottom-right corner placement.
-      "fixed bottom-0 z-[100] flex max-h-[50dvh] w-full flex-col gap-2 p-4 pb-[calc(env(safe-area-inset-bottom)+104px)] sm:right-0 sm:max-h-screen sm:p-4 sm:pb-4 md:max-w-[420px]",
+      "fixed bottom-0 z-[100] flex max-h-[50dvh] w-full flex-col gap-2 p-4 pb-[calc(var(--safe-area-bottom,0px)+104px)] sm:right-0 sm:max-h-screen sm:p-4 sm:pb-4 md:max-w-[420px]",
       className
     )}
     {...props}

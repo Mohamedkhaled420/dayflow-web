@@ -11,7 +11,7 @@
 //   string. Requests are REFERENCE-COUNTED: the dock returns
 //   only when every requester has released.
 // Rule C (content reserves): scroll containers keep a constant
-//   pb-[calc(88px+env(safe-area-inset-bottom))] no matter the
+//   pb-[calc(88px+var(--safe-area-bottom))] no matter the
 //   dock state — the reserved band never changes size, so the
 //   hide/show transition is transform+opacity only and CLS
 //   stays exactly 0.

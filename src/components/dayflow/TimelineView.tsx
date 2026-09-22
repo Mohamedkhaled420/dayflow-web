@@ -99,6 +99,32 @@ export function TimelineView() {
   // Sticky controls row (date rail + Day/Week toggle) — the phone
   // calendar popover anchors under it, so it needs a handle.
   const controlsRef = useRef<HTMLDivElement>(null);
+  // Standalone (pinned) + iPhone QA fix: the phone calendar popover
+  // used a hardcoded top offset (safe-area-top + 152px) tuned for a
+  // short controls row — but the sticky block also carries the
+  // category chip rail, so on 414px the popover overlapped the chips
+  // by ~45px (the IMG_7210 screenshot complaint). Measure the stuck
+  // controls' real bottom at open instead of guessing.
+  const [calTop, setCalTop] = useState<number | null>(null);
+  useEffect(() => {
+    // No reset-on-close: the popover unmounts anyway, and a stale
+    // measurement is re-measured on the next open's first frame.
+    if (!showCalendar) return;
+    if (typeof window === "undefined") return;
+    if (window.matchMedia("(min-width: 1024px)").matches) return; // desktop: in-flow
+    const measure = () => {
+      const controls = controlsRef.current;
+      if (!controls) return;
+      const bottom = controls.getBoundingClientRect().bottom;
+      if (bottom > 0) setCalTop(Math.round(bottom + 8));
+    };
+    const raf = requestAnimationFrame(measure);
+    window.addEventListener("resize", measure);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", measure);
+    };
+  }, [showCalendar]);
 
   const data = useDayflowData();
   const categories = LOGGABLE_CATEGORIES;
@@ -351,9 +377,12 @@ export function TimelineView() {
               onClick={() => {
                 // On phones the popover is viewport-anchored below
                 // this row — stick the row to the top first so the
-                // popover reads as attached to its trigger.
+                // popover reads as attached to its trigger. Instant
+                // (not smooth): the popover measures the stuck row
+                // on the very next frame, so the scroll must already
+                // have settled when the measurement runs.
                 if (!showCalendar && window.matchMedia("(max-width: 1023px)").matches) {
-                  controlsRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+                  controlsRef.current?.scrollIntoView({ block: "start" });
                 }
                 setShowCalendar((v) => !v);
               }}
@@ -511,8 +540,13 @@ export function TimelineView() {
                 background: "color-mix(in srgb, var(--df-card-fill) 92%, transparent)",
                 border: "0.5px solid var(--df-card-border)",
                 boxShadow: "var(--df-material-shadow)",
+                /* Phone: measured top under the stuck controls row
+                   (see the calTop effect above). The class fallback
+                   only paints for the first frame before the
+                   measurement lands. */
+                ...(calTop != null ? { top: calTop } : {}),
               }}
-              className="absolute max-lg:fixed left-4 max-lg:top-[calc(env(safe-area-inset-top)+152px)] z-[60] w-[282px] overflow-hidden rounded-[20px] backdrop-blur-xl saturate-180 sm:left-5 lg:relative lg:top-auto lg:mx-0 lg:mb-3"
+              className="absolute max-lg:fixed left-4 max-lg:top-[calc(var(--safe-area-top,0px)+152px)] z-[60] w-[282px] overflow-hidden rounded-[20px] backdrop-blur-xl saturate-180 sm:left-5 lg:relative lg:top-auto lg:mx-0 lg:mb-3"
             >
               {/* Phase 11 — warm-yellow head band (the reference
                   calendar screen): month label + a Today quick-jump. */}

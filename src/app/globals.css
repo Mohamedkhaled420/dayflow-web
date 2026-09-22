@@ -26,6 +26,12 @@ body {
    ============================================================ */
 :root {
   --keyboard-height: 0px;
+  /* Safe-area authority (single source of truth): every surface
+     reads these vars instead of raw env() so QA can simulate the
+     pinned-to-home-screen standalone geometry (iPhone 11:
+     ~48px notch / 34px home indicator) by overriding them, and so
+     future display-mode tweaks land in ONE place. */
+  --safe-area-top: env(safe-area-inset-top, 0px);
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
   --lg-displacement: 26;
   --lg-rim-opacity: 0.6;
@@ -649,7 +655,7 @@ h4 {
      padding stays a fixed 6px so the dock never double-compensates
      and balloons to ~120px in standalone mode. Applies below lg —
      the dock only renders there (lg:hidden). */
-  bottom: max(0.5rem, env(safe-area-inset-bottom));
+  bottom: max(0.5rem, var(--safe-area-bottom, 0px));
 }
 
 .df-mobile-dock:has(button[aria-current="page"]) {
@@ -811,12 +817,14 @@ select {
     -webkit-overflow-scrolling: touch;
     scroll-behavior: smooth;
     scroll-padding-top: 0.75rem;
-    scroll-padding-bottom: 5rem;
+    /* Standalone (pinned) QA: blocks scrolled into view must clear
+       the floating dock INCLUDING the home-indicator band. */
+    scroll-padding-bottom: calc(5rem + var(--safe-area-bottom, 0px));
   }
 
   .df-mobile-nav {
     scrollbar-width: none;
-    padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
+    padding-bottom: calc(0.5rem + var(--safe-area-bottom, 0px));
   }
 
   .df-mobile-nav::-webkit-scrollbar {

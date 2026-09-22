@@ -27,6 +27,7 @@ import {
 import { hapticSelect } from "@/lib/haptics";
 import { springSoft } from "@/lib/motion";
 import { useDockHidden, watchDockKeyboard } from "@/hooks/use-dock-visibility";
+import { useKeyboardTracking } from "@/components/ui/Sheet";
 
 // Phase 4 bundle diet: every tab view is code-split and streams in
 // behind the boot skeleton, so none of the view bundles ride the
@@ -111,6 +112,14 @@ export function AppShell() {
   // journal editor) register their own requests via the hook.
   const dockHidden = useDockHidden();
   useEffect(() => watchDockKeyboard(), []);
+
+  // GLOBAL keyboard tracking (standalone-PWA fix): the shared
+  // --keyboard-height var used to exist only while a sheet was
+  // mounted — on the Journal tab (no sheet) the on-screen keyboard
+  // buried the composer, because the fixed 100dvh flex shell can
+  // never scroll it into view. The tracker is reference-counted,
+  // so per-sheet mounts stay safe alongside this global one.
+  useKeyboardTracking();
 
   // Morning Triad gate conditions (PRD §4.9): only when the
   // occupational status is NOT 'employed_structured' and the
@@ -197,7 +206,7 @@ export function AppShell() {
       {/* Mobile header — Liquid Glass T1 surface #2 (PRD §6.2).
           Floating capsule (iOS 26 nav-bar material): the glass refracts
           the window gradients; hairline + fill ride the --lg-* tokens. */}
-      <header className="lg:hidden sticky top-0 z-40 shrink-0 px-3 pt-[max(0.5rem,env(safe-area-inset-top))] pb-2">
+      <header className="lg:hidden sticky top-0 z-40 shrink-0 px-3 pt-[max(0.5rem,var(--safe-area-top,0px))] pb-2">
         <LiquidGlassView
           variant="header"
           effect="regular"
@@ -265,7 +274,7 @@ export function AppShell() {
           className="df-rise flex-1 min-h-0 min-w-0"
           style={{ animationDelay: "100ms" }}
         >
-          <div className="df-panel h-full min-h-0 overflow-hidden rounded-none sm:rounded-[24px] pb-[calc(88px+env(safe-area-inset-bottom))] lg:pb-0">
+          <div className="df-panel h-full min-h-0 overflow-hidden rounded-none sm:rounded-[24px] pb-[calc(88px+var(--safe-area-bottom,0px))] lg:pb-0">
             {/* popLayout (not "wait"): lazy view chunks can resolve while
                 their tab child is exiting — mode="wait" deadlocks in that
                 window (exit never completes, the next tab never mounts).
