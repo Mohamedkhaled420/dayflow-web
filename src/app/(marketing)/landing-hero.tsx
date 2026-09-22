@@ -6,6 +6,12 @@ import { ArrowDown, Smile } from "lucide-react";
 import { LogoFormation } from "@/components/brand/LogoFormation";
 import { DiaChrome } from "@/components/dayflow/DiaChatShell";
 import { CATEGORY_COLORS } from "@/styles/palette";
+import {
+  DoodleHeart,
+  DoodleSparkle,
+  DoodleStar,
+  DoodleSun,
+} from "@/components/dayflow/doodles";
 
 // ============================================================
 // Dayflow AI — landing hero (client, Phase 6.5 / B2 — Phase 8
@@ -57,6 +63,12 @@ export function LandingHero() {
         className="relative w-full"
         style={{ background: "var(--df-landing-bg)" }}
       >
+        {/* hand-drawn doodles drifting in the lime day (decorative,
+            desktop-up only so phones stay uncluttered) */}
+        <DoodleStar className="pointer-events-none absolute left-[11%] top-[16%] hidden h-9 w-9 -rotate-12 md:block" />
+        <DoodleSparkle className="pointer-events-none absolute right-[13%] top-[22%] hidden h-7 w-7 rotate-12 md:block" />
+        <DoodleHeart className="pointer-events-none absolute bottom-[30%] left-[17%] hidden h-8 w-8 rotate-6 md:block" />
+        <DoodleSun className="pointer-events-none absolute bottom-[24%] right-[15%] hidden h-10 w-10 rotate-6 md:block" />
         <LogoFormation>
           <div className="flex max-w-md flex-col items-center gap-6 text-center">
             <div>
@@ -80,9 +92,9 @@ export function LandingHero() {
                 className="mt-3 text-[13.5px] leading-relaxed sm:text-sm"
                 style={{ color: "var(--df-landing-ink-soft)" }}
               >
-                Workouts, work, sleep, water, and meals on one timeline — habit
-                streaks, weekly reviews, and a grounded AI coach. Local-first and
-                private by default.
+                Log anything — work, workouts, meals, sleep — on one timeline, with
+                habit streaks, weekly reviews, and a grounded AI coach. Local-first
+                and private by default.
               </p>
             </div>
 
@@ -140,6 +152,18 @@ export function LandingHero() {
                 }}
               >
                 AI coach
+              </span>
+              {/* "log anything" — the dashed pill invites the rest */}
+              <span
+                className="rounded-full px-3.5 py-1.5 text-[12.5px] font-bold leading-none"
+                style={{
+                  background: "var(--df-white)",
+                  color: "var(--df-landing-ink)",
+                  border:
+                    "1.5px dashed color-mix(in srgb, var(--df-landing-ink) 40%, transparent)",
+                }}
+              >
+                + anything else
               </span>
             </div>
 

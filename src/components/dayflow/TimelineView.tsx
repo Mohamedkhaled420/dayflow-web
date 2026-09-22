@@ -62,6 +62,7 @@ import { useToast } from "@/hooks/use-toast";
 import { hapticSelect, hapticWarn, triggerHaptic } from "@/lib/haptics";
 import { springSoft } from "@/lib/motion";
 import { CATEGORY_COLORS, CIRCADIAN_COLORS } from "@/styles/palette";
+import { DoodleCluster, DoodleCrown, DoodleNotebook, DoodleSparkle, Marker, SquiggleUnderline, StickerTilt } from "@/components/dayflow/doodles";
 
 const WATER = CATEGORY_COLORS.water;
 
@@ -263,13 +264,21 @@ export function TimelineView() {
           }}
           aria-label="Today at a glance"
         >
+          {/* doodle cluster — a sticker of sparkles leaning into the
+              hero corner (decorative, aria-hidden) */}
+          <StickerTilt
+            degrees={10}
+            className="pointer-events-none absolute bottom-1.5 right-2.5"
+          >
+            <DoodleCluster className="h-12 w-12" />
+          </StickerTilt>
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <h2
                 className="truncate text-[20px] font-extrabold leading-tight tracking-tight"
                 style={{ color: "var(--df-text-primary)" }}
               >
-                Hey, {profile.name}
+                Hey, <Marker>{profile.name}</Marker>
               </h2>
               <p
                 className="mt-0.5 text-[12px] font-semibold leading-none"
@@ -794,6 +803,11 @@ function ProgressHeroCard({
           className="truncate text-[13px] font-extrabold leading-tight"
           style={{ color: "var(--df-progress-card-ink)" }}
         >
+          {pct >= 0.7 ? (
+            <DoodleCrown className="mr-1 inline-block h-4 w-5 -translate-y-0.5 -rotate-6 align-baseline" />
+          ) : trackedMin > 0 ? (
+            <DoodleSparkle className="mr-1 inline-block h-3.5 w-3.5 -translate-y-px align-baseline" />
+          ) : null}
           {headline}
         </p>
         <p
@@ -823,10 +837,12 @@ function UpNextRail({
     <div className="mx-4 mt-2.5 sm:mx-5" aria-label="Up next today">
       <div className="flex items-baseline justify-between px-0.5 pb-1.5">
         <p
-          className="text-[12.5px] font-extrabold leading-none"
+          className="relative text-[12.5px] font-extrabold leading-none"
           style={{ color: "var(--df-text-primary)" }}
         >
           Up next
+          {/* hand-drawn squiggle — the notebook underline */}
+          <SquiggleUnderline className="pointer-events-none absolute -bottom-[5px] left-0 h-[7px] w-[58px]" />
         </p>
         <p
           className="text-[10.5px] font-semibold leading-none"
@@ -1095,8 +1111,9 @@ function DayTimeline({
         <div className="df-mobile-event-list flex flex-col gap-2" role="list" aria-label="Day timeline">
           {events.length === 0 ? (
             <div className="df-card mt-3 p-5 text-center">
-              <p className="text-[13px] font-semibold" style={{ color: "var(--df-text-primary)" }}>Nothing tracked yet</p>
-              <p className="mt-1 text-[11.5px]" style={{ color: "var(--df-text-secondary)" }}>Tap Log above to add sleep or a workout.</p>
+              <DoodleNotebook className="mx-auto h-14 w-14 -rotate-3" />
+              <p className="mt-2 text-[13px] font-semibold" style={{ color: "var(--df-text-primary)" }}>Nothing tracked yet</p>
+              <p className="mt-1 text-[11.5px]" style={{ color: "var(--df-text-secondary)" }}>Tap Log above — work, meals, a workout, anything at all.</p>
             </div>
           ) : (
             events.map((event) => {
@@ -1284,11 +1301,12 @@ function DayTimeline({
             className="absolute left-[46px] right-0 top-[300px] df-card p-5 text-center"
             style={{ borderColor: "var(--df-card-border)" }}
           >
+            <DoodleNotebook className="mx-auto h-14 w-14 rotate-2" />
             <p className="text-[13px] font-semibold" style={{ color: "var(--df-text-primary)" }}>
               Nothing tracked yet
             </p>
             <p className="text-[11.5px] mt-1" style={{ color: "var(--df-text-secondary)" }}>
-              Tap <b>Log</b> above to track a night of sleep or a workout — or drag a
+              Tap <b>Log</b> above to map anything — work, meals, a workout, sleep — or drag a
               block into a green peak zone to schedule it there.
             </p>
           </div>

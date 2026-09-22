@@ -34,6 +34,7 @@ import { THEME_SWATCHES } from "@/styles/palette";
 import { InstallAppCard } from "@/components/dayflow/InstallAppCard";
 import { LogoLoop } from "@/components/brand/LogoLoop";
 import { LogoMark } from "@/components/brand/LogoMark";
+import { DoodleHeart } from "@/components/dayflow/doodles";
 import { ShortcutsSetupCard } from "@/components/dayflow/ShortcutsSetupCard";
 
 type Section = "profile" | "goals" | "appearance" | "data";
@@ -862,6 +863,7 @@ function DataSection({
           <span className="text-[12.5px] font-semibold" style={{ color: "var(--df-text-primary)" }}>
             Dayflow AI
           </span>
+          <DoodleHeart className="h-4 w-4 rotate-6" />
         </div>
         <ul className="flex flex-col gap-1.5">
           {[

@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { GlassPanel } from "@/components/ui/GlassPanel";
 import { LogoMark } from "@/components/brand/LogoMark";
+import { DoodleCluster, DoodleSparkle, Marker } from "@/components/dayflow/doodles";
 import { Segmented } from "@/components/ui/Segmented";
 import { createClient } from "@/utils/supabase/client";
 import { enrollPasskey, passkeysSupported } from "@/lib/passkeys";
@@ -361,12 +362,15 @@ export default function OnboardingPage() {
           boxShadow: "var(--df-hero-panel-shadow)",
         }}
       >
-          <LogoMark size={30} />
+          <div className="flex items-center gap-2.5">
+            <LogoMark size={30} />
+            <DoodleSparkle className="h-5 w-5 rotate-12" />
+          </div>
           <p className="mt-3 text-xs font-bold tracking-[0.22em] text-(--df-accent-text)">
             DAYFLOW AI
           </p>
           <h1 className="mt-3 text-2xl font-extrabold tracking-tight text-(--df-text-primary)">
-            One less password day
+            One less <Marker>password day</Marker>
           </h1>
           <p className="mt-2 text-sm leading-6 text-(--df-text-secondary)">
             Enable Face ID / a device passkey and tomorrow&apos;s sign-in is a glance.
@@ -414,7 +418,13 @@ export default function OnboardingPage() {
           boxShadow: "var(--df-hero-panel-shadow)",
         }}
       >
-        <LogoMark size={30} />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <LogoMark size={30} />
+            <DoodleSparkle className="h-5 w-5 -rotate-12" />
+          </div>
+          <DoodleCluster className="h-10 w-10 rotate-6 opacity-90" />
+        </div>
         <p className="mt-3 text-xs font-bold tracking-[0.22em] text-(--df-accent-text)">
           DAYFLOW AI
         </p>

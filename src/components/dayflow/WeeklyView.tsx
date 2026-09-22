@@ -26,6 +26,7 @@ import {
 } from "@/lib/compute";
 import { DonutChart } from "@/components/dayflow/DonutChart";
 import { CATEGORY_COLORS } from "@/styles/palette";
+import { DoodleChart, Marker } from "@/components/dayflow/doodles";
 
 const HEATMAP_START = 5 * 60;
 const HEATMAP_END = 23 * 60;
@@ -120,7 +121,7 @@ export function WeeklyView() {
           </button>
         </div>
         <p className="text-[12.5px]" style={{ color: "var(--df-text-secondary)" }}>
-          {goalsMetThisWeek} strong days · {fmtDuration(totalTrackedWeek)} tracked in total
+          <Marker>{goalsMetThisWeek} strong days</Marker> · {fmtDuration(totalTrackedWeek)} tracked in total
         </p>
       </div>
 
@@ -418,7 +419,8 @@ export function WeeklyView() {
 
         {/* highlights */}
         <Card title="Highlights" sub="What stood out">
-          <ul className="mt-3 flex flex-col gap-2">
+          <DoodleChart className="mx-auto h-12 w-12 rotate-2" />
+          <ul className="mt-2 flex flex-col gap-2">
             {highlights.map((h, i) => (
               <motion.li
                 key={h}

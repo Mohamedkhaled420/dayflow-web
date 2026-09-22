@@ -25,6 +25,7 @@ import {
 } from "motion/react";
 import { Check, Clock, Sparkles, Trash2, X } from "lucide-react";
 import { CategoryIcon } from "@/components/dayflow/category-icons";
+import { DoodleSparkle } from "@/components/dayflow/doodles";
 import { LOGGABLE_CATEGORIES, localDateTime } from "@/lib/viewmodel";
 import {
   useDayflowStore,
@@ -505,6 +506,7 @@ function FormHeader({ event, onClose }: { event: TrackEvent | null; onClose: () 
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
         <h2 className="text-[16px] font-bold tracking-tight" style={{ color: "var(--df-text-primary)" }}>
+          <DoodleSparkle className="mr-1.5 inline-block h-4 w-4 -rotate-6 align-baseline" />
           {event ? "Edit block" : "Log a block"}
         </h2>
         <p className="text-[11.5px] mt-0.5" style={{ color: "var(--df-text-muted)" }}>
