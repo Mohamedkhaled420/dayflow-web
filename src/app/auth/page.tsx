@@ -26,6 +26,13 @@ import { Fingerprint } from "lucide-react";
 import { GlassPanel } from "@/components/ui/GlassPanel";
 import { LogoMark } from "@/components/brand/LogoMark";
 import { BackgroundPaths } from "@/components/brand/BackgroundPaths";
+import {
+  DoodleCloud,
+  DoodleHeart,
+  DoodleSparkle,
+  DoodleStar,
+  Marker,
+} from "@/components/dayflow/doodles";
 import { Segmented } from "@/components/ui/Segmented";
 import { passkeysServerEnabled, signInWithPasskey } from "@/lib/passkeys";
 import { triggerHaptic } from "@/lib/haptics";
@@ -164,6 +171,12 @@ export default function AuthPage() {
       {/* Phase 8: flowing-path backdrop — /auth ONLY (the
           authenticated app bans infinite path animations). */}
       <BackgroundPaths />
+      {/* Hand-made pass: doodles scattered on the periwinkle day —
+          sticker-tilted, decorative only. */}
+      <DoodleStar className="pointer-events-none absolute left-[7%] top-[13%] hidden h-10 w-10 -rotate-12 opacity-80 sm:block" />
+      <DoodleSparkle className="pointer-events-none absolute right-[9%] top-[19%] hidden h-8 w-8 rotate-12 opacity-80 sm:block" />
+      <DoodleHeart className="pointer-events-none absolute bottom-[15%] left-[13%] hidden h-9 w-9 rotate-6 opacity-70 sm:block" />
+      <DoodleCloud className="pointer-events-none absolute bottom-[17%] right-[11%] hidden h-14 w-20 -rotate-3 opacity-80 sm:block" />
       {/* Phase 10: the auth card is a CREAM glass panel on the
           periwinkle day — the app's own material. */}
       <GlassPanel
@@ -182,7 +195,7 @@ export default function AuthPage() {
             DAYFLOW AI
           </p>
           <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-(--df-text-primary)">
-            Your day, in flow.
+            Your day, in <Marker>flow.</Marker>
           </h1>
           <p className="mt-2 text-sm leading-6 text-(--df-text-secondary)">
             A calm home for your timeline, habits, and weekly rhythm.

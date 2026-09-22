@@ -28,6 +28,7 @@ import { fmtDuration } from "@/lib/compute";
 import { triggerHaptic, hapticWarn } from "@/lib/haptics";
 import { LiquidGlassView } from "@/components/ui/LiquidGlass";
 import { LogoLoop } from "@/components/brand/LogoLoop";
+import { DoodleCrown, DoodleSprout, Marker } from "@/components/dayflow/doodles";
 import { stripReasoning } from "@/lib/coach-text";
 import { CATEGORY_COLORS, GOAL_FALLBACK_COLORS } from "@/styles/palette";
 import { useToast } from "@/hooks/use-toast";
@@ -168,8 +169,9 @@ export function HabitsView() {
       {/* header */}
       <div className="flex items-end justify-between flex-wrap gap-2">
         <div>
-          <h1 className="text-[21px] font-bold tracking-tight" style={{ color: "var(--df-text-primary)" }}>
-            Habits & goals
+          <h1 className="flex items-center gap-2 text-[21px] font-bold tracking-tight" style={{ color: "var(--df-text-primary)" }}>
+            <DoodleSprout className="h-6 w-6 -rotate-6" />
+            Habits &amp; goals
           </h1>
           <p className="text-[12.5px] mt-0.5" style={{ color: "var(--df-text-secondary)" }}>
             Identity-based streaks — every tap lands in your Dayflow account.
@@ -190,6 +192,9 @@ export function HabitsView() {
             <span className="text-[13px] font-bold tabular-nums" style={{ color: "var(--df-text-primary)" }}>
               {bestStreak.streak}d
             </span>
+            {bestStreak.streak >= 7 && (
+              <DoodleCrown className="h-3.5 w-4.5 -rotate-6" aria-hidden="true" />
+            )}
             <span className="text-[11px] max-w-[90px] truncate" style={{ color: "var(--df-text-muted)" }}>
               {bestStreak.name} streak
             </span>
@@ -375,9 +380,15 @@ export function HabitsView() {
         </form>
 
         {habits.length === 0 && (
-          <p className="text-[11.5px] py-2" style={{ color: "var(--df-text-muted)" }}>
-            No habits yet — add your first above (e.g. &ldquo;Morning walk&rdquo;, &ldquo;Read 10 pages&rdquo;).
-          </p>
+          <div className="df-card mt-3 p-5 text-center">
+            <DoodleSprout className="mx-auto h-14 w-14 rotate-3" />
+            <p className="mt-2 text-[13px] font-semibold" style={{ color: "var(--df-text-primary)" }}>
+              Grow your first habit
+            </p>
+            <p className="mt-1 text-[11.5px]" style={{ color: "var(--df-text-secondary)" }}>
+              Add one above — <Marker>Morning walk</Marker>, “Read 10 pages”, anything you want to keep alive.
+            </p>
+          </div>
         )}
       </section>
 

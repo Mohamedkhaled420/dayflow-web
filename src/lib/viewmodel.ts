@@ -25,6 +25,7 @@ import { useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useDayflowStore } from "@/store/useDayflowStore";
 import type {
+  ActivityLogRow,
   HydrationLogRow,
   ProfileRow,
   SleepLogRow,
@@ -157,6 +158,7 @@ export function sleepToEvent(row: SleepLogRow): TrackEvent {
     end: wakeClock,
     notes:
       row.resting_heart_rate != null ? `Resting HR ${row.resting_heart_rate} bpm` : undefined,
+    source: "sleep",
   };
 }
 
@@ -179,6 +181,28 @@ export function workoutToEvent(row: WorkoutLogRow): TrackEvent {
       [row.active_calories != null ? `${row.active_calories} kcal active` : null, exSummary]
         .filter(Boolean)
         .join(" · ") || undefined,
+    source: "workout",
+  };
+}
+
+/** activity_logs -> timeline blocks for EVERY other category (0011
+ *  "log anything"): work, personal, meals, leisure and freeform
+ *  user-invented category slugs. logged_at = block START, mirroring
+ *  workoutToEvent, so drag-to-reschedule shifts logged_at by the same
+ *  convention. */
+export function activityToEvent(row: ActivityLogRow): TrackEvent {
+  const startClock = localClock(row.logged_at);
+  const startMin = clockToMinutes(startClock);
+  const dur = row.duration_minutes ?? 60;
+  return {
+    id: row.id,
+    dateKey: localDateKey(row.logged_at),
+    categoryId: row.category,
+    title: row.title?.trim() || "Activity",
+    start: startClock,
+    end: minutesToClock(startMin + dur),
+    notes: row.notes?.trim() || undefined,
+    source: "activity",
   };
 }
 
@@ -204,9 +228,14 @@ export function useDayflowData(): DayflowData {
   const sleepLogs = useDayflowStore((s) => s.sleepLogs);
   const workoutLogs = useDayflowStore((s) => s.workoutLogs);
   const hydrationLogs = useDayflowStore((s) => s.hydrationLogs);
+  const activityLogs = useDayflowStore((s) => s.activityLogs);
 
   return useMemo(() => {
-    const events = [...sleepLogs.map(sleepToEvent), ...workoutLogs.map(workoutToEvent)];
+    const events = [
+      ...sleepLogs.map(sleepToEvent),
+      ...workoutLogs.map(workoutToEvent),
+      ...activityLogs.map(activityToEvent),
+    ];
     return {
       profile: deriveProfile(profileRow),
       goals: deriveGoals(profileRow),
@@ -214,7 +243,7 @@ export function useDayflowData(): DayflowData {
       events,
       water: hydrationLogs.map(hydrationToWater),
     };
-  }, [profileRow, sleepLogs, workoutLogs, hydrationLogs]);
+  }, [profileRow, sleepLogs, workoutLogs, hydrationLogs, activityLogs]);
 }
 
 /** Categories sorted by order — fixed system set (stable reference). */
@@ -227,9 +256,13 @@ export function useSortedCategories(): Category[] {
 
 // ---------- write-path adapters ----------
 
-/** Server-backed timeline categories (what the Log sheet can create). */
-export const LOGGABLE_CATEGORIES: Category[] = DEFAULT_CATEGORIES.filter((c) =>
-  ["sleep", "fitness"].includes(c.id)
+/** Server-backed timeline categories (what the Log sheet can create).
+ *  "Log anything" (0011): every TIME category is loggable — sleep and
+ *  fitness keep their specialized tables; work, personal, meals and
+ *  leisure write generic activity_logs. Water stays out on purpose:
+ *  it is a COUNTER (one-tap glasses), not a time block. */
+export const LOGGABLE_CATEGORIES: Category[] = DEFAULT_CATEGORIES.filter(
+  (c) => c.kind === "time"
 );
 
 /** The water data color — palette single-source (palette.ts). */

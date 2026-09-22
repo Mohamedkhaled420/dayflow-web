@@ -28,6 +28,7 @@ import { OptimizationSection } from "@/components/dayflow/OptimizationSection";
 import { WorkoutSheet, type WorkoutEditTarget, type WorkoutPrefill } from "@/components/dayflow/workout/WorkoutSheet";
 import { TrainingSection } from "@/components/dayflow/workout/TrainingSection";
 import { RoutineSheet } from "@/components/dayflow/workout/RoutineSheet";
+import { DoodleSun } from "@/components/dayflow/doodles";
 import { planToSession, type RoutinePlan } from "@/lib/routine";
 import { useToast } from "@/hooks/use-toast";
 import { CATEGORY_COLORS, MACRO_COLORS } from "@/styles/palette";
@@ -153,10 +154,11 @@ export function DailyView() {
               ←
             </button>
             <h1
-              className="text-[21px] font-bold tracking-tight"
+              className="flex items-center gap-2 text-[21px] font-bold tracking-tight"
               style={{ color: "var(--df-text-primary)" }}
             >
               {dateLabel}
+              <DoodleSun className="h-5 w-5 rotate-12" />
             </h1>
             <button
               onClick={() => setDayOffset((o) => Math.min(0, o + 1))}

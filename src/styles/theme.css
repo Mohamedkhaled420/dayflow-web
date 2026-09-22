@@ -388,6 +388,20 @@
   --df-quick-ring-bg: rgba(255, 255, 255, 0.55);
   --df-quick-ring-shadow: 0 4px 10px rgba(28, 25, 23, 0.16);
 
+  /* --- Doodle art family ("hand-made" pass) ---
+     The hand-drawn layer that keeps the pastel system from reading
+     machine-perfect: squiggle underlines under greetings, wobbly
+     stars/sparkles floating in heroes, marker highlights behind key
+     words, sticker-tilt accents. Ink rides currentColor where it can;
+     pastel accents are fixed so both modes stay legible (the plum
+     night gets the lighter 300-generation strokes). */
+  --df-doodle-ink: #1c1917;
+  --df-doodle-accent: #f472b6; /* pink star */
+  --df-doodle-accent-2: #fbbf24; /* amber sparkle */
+  --df-doodle-accent-3: #34d399; /* mint leaf */
+  --df-doodle-marker: rgba(253, 230, 138, 0.9); /* yellow highlighter */
+  --df-doodle-marker-ink: #78350f;
+
   /* --- Legacy logo tokens (v0 LogoBadge — component is retired;
      values preserved for reference, nothing consumes them). --- */
   --df-logo-gradient: linear-gradient(
@@ -613,6 +627,14 @@
   --df-quick-ink: #1c1917;
   --df-quick-tag-fill: rgba(255, 255, 255, 0.93);
   --df-quick-tag-ink: #1c1917;
+
+  /* --- Doodle art family (dark): lighter pastel strokes on plum. --- */
+  --df-doodle-ink: #ddd6fe;
+  --df-doodle-accent: #f9a8d4;
+  --df-doodle-accent-2: #fde68a;
+  --df-doodle-accent-3: #6ee7b7;
+  --df-doodle-marker: rgba(253, 230, 138, 0.24);
+  --df-doodle-marker-ink: #fde68a;
 
   /* --- Phase 8: Dia chat shell (dark) --- */
   --df-chrome-fill: #252043;

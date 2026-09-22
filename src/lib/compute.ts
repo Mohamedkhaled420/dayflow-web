@@ -10,7 +10,7 @@
 import type { Category, DayflowData, GoalProgress, TrackEvent, WaterEntry } from "./types";
 import type { MealLogRow } from "@/store/useDayflowStore";
 import { keyForOffset, keyToDate, pad2 } from "./seed";
-import { GOAL_FALLBACK_COLORS, UNTRACKED_COLOR } from "@/styles/palette";
+import { GOAL_FALLBACK_COLORS, UNTRACKED_COLOR, CATEGORY_SWATCHES } from "@/styles/palette";
 
 export const toMinutes = (hm: string): number => {
   const [h, m] = hm.split(":").map(Number);
@@ -100,11 +100,22 @@ export function nutritionForDay(mealLogs: MealLogRow[], dateKey: string): Nutrit
 export const categoryById = (categories: Category[], id: string): Category => {
   const found = categories.find((c) => c.id === id);
   if (found) return found;
+  // "Log anything" (0011): freeform user-invented category slugs
+  // ("study", "gaming", "errands"…) land here. Give them a friendly
+  // title-cased name and a DETERMINISTIC pastel — hashing the slug
+  // into the Settings swatch ring means "study" is always the same
+  // color, on every device, without persisting anything extra.
+  const pretty = id
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (m) => m.toUpperCase())
+    .trim();
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) | 0;
   return {
     id,
-    name: "Uncategorized",
-    colorHex: UNTRACKED_COLOR,
-    icon: "circle",
+    name: pretty || "Uncategorized",
+    colorHex: pretty ? CATEGORY_SWATCHES[Math.abs(hash) % CATEGORY_SWATCHES.length] : UNTRACKED_COLOR,
+    icon: "sparkles",
     order: 99,
     kind: "time",
   };

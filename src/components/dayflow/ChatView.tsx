@@ -54,6 +54,7 @@ import {
 } from "@/components/dayflow/DiaChatShell";
 import { JournalComposer } from "@/components/dayflow/JournalComposer";
 import { QuickActionGrid } from "@/components/dayflow/QuickActions";
+import { DoodleCluster, DoodleStar, Marker, StickerTilt } from "@/components/dayflow/doodles";
 import { journalHtmlToText, sanitizeJournalHtml } from "@/lib/journal-html";
 import { stripReasoning } from "@/lib/coach-text";
 import { renderCoachMarkdown } from "@/lib/coach-markdown";
@@ -924,7 +925,7 @@ export function ChatView() {
                     className="truncate text-[20px] font-extrabold leading-tight tracking-tight"
                     style={{ color: "var(--df-text-primary)" }}
                   >
-                    Hey, {firstName}
+                    Hey, <Marker>{firstName}</Marker>
                   </h2>
                   <p
                     className="mt-0.5 text-[12px] font-semibold leading-none"
@@ -954,11 +955,18 @@ export function ChatView() {
                   {mode === "journal" ? "Journal coach" : "Training coach"}
                 </button>
               </div>
+              {/* doodle sticker leaning into the hero corner */}
+              <StickerTilt
+                degrees={-9}
+                className="pointer-events-none absolute bottom-1.5 right-2.5"
+              >
+                <DoodleCluster className="h-12 w-12" />
+              </StickerTilt>
               <p
                 className="mt-3 max-w-[30ch] text-[15.5px] font-extrabold leading-snug"
                 style={{ color: "var(--df-text-primary)" }}
               >
-                Design your perfect daily routine with your private coach.
+                Design your <Marker>perfect daily routine</Marker> with your private coach.
               </p>
               <button
                 type="button"
@@ -977,6 +985,7 @@ export function ChatView() {
               className="px-0.5 text-[12.5px] font-extrabold leading-none"
               style={{ color: "var(--df-text-primary)" }}
             >
+              <DoodleStar className="mr-1.5 inline-block h-4 w-4 -translate-y-0.5 rotate-12 align-baseline" />
               How can I help you today?
             </p>
             <QuickActionGrid

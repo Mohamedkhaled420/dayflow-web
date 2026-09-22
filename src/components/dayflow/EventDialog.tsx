@@ -23,8 +23,9 @@ import {
   useDragControls,
   useReducedMotion,
 } from "motion/react";
-import { Check, Clock, Trash2, X } from "lucide-react";
+import { Check, ChevronDown, Clock, Sparkles, Trash2, X } from "lucide-react";
 import { CategoryIcon } from "@/components/dayflow/category-icons";
+import { DoodleSparkle } from "@/components/dayflow/doodles";
 import { LOGGABLE_CATEGORIES, localDateTime } from "@/lib/viewmodel";
 import {
   useDayflowStore,
@@ -40,9 +41,37 @@ import { springSheet, springSoft } from "@/lib/motion";
 import type { Category, TrackEvent } from "@/lib/types";
 
 const PLACEHOLDERS: Record<string, string> = {
+  work: "Deep work — sprint planning",
+  personal: "Side project — portfolio site",
   fitness: "Gym — upper body push",
+  meals: "Lunch with the team",
   sleep: "Sleep",
+  leisure: "Reading, a walk, gaming…",
 };
+
+/** "Something else…" pseudo-category (0011 "log anything"): selecting
+ *  the chip reveals a freeform input whose value is slugified into a
+ *  custom activity_logs category ("Biology revision" -> "biology-revision").
+ *  Rendering resolves the slug through categoryById's pastel fallback. */
+const CUSTOM_ID = "__custom";
+
+const slugifyCategory = (s: string): string => {
+  const slug = s
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 24);
+  return slug || "custom";
+};
+
+/** Reverse of slugify for prefilling the edit form — "biology-revision"
+ *  -> "Biology Revision". */
+const prettifyCategory = (slug: string): string =>
+  slug
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (m) => m.toUpperCase())
+    .trim();
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -234,15 +263,19 @@ function EventForm({
   onDragStart: (e: React.PointerEvent) => void;
   draggable: boolean;
 }) {
-  // Phase 5 T0: the dialog is now the server-backed logger. Blocks
-  // map 1:1 onto the log tables — sleep -> sleep_logs,
-  // fitness -> workout_logs — through the Delta Sync store.
+  // Phase 5 T0 + 0011 "log anything": the dialog is the server-backed
+  // logger. Blocks map onto the log tables by category — sleep ->
+  // sleep_logs, fitness -> workout_logs, EVERYTHING else (work, personal,
+  // meals, leisure, freeform customs) -> activity_logs.
   const addSleepLog = useDayflowStore((s) => s.addSleepLog);
   const addWorkoutLog = useDayflowStore((s) => s.addWorkoutLog);
+  const addActivityLog = useDayflowStore((s) => s.addActivityLog);
   const updateSleepLog = useDayflowStore((s) => s.updateSleepLog);
   const updateWorkoutLog = useDayflowStore((s) => s.updateWorkoutLog);
+  const updateActivityLog = useDayflowStore((s) => s.updateActivityLog);
   const deleteSleepLog = useDayflowStore((s) => s.deleteSleepLog);
   const deleteWorkoutLog = useDayflowStore((s) => s.deleteWorkoutLog);
+  const deleteActivityLog = useDayflowStore((s) => s.deleteActivityLog);
   const { toast } = useToast();
 
   const timeCategories = LOGGABLE_CATEGORIES;
@@ -251,8 +284,20 @@ function EventForm({
   const startM = toMinutes(initialStart);
   const endM = (startM + 60) % (24 * 60);
 
+  // Editing a freeform custom block: its categoryId is a slug outside
+  // the system set — select the custom chip and prefill its name.
+  const editingKnownCat = event
+    ? timeCategories.some((c) => c.id === event.categoryId)
+    : true;
   const [categoryId, setCategoryId] = useState<string>(
-    event?.categoryId ?? timeCategories[0]?.id ?? "sleep"
+    event
+      ? editingKnownCat
+        ? event.categoryId
+        : CUSTOM_ID
+      : timeCategories[0]?.id ?? "sleep"
+  );
+  const [customCategory, setCustomCategory] = useState(
+    event && !editingKnownCat ? prettifyCategory(event.categoryId) : ""
   );
   const [title, setTitle] = useState(event?.title ?? "");
   const [start, setStart] = useState(initialStart);
@@ -260,26 +305,54 @@ function EventForm({
     event?.end ?? `${pad(Math.floor(endM / 60))}:${pad(endM % 60)}`
   );
   // Sleep -> resting heart rate; Workout -> active calories.
-  // (The old free-text notes had no server column — PRD §2 tables.)
+  // (The old free-text notes had no server column — PRD §2 tables —
+  // until activity_logs gave generic blocks one, 0011.)
   const [metric, setMetric] = useState("");
+  // Generic activity blocks carry an optional freeform note.
+  const [notes, setNotes] = useState(
+    event?.source === "activity" ? (event.notes ?? "") : ""
+  );
+  // Phone: the 17-pill "Start at…" grid starts COLLAPSED — with every
+  // category now loggable the sheet grew past one screen on 390px,
+  // pushing the note + Log button under the fold.
+  const [timesOpen, setTimesOpen] = useState(false);
 
   const validCat: Category | undefined = timeCategories.find((c) => c.id === categoryId);
+  const isSleep = categoryId === "sleep";
+  const isFitness = categoryId === "fitness";
+  const isCustom = categoryId === CUSTOM_ID;
   const overnight = end !== start && toMinutes(end) <= toMinutes(start);
   const duration = start && end ? eventDuration({ start, end } as TrackEvent) : 0;
-  const isSleep = categoryId === "sleep";
+  // The table this save will write to, from the CURRENT chip selection.
+  const writeTarget: "sleep" | "workout" | "activity" = isSleep
+    ? "sleep"
+    : isFitness
+      ? "workout"
+      : "activity";
+  // Editing a block whose source table differs from the selection = a
+  // cross-table move: create the new row first, then drop the old one
+  // (never the reverse — a failed delete may duplicate, never lose).
+  const crossTableMove = !!event && event.source !== writeTarget;
   const valid =
-    !!validCat &&
+    (isSleep || title.trim().length > 0) &&
+    (!isCustom || customCategory.trim().length > 0) &&
     duration > 0 &&
     duration < 24 * 60 &&
-    (isSleep || title.trim().length > 0) &&
     (metric.trim() === "" || (Number(metric) >= 0 && Number.isFinite(Number(metric))));
 
+  /** Delete the row behind an edited event from ITS source table. */
+  const deleteOriginal = async (ev: TrackEvent) => {
+    if (ev.source === "sleep") await deleteSleepLog(ev.id);
+    else if (ev.source === "activity") await deleteActivityLog(ev.id);
+    else await deleteWorkoutLog(ev.id);
+  };
+
   const save = async () => {
-    if (!valid || !validCat) return;
+    if (!valid) return;
     const dayKey = event?.dateKey ?? dateKey ?? keyForOffset(0);
     const metricNum = metric.trim() === "" ? null : Math.round(Number(metric));
     const range = `${start}–${end}`;
-    if (isSleep) {
+    if (writeTarget === "sleep") {
       // Sleep blocks end at the wake time — logged_at IS the wake
       // timestamp, sleep_minutes is the block duration.
       const payload = {
@@ -287,22 +360,47 @@ function EventForm({
         resting_heart_rate: metricNum,
         logged_at: localDateTime(dayKey, end),
       };
-      if (event) await updateSleepLog(event.id, payload);
-      else await addSleepLog(payload);
+      if (event && !crossTableMove) await updateSleepLog(event.id, payload);
+      else {
+        await addSleepLog(payload);
+        if (event) await deleteOriginal(event);
+      }
       toast({
         title: event ? "Sleep updated" : "Sleep logged",
         description: `${range} · ${Math.floor(duration / 60)}h ${duration % 60 ? `${duration % 60}m` : ""}`,
       });
-    } else {
+    } else if (writeTarget === "workout") {
       const payload = {
         type: title.trim(),
         duration_minutes: duration,
         active_calories: metricNum,
         logged_at: localDateTime(dayKey, start),
       };
-      if (event) await updateWorkoutLog(event.id, payload);
-      else await addWorkoutLog(payload);
+      if (event && !crossTableMove) await updateWorkoutLog(event.id, payload);
+      else {
+        await addWorkoutLog(payload);
+        if (event) await deleteOriginal(event);
+      }
       toast({ title: event ? "Workout updated" : "Workout logged", description: `${title.trim()} · ${range}` });
+    } else {
+      // Generic block: category (system id or slugified custom name),
+      // title, duration and an optional note ride activity_logs.
+      const payload = {
+        category: isCustom ? slugifyCategory(customCategory) : categoryId,
+        title: title.trim(),
+        duration_minutes: duration,
+        notes: notes.trim() || null,
+        logged_at: localDateTime(dayKey, start),
+      };
+      if (event && !crossTableMove) await updateActivityLog(event.id, payload);
+      else {
+        await addActivityLog(payload);
+        if (event) await deleteOriginal(event);
+      }
+      toast({
+        title: event ? "Block updated" : "Block logged",
+        description: `${title.trim()} · ${range}`,
+      });
     }
     triggerHaptic();
     onClose();
@@ -310,7 +408,8 @@ function EventForm({
 
   const remove = async () => {
     if (!event) return;
-    if (event.categoryId === "sleep") await deleteSleepLog(event.id);
+    if (event.source === "sleep") await deleteSleepLog(event.id);
+    else if (event.source === "activity") await deleteActivityLog(event.id);
     else await deleteWorkoutLog(event.id);
     toast({ title: "Block deleted", description: event.title });
     hapticWarn();
@@ -337,13 +436,25 @@ function EventForm({
           setEnd={setEnd}
           metric={metric}
           setMetric={setMetric}
+          notes={notes}
+          setNotes={setNotes}
           isSleep={isSleep}
+          isFitness={isFitness}
+          isCustom={isCustom}
+          customCategory={customCategory}
+          setCustomCategory={setCustomCategory}
+          titleLabel={
+            isFitness ? "Workout" : isCustom ? "Activity" : validCat?.name ?? "Activity"
+          }
           duration={duration}
           overnight={overnight}
           valid={valid}
           save={save}
           remove={remove}
           onClose={onClose}
+          compactTimes={isPhone}
+          timesOpen={timesOpen}
+          setTimesOpen={setTimesOpen}
         />
       </>
     );
@@ -375,13 +486,25 @@ function EventForm({
           setEnd={setEnd}
           metric={metric}
           setMetric={setMetric}
+          notes={notes}
+          setNotes={setNotes}
           isSleep={isSleep}
+          isFitness={isFitness}
+          isCustom={isCustom}
+          customCategory={customCategory}
+          setCustomCategory={setCustomCategory}
+          titleLabel={
+            isFitness ? "Workout" : isCustom ? "Activity" : validCat?.name ?? "Activity"
+          }
           duration={duration}
           overnight={overnight}
           valid={valid}
           save={save}
           remove={remove}
           onClose={onClose}
+          compactTimes={isPhone}
+          timesOpen={timesOpen}
+          setTimesOpen={setTimesOpen}
         />
       </div>
     </div>
@@ -393,6 +516,7 @@ function FormHeader({ event, onClose }: { event: TrackEvent | null; onClose: () 
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
         <h2 className="text-[16px] font-bold tracking-tight" style={{ color: "var(--df-text-primary)" }}>
+          <DoodleSparkle className="mr-1.5 inline-block h-4 w-4 -rotate-6 align-baseline" />
           {event ? "Edit block" : "Log a block"}
         </h2>
         <p className="text-[11.5px] mt-0.5" style={{ color: "var(--df-text-muted)" }}>
@@ -429,19 +553,33 @@ interface FormBodyProps {
   /** Resting HR (sleep) or active calories (workout). */
   metric: string;
   setMetric: (v: string) => void;
+  /** Optional freeform note — generic activity blocks only. */
+  notes: string;
+  setNotes: (v: string) => void;
   isSleep: boolean;
+  isFitness: boolean;
+  isCustom: boolean;
+  customCategory: string;
+  setCustomCategory: (v: string) => void;
+  /** Title field label — "Workout", "Meals", "Activity"… follows the chip. */
+  titleLabel: string;
   duration: number;
   overnight: boolean;
   valid: boolean;
   save: () => void;
   remove: () => void;
   onClose: () => void;
+  /** Phone: collapse the quick-start grid behind a toggle. */
+  compactTimes: boolean;
+  timesOpen: boolean;
+  setTimesOpen: (v: boolean) => void;
 }
 
 function FormBody(p: FormBodyProps) {
   return (
     <>
-      {/* category chips */}
+      {/* category chips — every TIME category is loggable (0011),
+          plus the freeform "Something else…" chip. */}
       <div className="mt-4">
         <label
           className="text-[10.5px] font-bold uppercase tracking-[0.06em]"
@@ -473,27 +611,69 @@ function FormBody(p: FormBodyProps) {
               </button>
             );
           })}
+          <button
+            onClick={() => p.setCategoryId(CUSTOM_ID)}
+            className="df-press df-glass-chip rounded-full h-9 pl-2.5 pr-3 flex items-center gap-1.5 text-[12px] font-semibold"
+            style={{
+              background: p.isCustom
+                ? "color-mix(in srgb, var(--df-accent) 20%, transparent)"
+                : "var(--df-chip-fill)",
+              border: p.isCustom
+                ? "1.5px solid color-mix(in srgb, var(--df-accent) 60%, transparent)"
+                : "0.5px solid var(--df-chip-border)",
+              color: "var(--df-text-primary)",
+            }}
+            aria-pressed={p.isCustom}
+          >
+            <Sparkles className="h-3.5 w-3.5" style={{ color: "var(--df-accent)" }} />
+            Something else…
+          </button>
         </div>
       </div>
 
-      {/* title — workouts only (sleep blocks are titled server-side) */}
+      {/* custom category name — revealed by the "Something else…" chip */}
+      {p.isCustom && (
+        <div className="mt-3.5">
+          <label
+            className="text-[10.5px] font-bold uppercase tracking-[0.06em]"
+            style={{ color: "var(--df-text-secondary)" }}
+          >
+            Category name
+          </label>
+          <div className="df-input-glass mt-1.5 rounded-full px-4 min-h-12 flex items-center">
+            <input
+              value={p.customCategory}
+              onChange={(e) => p.setCustomCategory(e.target.value)}
+              placeholder="e.g. Study, Gaming, Errands"
+              aria-label="Custom category name"
+              maxLength={24}
+              className="w-full bg-transparent outline-none text-base placeholder:text-[var(--df-text-muted)]"
+              style={{ color: "var(--df-text-primary)" }}
+              autoFocus
+            />
+          </div>
+        </div>
+      )}
+
+      {/* title — sleep blocks are titled server-side, everyone else
+          describes what they actually did */}
       {!p.isSleep && (
       <div className="mt-3.5">
         <label
           className="text-[10.5px] font-bold uppercase tracking-[0.06em]"
           style={{ color: "var(--df-text-secondary)" }}
         >
-          Workout
+          {p.titleLabel}
         </label>
         <div className="df-input-glass mt-1.5 rounded-full px-4 min-h-12 flex items-center">
           <input
             value={p.title}
             onChange={(e) => p.setTitle(e.target.value)}
             placeholder={PLACEHOLDERS[p.categoryId] ?? "What did you do?"}
-            aria-label="Workout type"
+            aria-label={`${p.titleLabel} description`}
             className="w-full bg-transparent outline-none text-base placeholder:text-[var(--df-text-muted)]"
             style={{ color: "var(--df-text-primary)" }}
-            autoFocus
+            autoFocus={!p.isCustom}
           />
         </div>
       </div>
@@ -550,14 +730,37 @@ function FormBody(p: FormBodyProps) {
       {/* quick start times (Phase 11) — the reference add-schedule
           time grid: on-the-hour pills from 06:00 to 22:00. Picking
           one sets the START and keeps the current duration; the
-          active pill rides the mint signature. */}
+          active pill rides the mint signature. Phones start it
+          COLLAPSED (17 pills is half a screen) behind the toggle. */}
       <div className="mt-3">
-        <label
-          className="text-[10.5px] font-bold uppercase tracking-[0.06em]"
-          style={{ color: "var(--df-text-secondary)" }}
-        >
-          Start at…
-        </label>
+        {p.compactTimes ? (
+          <button
+            type="button"
+            onClick={() => p.setTimesOpen(!p.timesOpen)}
+            aria-expanded={p.timesOpen}
+            className="df-press -ml-1 flex w-full items-center justify-between px-1 py-0.5"
+          >
+            <span
+              className="text-[10.5px] font-bold uppercase tracking-[0.06em]"
+              style={{ color: "var(--df-text-secondary)" }}
+            >
+              Start at…
+            </span>
+            <ChevronDown
+              className={`h-3.5 w-3.5 transition-transform ${p.timesOpen ? "rotate-180" : ""}`}
+              style={{ color: "var(--df-text-muted)" }}
+              aria-hidden="true"
+            />
+          </button>
+        ) : (
+          <label
+            className="text-[10.5px] font-bold uppercase tracking-[0.06em]"
+            style={{ color: "var(--df-text-secondary)" }}
+          >
+            Start at…
+          </label>
+        )}
+        {(!p.compactTimes || p.timesOpen) && (
         <div
           className="mt-1.5 grid grid-cols-4 gap-1.5"
           role="group"
@@ -596,9 +799,12 @@ function FormBody(p: FormBodyProps) {
             );
           })}
         </div>
+        )}
       </div>
 
-      {/* metric — resting HR for sleep, active calories for workouts */}
+      {/* metric — resting HR for sleep, active calories for workouts.
+          Generic activity blocks have no metric; they get a note. */}
+      {(p.isSleep || p.isFitness) && (
       <div className="mt-3.5">
         <label
           className="text-[10.5px] font-bold uppercase tracking-[0.06em]"
@@ -621,6 +827,32 @@ function FormBody(p: FormBodyProps) {
           />
         </div>
       </div>
+      )}
+
+      {/* note — generic activity blocks only (activity_logs.notes) */}
+      {!p.isSleep && !p.isFitness && (
+        <div className="mt-3.5">
+          <label
+            className="text-[10.5px] font-bold uppercase tracking-[0.06em]"
+            style={{ color: "var(--df-text-secondary)" }}
+          >
+            Note{" "}
+            <span className="normal-case font-medium opacity-70">(optional)</span>
+          </label>
+          <div className="df-input-glass mt-1.5 rounded-[16px] px-4 py-3">
+            <textarea
+              value={p.notes}
+              onChange={(e) => p.setNotes(e.target.value)}
+              placeholder="Anything worth remembering about it?"
+              aria-label="Note"
+              rows={2}
+              maxLength={280}
+              className="w-full bg-transparent outline-none resize-none text-[15px] leading-relaxed placeholder:text-[var(--df-text-muted)]"
+              style={{ color: "var(--df-text-primary)" }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* actions — sticky on phone so Log/Save never sit under the
           dock band; inert on desktop (no scroll ancestor). */}
