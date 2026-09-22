@@ -23,7 +23,7 @@ import {
   useDragControls,
   useReducedMotion,
 } from "motion/react";
-import { Check, Clock, Sparkles, Trash2, X } from "lucide-react";
+import { Check, ChevronDown, Clock, Sparkles, Trash2, X } from "lucide-react";
 import { CategoryIcon } from "@/components/dayflow/category-icons";
 import { DoodleSparkle } from "@/components/dayflow/doodles";
 import { LOGGABLE_CATEGORIES, localDateTime } from "@/lib/viewmodel";
@@ -312,6 +312,10 @@ function EventForm({
   const [notes, setNotes] = useState(
     event?.source === "activity" ? (event.notes ?? "") : ""
   );
+  // Phone: the 17-pill "Start at…" grid starts COLLAPSED — with every
+  // category now loggable the sheet grew past one screen on 390px,
+  // pushing the note + Log button under the fold.
+  const [timesOpen, setTimesOpen] = useState(false);
 
   const validCat: Category | undefined = timeCategories.find((c) => c.id === categoryId);
   const isSleep = categoryId === "sleep";
@@ -448,6 +452,9 @@ function EventForm({
           save={save}
           remove={remove}
           onClose={onClose}
+          compactTimes={isPhone}
+          timesOpen={timesOpen}
+          setTimesOpen={setTimesOpen}
         />
       </>
     );
@@ -495,6 +502,9 @@ function EventForm({
           save={save}
           remove={remove}
           onClose={onClose}
+          compactTimes={isPhone}
+          timesOpen={timesOpen}
+          setTimesOpen={setTimesOpen}
         />
       </div>
     </div>
@@ -559,6 +569,10 @@ interface FormBodyProps {
   save: () => void;
   remove: () => void;
   onClose: () => void;
+  /** Phone: collapse the quick-start grid behind a toggle. */
+  compactTimes: boolean;
+  timesOpen: boolean;
+  setTimesOpen: (v: boolean) => void;
 }
 
 function FormBody(p: FormBodyProps) {
@@ -716,14 +730,37 @@ function FormBody(p: FormBodyProps) {
       {/* quick start times (Phase 11) — the reference add-schedule
           time grid: on-the-hour pills from 06:00 to 22:00. Picking
           one sets the START and keeps the current duration; the
-          active pill rides the mint signature. */}
+          active pill rides the mint signature. Phones start it
+          COLLAPSED (17 pills is half a screen) behind the toggle. */}
       <div className="mt-3">
-        <label
-          className="text-[10.5px] font-bold uppercase tracking-[0.06em]"
-          style={{ color: "var(--df-text-secondary)" }}
-        >
-          Start at…
-        </label>
+        {p.compactTimes ? (
+          <button
+            type="button"
+            onClick={() => p.setTimesOpen(!p.timesOpen)}
+            aria-expanded={p.timesOpen}
+            className="df-press -ml-1 flex w-full items-center justify-between px-1 py-0.5"
+          >
+            <span
+              className="text-[10.5px] font-bold uppercase tracking-[0.06em]"
+              style={{ color: "var(--df-text-secondary)" }}
+            >
+              Start at…
+            </span>
+            <ChevronDown
+              className={`h-3.5 w-3.5 transition-transform ${p.timesOpen ? "rotate-180" : ""}`}
+              style={{ color: "var(--df-text-muted)" }}
+              aria-hidden="true"
+            />
+          </button>
+        ) : (
+          <label
+            className="text-[10.5px] font-bold uppercase tracking-[0.06em]"
+            style={{ color: "var(--df-text-secondary)" }}
+          >
+            Start at…
+          </label>
+        )}
+        {(!p.compactTimes || p.timesOpen) && (
         <div
           className="mt-1.5 grid grid-cols-4 gap-1.5"
           role="group"
@@ -762,6 +799,7 @@ function FormBody(p: FormBodyProps) {
             );
           })}
         </div>
+        )}
       </div>
 
       {/* metric — resting HR for sleep, active calories for workouts.
