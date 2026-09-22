@@ -91,25 +91,14 @@ export function TrainingSection({ dateKey, onLogWorkout, onEditWorkout, onGenera
       }}
       aria-label="Training"
     >
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
+      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-2">
+        <div className="flex min-w-0 items-center gap-2">
           <Dumbbell className="h-4 w-4 shrink-0" style={{ color: FITNESS }} />
           <h2 className="text-[13px] font-bold" style={{ color: "var(--df-text-primary)" }}>
             Training
           </h2>
-          {week.gymSessions > 0 && (
-            <span
-              className="text-[11px] px-2 h-5 rounded-full flex items-center shrink-0 font-semibold"
-              style={{
-                background: `color-mix(in srgb, ${FITNESS} 12%, transparent)`,
-                color: FITNESS,
-              }}
-            >
-              {week.gymSessions} gym session{week.gymSessions > 1 ? "s" : ""} / 7d
-            </span>
-          )}
         </div>
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex shrink-0 items-center gap-1.5">
           <button
             onClick={() => {
               triggerHaptic();
@@ -130,12 +119,27 @@ export function TrainingSection({ dateKey, onLogWorkout, onEditWorkout, onGenera
               triggerHaptic();
               onLogWorkout();
             }}
-            className="df-press df-btn-secondary df-btn-capsule h-8 px-3 text-[12px] font-semibold flex items-center gap-1.5 shrink-0"
+            className="df-press df-btn-secondary df-btn-capsule h-8 px-3 text-[12px] font-semibold flex items-center gap-1.5"
           >
             Log workout
           </button>
         </div>
       </div>
+      {/* 2026-09 iPhone QA fix: the weekly-sessions pill used to
+          squeeze into the title row and collide with the AI plan /
+          Log workout buttons on 390-414px screens — it now reads as
+          its own compact stat line under the header. */}
+      {week.gymSessions > 0 && (
+        <span
+          className="mt-2 inline-flex w-fit items-center rounded-full px-2 py-[3px] text-[11px] font-semibold"
+          style={{
+            background: `color-mix(in srgb, ${FITNESS} 12%, transparent)`,
+            color: FITNESS,
+          }}
+        >
+          {week.gymSessions} gym session{week.gymSessions > 1 ? "s" : ""} / 7d
+        </span>
+      )}
 
       {/* today's sessions */}
       {sessions.length === 0 ? (

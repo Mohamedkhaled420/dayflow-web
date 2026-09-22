@@ -172,50 +172,54 @@ export const QUICK_ACTIONS: QuickAction[] = [
   },
 ];
 
-/** One pastel category card: white capsule tag, circular
- *  white-ringed illustration, charcoal prompt preview. */
+/** One pastel category card: white capsule tag + circular
+ *  white-ringed illustration up top, full charcoal prompt below.
+ *  2026-09 iPhone QA fix: the prompt used to clamp to two lines
+ *  at 72% width ("Help me plan a light…" / "Suggest 5 high-…"),
+ *  which read as broken clipping — the card now grows to fit the
+ *  whole prompt and the art sits in the top row, out of the
+ *  text's way. */
 function QuickCard({ action, onPick }: { action: QuickAction; onPick: () => void }) {
   return (
     <button
       type="button"
       onClick={onPick}
-      className="df-press relative flex min-h-[118px] flex-col justify-between overflow-hidden rounded-[20px] p-3 text-left"
+      className="df-press relative flex flex-col gap-2.5 overflow-hidden rounded-[20px] p-3 text-left"
       style={{
         background: action.fill,
         boxShadow: "var(--df-quick-card-shadow)",
       }}
       aria-label={`Ask coach — ${action.label}: ${action.prompt}`}
     >
+      <div className="relative z-10 flex items-start justify-between gap-2">
+        <span
+          className="inline-flex w-fit items-center gap-1 rounded-full px-2 py-[3.5px] text-[9.5px] font-extrabold uppercase leading-none tracking-wide"
+          style={{
+            background: "var(--df-quick-tag-fill)",
+            color: "var(--df-quick-tag-ink)",
+          }}
+        >
+          <action.Tag className="h-3 w-3" aria-hidden="true" />
+          {action.label}
+        </span>
+        <span className="shrink-0" aria-hidden="true">
+          <span
+            className="grid size-[52px] place-items-center rounded-full"
+            style={{
+              border: "3px solid var(--df-white)",
+              background: "var(--df-quick-ring-bg)",
+              boxShadow: "var(--df-quick-ring-shadow)",
+            }}
+          >
+            <action.Art className="h-9 w-9" />
+          </span>
+        </span>
+      </div>
       <span
-        className="relative z-10 inline-flex w-fit items-center gap-1 rounded-full px-2 py-[3.5px] text-[9.5px] font-extrabold uppercase leading-none tracking-wide"
-        style={{
-          background: "var(--df-quick-tag-fill)",
-          color: "var(--df-quick-tag-ink)",
-        }}
-      >
-        <action.Tag className="h-3 w-3" aria-hidden="true" />
-        {action.label}
-      </span>
-      <span
-        className="relative z-10 max-w-[72%] text-[11.5px] font-bold leading-snug line-clamp-2"
+        className="relative z-10 text-[11.5px] font-bold leading-snug"
         style={{ color: "var(--df-quick-ink)" }}
       >
         {action.prompt}
-      </span>
-      <span
-        className="absolute right-2 top-1/2 -translate-y-1/2"
-        aria-hidden="true"
-      >
-        <span
-          className="grid size-[64px] place-items-center rounded-full"
-          style={{
-            border: "3px solid var(--df-white)",
-            background: "var(--df-quick-ring-bg)",
-            boxShadow: "var(--df-quick-ring-shadow)",
-          }}
-        >
-          <action.Art className="h-11 w-11" />
-        </span>
       </span>
     </button>
   );
@@ -227,7 +231,7 @@ function QuickCard({ action, onPick }: { action: QuickAction; onPick: () => void
 export function QuickActionGrid({ onPick }: { onPick: (a: QuickAction) => void }) {
   return (
     <div
-      className="mt-2 grid max-w-[460px] grid-cols-2 gap-2.5 max-[380px]:grid-cols-1"
+      className="mt-2 grid max-w-[460px] grid-cols-1 gap-2.5 min-[380px]:grid-cols-2"
       role="list"
       aria-label="How can I help you today — quick prompts"
     >

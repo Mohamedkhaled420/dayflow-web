@@ -312,7 +312,7 @@ function MealCaptureForm({ onClose, dateKey }: { onClose: () => void; dateKey?: 
             <div className="relative overflow-hidden rounded-xl" style={{ border: "0.5px solid var(--df-chip-border)" }}>
               {/* Local object URL the user just created — no remote
                   hosting, no optimization target for next/image. */}
-              <img src={photo.dataUrl} alt="Meal photo preview" className="w-full max-h-56 object-cover" />
+              <img src={photo.dataUrl} alt="Meal photo preview" className="w-full max-h-44 object-cover" />
             </div>
           ) : (
             <button
@@ -345,7 +345,7 @@ function MealCaptureForm({ onClose, dateKey }: { onClose: () => void; dateKey?: 
               }}
             />
           </div>
-          <div className="mt-4 flex items-center gap-2">
+          <StickyActionBar>
             <button onClick={() => setStep("pick")} className="df-press df-btn-secondary df-btn-capsule h-11 px-4 text-[12.5px] font-semibold">
               Back
             </button>
@@ -358,7 +358,7 @@ function MealCaptureForm({ onClose, dateKey }: { onClose: () => void; dateKey?: 
               <ScanLine className="h-3.5 w-3.5" />
               {busy ? "Analyzing…" : "Analyze photo"}
             </button>
-          </div>
+          </StickyActionBar>
         </div>
       )}
 
@@ -376,7 +376,7 @@ function MealCaptureForm({ onClose, dateKey }: { onClose: () => void; dateKey?: 
               color: "var(--df-text-primary)",
             }}
           />
-          <div className="mt-4 flex items-center gap-2">
+          <StickyActionBar>
             <button onClick={() => setStep("pick")} className="df-press df-btn-secondary df-btn-capsule h-11 px-4 text-[12.5px] font-semibold">
               Back
             </button>
@@ -389,7 +389,7 @@ function MealCaptureForm({ onClose, dateKey }: { onClose: () => void; dateKey?: 
               <ScanLine className="h-3.5 w-3.5" />
               {busy ? "Estimating…" : "Estimate"}
             </button>
-          </div>
+          </StickyActionBar>
         </div>
       )}
 
@@ -455,7 +455,7 @@ function MealCaptureForm({ onClose, dateKey }: { onClose: () => void; dateKey?: 
               onChange={(v) => setDraft((d) => ({ ...d, fat_g: v }))}
             />
           </div>
-          <div className="mt-4 flex items-center gap-2">
+          <StickyActionBar>
             <button
               onClick={() => setStep("pick")}
               className="df-press df-btn-secondary df-btn-capsule h-11 px-4 text-[12.5px] font-semibold"
@@ -471,7 +471,7 @@ function MealCaptureForm({ onClose, dateKey }: { onClose: () => void; dateKey?: 
               <Check className="h-3.5 w-3.5" />
               Log meal
             </button>
-          </div>
+          </StickyActionBar>
         </div>
       )}
     </div>
@@ -523,6 +523,26 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
     >
       {children}
     </label>
+  );
+}
+
+/** 2026-09 iPhone QA fix: the Back / action button row used to sit
+ *  in the normal flow at the bottom of the sheet's scroll area — on
+ *  phones it landed below the fold (next to a big blank gap), so the
+ *  sheet looked like it never rendered its actions. The bar now
+ *  STICKS to the scrollport's bottom edge and carries a solid
+ *  gradient foot so content scrolls cleanly under it. */
+function StickyActionBar({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      className="sticky bottom-0 -mx-5 mt-4 flex items-center gap-2 px-5 pb-1 pt-3"
+      style={{
+        background:
+          "linear-gradient(to bottom, transparent, var(--df-sheet-foot, var(--df-card-fill)) 42%)",
+      }}
+    >
+      {children}
+    </div>
   );
 }
 

@@ -96,6 +96,9 @@ export function TimelineView() {
   const [workoutEdit, setWorkoutEdit] = useState<WorkoutEditTarget | null>(null);
   const { toast } = useToast();
   const scrollRef = useRef<HTMLDivElement>(null);
+  // Sticky controls row (date rail + Day/Week toggle) — the phone
+  // calendar popover anchors under it, so it needs a handle.
+  const controlsRef = useRef<HTMLDivElement>(null);
 
   const data = useDayflowData();
   const categories = LOGGABLE_CATEGORIES;
@@ -175,20 +178,19 @@ export function TimelineView() {
   );
 
   // auto-scroll to a sensible anchor (now on today, wake time otherwise).
-  // On phones/tablets the timeline is page-flow (fully expanded), so scroll the
-  // window instead of the container. (1023px matches the app shell's lg
-  // mobile/desktop split — the mobile dock and header use the same line.)
+  // DESKTOP ONLY: mobile now rides the single column scroll flow and
+  // opens at the hero (the natural start) — re-scrolling there on
+  // every date change read as a view jump. (1023px matches the
+  // app shell's lg mobile/desktop split.)
   useEffect(() => {
+    if (mode !== "day") return;
+    if (window.matchMedia("(max-width: 1023px)").matches) return;
     const el = scrollRef.current;
-    if (!el || mode !== "day") return;
-    const isMobile = window.matchMedia("(max-width: 1023px)").matches;
-    const anchor = isMobile ? 5 * 60 + 30 : dayOffset === 0 ? nowMinutes() - 120 : 5 * 60 + 30;
-    const scrollTop = Math.max(0, anchor * PX_PER_MIN - (isMobile ? 12 : 60));
+    if (!el) return;
+    const anchor = dayOffset === 0 ? nowMinutes() - 120 : 5 * 60 + 30;
+    const scrollTop = Math.max(0, anchor * PX_PER_MIN - 60);
     if (el.scrollHeight > el.clientHeight + 8) {
       el.scrollTo({ top: scrollTop, behavior: "smooth" });
-    } else {
-      const rect = el.getBoundingClientRect();
-      window.scrollTo({ top: Math.max(0, window.scrollY + rect.top + anchor * PX_PER_MIN - 120), behavior: "smooth" });
     }
     const timer = window.setTimeout(() => {
       if (scrollRef.current && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
@@ -248,7 +250,14 @@ export function TimelineView() {
   return (
     <div className="flex flex-col lg:flex-row h-full min-h-0">
       {/* ------- timeline column ------- */}
-      <div className="flex-1 min-w-0 min-h-0 flex flex-col">
+      {/* 2026-09 iPhone QA fix: on phones the COLUMN is the one
+          scroll surface (single flow — hero, rail, controls, event
+          list and the day summary all ride it). The old layout kept
+          the hero/controls fixed and squeezed the event list into a
+          ~260px nested scroller, which read as cramped and left a
+          big void above the dock. Desktop keeps the fixed-chrome +
+          scrolling-grid split. */}
+      <div className="df-scroll flex-1 min-w-0 min-h-0 flex flex-col overflow-y-auto lg:overflow-hidden">
         {/* Lively Pastel hero (Phase 10 + 11) — the reference home:
             periwinkle greeting card ("Hey, {name}" + streak badge +
             the ONE charcoal pill CTA) beside the CHARCOAL progress
@@ -275,7 +284,7 @@ export function TimelineView() {
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <h2
-                className="truncate text-[20px] font-extrabold leading-tight tracking-tight"
+                className="text-[20px] font-extrabold leading-snug tracking-tight"
                 style={{ color: "var(--df-text-primary)" }}
               >
                 Hey, <Marker>{profile.name}</Marker>
@@ -328,11 +337,26 @@ export function TimelineView() {
           />
         )}
 
-        <header className="df-timeline-header px-4 sm:px-5 pt-3 pb-2.5 flex flex-wrap items-center gap-x-2 gap-y-2">
+        {/* controls header — sticky inside the mobile column scroll
+            (the date rail + Day/Week toggle stay reachable while the
+            event list scrolls under them) and plain flow on desktop. */}
+        <div ref={controlsRef} className="sticky top-0 z-20 lg:static">
+        <header
+          className="df-timeline-header px-4 sm:px-5 pt-3 pb-2.5 flex flex-wrap items-center gap-x-2 gap-y-2"
+          style={{ background: "linear-gradient(to bottom, var(--df-panel-fill) 78%, transparent)" }}
+        >
           <div className="flex items-center gap-1.5">
             <NavArrow dir="prev" disabled={dayOffset <= -13} onClick={() => go(-1)} />
             <button
-              onClick={() => setShowCalendar((v) => !v)}
+              onClick={() => {
+                // On phones the popover is viewport-anchored below
+                // this row — stick the row to the top first so the
+                // popover reads as attached to its trigger.
+                if (!showCalendar && window.matchMedia("(max-width: 1023px)").matches) {
+                  controlsRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+                }
+                setShowCalendar((v) => !v);
+              }}
               className="df-press df-glass-control flex items-center gap-1.5 h-8 pl-2.5 pr-3 text-[12.5px] font-semibold"
               aria-expanded={showCalendar}
               aria-label="Pick a date"
@@ -430,6 +454,7 @@ export function TimelineView() {
             </button>
           </div>
         </header>
+        </div>
 
         {/* category filter chips */}
         {mode === "day" && (
@@ -454,7 +479,11 @@ export function TimelineView() {
         )}
 
         {/* calendar popover — anchored to its trigger, springs in,
-            dismisses on outside click or Escape */}
+            dismisses on outside click or Escape. 2026-09 iPhone QA
+            fix: absolutely positioned under the sticky controls row
+            so opening it overlays instead of shoving the timeline
+            down the scroll flow (it used to sit in-flow and pushed
+            the whole list ~330px, which read as a broken layout). */}
         <AnimatePresence>
           {showCalendar && (
             <motion.div
@@ -483,7 +512,7 @@ export function TimelineView() {
                 border: "0.5px solid var(--df-card-border)",
                 boxShadow: "var(--df-material-shadow)",
               }}
-              className="relative z-[60] mx-4 mb-3 w-[282px] overflow-hidden rounded-[20px] backdrop-blur-xl saturate-180 sm:mx-5"
+              className="absolute max-lg:fixed left-4 max-lg:top-[calc(env(safe-area-inset-top)+152px)] z-[60] w-[282px] overflow-hidden rounded-[20px] backdrop-blur-xl saturate-180 sm:left-5 lg:relative lg:top-auto lg:mx-0 lg:mb-3"
             >
               {/* Phase 11 — warm-yellow head band (the reference
                   calendar screen): month label + a Today quick-jump. */}
@@ -852,7 +881,7 @@ function UpNextRail({
         </p>
       </div>
       <div
-        className="df-scroll df-edge-fade-x -mx-1 flex gap-2 overflow-x-auto px-1 pb-1"
+        className="df-scroll -mx-1 flex gap-2 overflow-x-auto px-1 pb-1"
         role="list"
         aria-label="Remaining blocks today"
       >
@@ -863,7 +892,7 @@ function UpNextRail({
               key={event.id}
               role="listitem"
               onClick={() => onSelect(event.id)}
-              className="df-press flex w-[156px] shrink-0 items-center gap-2.5 rounded-[16px] px-3 py-2.5 text-left"
+              className="df-press flex w-[172px] shrink-0 items-center gap-2.5 rounded-[16px] px-3 py-2.5 text-left"
               style={{
                 background: `color-mix(in srgb, ${cat.colorHex} 14%, var(--df-card-fill))`,
                 border: `0.5px solid color-mix(in srgb, ${cat.colorHex} 30%, transparent)`,
@@ -1102,12 +1131,12 @@ function DayTimeline({
       {/* ------- MOBILE / TABLET (< lg): one scroll flow —
           event list, selected block detail, then the day
           summary (goals, hydration, stats) — everything
-          reachable, nothing clipped under the fixed-height
-          app shell (2026-09 fix: the summary used to stack
-          below the fold with overflow:hidden ancestors and
-          was unreachable, which made water logging feel
-          broken on phones). ------- */}
-      <div className="df-scroll flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 pb-[calc(96px+env(safe-area-inset-bottom))] pt-1 lg:hidden">
+          reachable, nothing clipped (2026-09 iPhone QA fix:
+          this used to be its own ~260px nested scroller wedged
+          under the fixed hero/controls, which read as cramped
+          and left a large void above the dock; the column is
+          the single scroll surface now). ------- */}
+      <div className="flex flex-col gap-3 px-4 pb-6 pt-1 lg:hidden">
         <div className="df-mobile-event-list flex flex-col gap-2" role="list" aria-label="Day timeline">
           {events.length === 0 ? (
             <div className="df-card mt-3 p-5 text-center">
@@ -1470,9 +1499,40 @@ function ActivityCard({
 function WeekTimeline({ dateKey }: { dateKey: string }) {
   const data = useDayflowData();
   const week = useMemo(() => weekOf(dateKey), [dateKey]);
+  // Week-at-a-glance rollup (2026-09 iPhone QA fix): with a light
+  // week, the 7-column grid ended mid-screen and left a large blank
+  // void above the dock — the rollup fills that space with actual
+  // signal (tracked time, active days, blocks, category mix).
+  const rollup = useMemo(() => {
+    let totalMin = 0;
+    let blocks = 0;
+    const activeDays = new Set<string>();
+    const byCat = new Map<string, number>();
+    for (const d of week) {
+      for (const e of eventsForDay(data.events, d.dateKey)) {
+        const min = eventDuration(e);
+        totalMin += min;
+        blocks++;
+        activeDays.add(d.dateKey);
+        byCat.set(e.categoryId, (byCat.get(e.categoryId) ?? 0) + min);
+      }
+    }
+    const mix = Array.from(byCat.entries())
+      .map(([id, min]) => {
+        const cat = categoryById(data.categories, id);
+        return { name: cat.name, colorHex: cat.colorHex, min };
+      })
+      .sort((a, b) => b.min - a.min);
+    return { totalMin, blocks, activeDays: activeDays.size, mix };
+  }, [week, data.events, data.categories]);
   return (
-    <div className="df-scroll flex-1 overflow-y-auto px-4 sm:px-5 pb-6">
-      <div className="grid grid-cols-7 gap-2">
+    <div className="px-4 pb-6 sm:px-5 lg:flex-1 lg:overflow-y-auto lg:pb-8">
+      {/* 2026-09 iPhone QA fix: seven 47px columns truncated every
+          block title to "Home Pu…". On phones the grid now rides a
+          horizontal scroller with a 78px floor per day (blocks keep
+          ~2 readable lines); desktop keeps the full-width grid. */}
+      <div className="df-scroll overflow-x-auto pb-1 lg:overflow-visible">
+      <div className="grid grid-cols-[repeat(7,minmax(78px,1fr))] gap-2 lg:grid-cols-7">
         {week.map((d) => {
           const acts = eventsForDay(data.events, d.dateKey);
           return (
@@ -1529,6 +1589,60 @@ function WeekTimeline({ dateKey }: { dateKey: string }) {
             </div>
           );
         })}
+      </div>
+      </div>
+
+      {/* week at a glance — totals + category mix bar */}
+      <div
+        className="mt-4 rounded-[16px] p-3.5"
+        style={{
+          background: "var(--df-chip-fill)",
+          border: "0.5px solid var(--df-chip-border)",
+        }}
+        aria-label="Week at a glance"
+      >
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[11px] font-bold uppercase tracking-[0.06em]" style={{ color: "var(--df-text-secondary)" }}>
+            This week
+          </p>
+          <p className="text-[10.5px] font-semibold tabular-nums" style={{ color: "var(--df-text-muted)" }}>
+            {rollup.activeDays} active {rollup.activeDays === 1 ? "day" : "days"} · {rollup.blocks} {rollup.blocks === 1 ? "block" : "blocks"}
+          </p>
+        </div>
+        <p className="mt-1.5 text-[20px] font-extrabold leading-none tracking-tight" style={{ color: "var(--df-text-primary)" }}>
+          {fmtDuration(rollup.totalMin)}
+          <span className="ml-1.5 text-[11px] font-semibold" style={{ color: "var(--df-text-muted)" }}>
+            tracked
+          </span>
+        </p>
+        {rollup.mix.length > 0 && (
+          <div className="mt-2.5">
+            <div
+              className="flex h-[8px] gap-[2px] overflow-hidden rounded-full"
+              role="img"
+              aria-label={`Category mix: ${rollup.mix.map((m) => `${m.name} ${fmtDuration(m.min)}`).join(", ")}`}
+            >
+              {rollup.mix.map((m) => (
+                <span
+                  key={m.name}
+                  className="h-full first:rounded-l-full last:rounded-r-full"
+                  style={{
+                    width: `${Math.max((m.min / Math.max(rollup.totalMin, 1)) * 100, 4)}%`,
+                    background: m.colorHex,
+                  }}
+                />
+              ))}
+            </div>
+            <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+              {rollup.mix.slice(0, 4).map((m) => (
+                <span key={m.name} className="flex items-center gap-1.5 text-[10.5px] font-medium" style={{ color: "var(--df-text-secondary)" }}>
+                  <span className="size-2 rounded-full" style={{ background: m.colorHex }} aria-hidden="true" />
+                  {m.name} · {fmtDuration(m.min)}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

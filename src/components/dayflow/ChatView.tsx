@@ -775,10 +775,12 @@ export function ChatView() {
         <div
           className="px-4 pb-[calc(0.75rem+max(0px,var(--keyboard-height,0px)))] pt-2 sm:px-6"
         >
-          {/* quick cards — preset prompt chips (fade at the right edge
-              signals the rail scrolls) */}
+          {/* quick cards — preset prompt chips. 2026-09 iPhone QA
+              fix: the edge-fade mask made the last chip read as a
+              broken cut-off ("Plan tom…") instead of a scroll hint —
+              a plain clipped chip is the standard iOS affordance. */}
           <div
-            className="df-scroll df-edge-fade-x -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-2"
+            className="df-scroll -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-2"
             role="list"
             aria-label="Quick prompts for the coach"
           >
@@ -919,10 +921,10 @@ export function ChatView() {
               }}
               aria-label="Ask your coach"
             >
-              <div className="flex items-start justify-between gap-3">
+              <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
                 <div className="min-w-0">
                   <h2
-                    className="truncate text-[20px] font-extrabold leading-tight tracking-tight"
+                    className="text-[20px] font-extrabold leading-snug tracking-tight"
                     style={{ color: "var(--df-text-primary)" }}
                   >
                     Hey, <Marker>{firstName}</Marker>
