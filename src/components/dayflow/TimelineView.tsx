@@ -366,7 +366,7 @@ export function TimelineView() {
         {/* controls header — sticky inside the mobile column scroll
             (the date rail + Day/Week toggle stay reachable while the
             event list scrolls under them) and plain flow on desktop. */}
-        <div ref={controlsRef} className="sticky top-0 z-20 lg:static">
+        <div ref={controlsRef} className="sticky top-0 z-20 bg-[var(--df-panel-fill)] lg:static">
         <header
           className="df-timeline-header px-4 sm:px-5 pt-3 pb-2.5 flex flex-wrap items-center gap-x-2 gap-y-2"
           style={{ background: "linear-gradient(to bottom, var(--df-panel-fill) 78%, transparent)" }}
@@ -483,11 +483,10 @@ export function TimelineView() {
             </button>
           </div>
         </header>
-        </div>
 
         {/* category filter chips */}
         {mode === "day" && (
-          <div className="df-timeline-filters px-4 sm:px-5 pb-2.5 flex flex-wrap gap-1.5" role="group" aria-label="Filter by category">
+          <div className="df-timeline-filters px-4 sm:px-5 pt-1 pb-3 flex flex-wrap items-center gap-1.5" role="group" aria-label="Filter by category">
             <FilterChip
               label="All"
               colorHex={null}
@@ -506,6 +505,7 @@ export function TimelineView() {
             ))}
           </div>
         )}
+        </div>
 
         {/* calendar popover — anchored to its trigger, springs in,
             dismisses on outside click or Escape. 2026-09 iPhone QA

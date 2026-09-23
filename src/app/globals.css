@@ -914,9 +914,11 @@ select {
 
   .df-timeline-filters {
     flex-wrap: nowrap;
+    min-height: 2.5rem;
     overflow-x: auto;
-    padding: 0 1rem 0.75rem;
+    overflow-y: hidden;
     scrollbar-width: none;
+    overscroll-behavior-x: contain;
   }
 
   .df-timeline-filters::-webkit-scrollbar {
