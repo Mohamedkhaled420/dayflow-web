@@ -655,7 +655,7 @@ h4 {
      padding stays a fixed 6px so the dock never double-compensates
      and balloons to ~120px in standalone mode. Applies below lg —
      the dock only renders there (lg:hidden). */
-  bottom: max(0.75rem, var(--safe-area-bottom, 0px));
+  bottom: max(0.5rem, var(--safe-area-bottom, 0px));
 }
 
 .df-mobile-dock:has(button[aria-current="page"]) {
