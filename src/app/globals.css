@@ -1049,10 +1049,21 @@ select {
 
   /* The mobile header is content-sized; keep the glass surface from
      participating in the app's full-height flex track. */
-  .lgv[data-variant="header"],
-  .lgv[data-variant="header"] > .lgv-content {
+  [data-lgv][data-variant="header"],
+  [data-lgv][data-variant="header"] > .lgv-content {
   min-height: 0;
   height: fit-content;
+  }
+
+  [data-lgv][data-variant="header"] > .lgv-content {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.5rem;
+  }
+
+  [data-lgv][data-variant="dock"] > .lgv-content {
+  width: 100%;
   }
 
   .lgv-layer {
