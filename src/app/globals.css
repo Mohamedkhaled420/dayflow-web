@@ -655,7 +655,7 @@ h4 {
      padding stays a fixed 6px so the dock never double-compensates
      and balloons to ~120px in standalone mode. Applies below lg —
      the dock only renders there (lg:hidden). */
-  bottom: max(0.5rem, var(--safe-area-bottom, 0px));
+  bottom: max(0.75rem, var(--safe-area-bottom, 0px));
 }
 
 .df-mobile-dock:has(button[aria-current="page"]) {
@@ -1002,7 +1002,11 @@ select {
   /* Liquid Glass floating header capsule is ~8px taller than the
      old flat bar — keep the panel min-height floor in step. */
   .df-window > .flex > .df-panel {
-    min-height: calc(100dvh - 112px);
+    min-height: calc(100dvh - 104px);
+  }
+
+  .df-window > .flex {
+    min-height: 0;
   }
 
   .df-daily-view {

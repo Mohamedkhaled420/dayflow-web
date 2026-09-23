@@ -206,25 +206,25 @@ export function AppShell() {
       {/* Mobile header — Liquid Glass T1 surface #2 (PRD §6.2).
           Floating capsule (iOS 26 nav-bar material): the glass refracts
           the window gradients; hairline + fill ride the --lg-* tokens. */}
-      <header className="lg:hidden sticky top-0 z-40 shrink-0 px-3 pt-[max(0.5rem,var(--safe-area-top,0px))] pb-2">
+      <header className="lg:hidden sticky top-0 z-40 shrink-0 px-2 pt-[max(0.375rem,var(--safe-area-top,0px))] pb-1">
         <LiquidGlassView
           variant="header"
           effect="regular"
-          className="flex min-h-0 items-center justify-between gap-2 px-3.5 py-2"
+          className="flex min-h-0 items-center gap-2 px-3.5 py-2"
           style={{
             ["--lg-fill" as string]:
               "color-mix(in srgb, var(--df-mobile-nav-fill) 55%, transparent)",
             border: "0.5px solid var(--df-chip-border)",
           }}
         >
-          <div className="flex items-center gap-2.5">
+          <div className="flex min-w-0 flex-1 items-center gap-2.5 whitespace-nowrap">
             <LogoMark size={30} />
-            <div className="flex items-center gap-1.5">
+            <div className="flex min-w-0 items-center gap-1.5">
               <p className="text-[13px] font-semibold leading-none" style={{ color: "var(--df-text-primary)" }}>Dayflow</p>
               {/* Phase 6.5: sync indicator beside the title (never in the dock) */}
               {isSyncing && <LogoLoop size="sm" />}
             </div>
-            <p className="mt-1 text-[10px] leading-none" style={{ color: "var(--df-text-muted)" }}>{activeTab.label}</p>
+            <p className="truncate text-[10px] leading-none" style={{ color: "var(--df-text-muted)" }}>{activeTab.label}</p>
           </div>
           <button onClick={() => select("settings")} aria-label="Settings" aria-current={tab === "settings" ? "page" : undefined} className="df-press grid size-9 place-items-center rounded-full" style={{ color: "var(--df-text-secondary)", border: "0.5px solid var(--df-chip-border)", background: "var(--df-chip-fill)" }}>
             <SettingsIcon className="size-[17px]" strokeWidth={1.8} />
@@ -326,7 +326,7 @@ export function AppShell() {
       >
         <nav
           aria-label="Mobile primary"
-          className="flex items-center justify-around px-1.5 pb-1.5 pt-1.5"
+          className="grid grid-cols-5 items-center px-1.5 pb-1.5 pt-1.5"
         >
           {TABS.filter((item) => item.id !== "settings").map((t) => (
             <DockItem
