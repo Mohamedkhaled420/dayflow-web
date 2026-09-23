@@ -1002,7 +1002,7 @@ select {
   /* Liquid Glass floating header capsule is ~8px taller than the
      old flat bar — keep the panel min-height floor in step. */
   .df-window > .flex > .df-panel {
-    min-height: calc(100dvh - 104px);
+    min-height: 0;
   }
 
   .df-window > .flex {

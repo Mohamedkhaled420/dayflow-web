@@ -210,7 +210,7 @@ export function AppShell() {
         <LiquidGlassView
           variant="header"
           effect="regular"
-          className="flex min-h-0 items-center gap-2 px-3.5 py-2"
+          className="relative flex min-h-0 items-center gap-2 px-3.5 py-2 pr-14"
           style={{
             ["--lg-fill" as string]:
               "color-mix(in srgb, var(--df-mobile-nav-fill) 55%, transparent)",
@@ -226,7 +226,7 @@ export function AppShell() {
             </div>
             <p className="truncate text-[10px] leading-none" style={{ color: "var(--df-text-muted)" }}>{activeTab.label}</p>
           </div>
-          <button onClick={() => select("settings")} aria-label="Settings" aria-current={tab === "settings" ? "page" : undefined} className="df-press grid size-9 place-items-center rounded-full" style={{ color: "var(--df-text-secondary)", border: "0.5px solid var(--df-chip-border)", background: "var(--df-chip-fill)" }}>
+          <button onClick={() => select("settings")} aria-label="Settings" aria-current={tab === "settings" ? "page" : undefined} className="df-press absolute right-3 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-full" style={{ color: "var(--df-text-secondary)", border: "0.5px solid var(--df-chip-border)", background: "var(--df-chip-fill)" }}>
             <SettingsIcon className="size-[17px]" strokeWidth={1.8} />
           </button>
         </LiquidGlassView>
@@ -274,7 +274,7 @@ export function AppShell() {
           className="df-rise flex-1 min-h-0 min-w-0"
           style={{ animationDelay: "100ms" }}
         >
-          <div className="df-panel h-full min-h-0 overflow-hidden rounded-none sm:rounded-[24px] pb-[calc(88px+var(--safe-area-bottom,0px))] lg:pb-0">
+          <div className="df-panel h-full min-h-0 overflow-hidden rounded-none sm:rounded-[24px] lg:pb-0">
             {/* popLayout (not "wait"): lazy view chunks can resolve while
                 their tab child is exiting — mode="wait" deadlocks in that
                 window (exit never completes, the next tab never mounts).
