@@ -1037,13 +1037,21 @@ select {
    Safari/Firefox get the T0 frost + the CSS rim below.
    ============================================================ */
 
-.lgv {
+  .lgv {
   position: relative;
   isolation: isolate;
   overflow: hidden;
-}
+  }
 
-.lgv-layer {
+  /* The mobile header is content-sized; keep the glass surface from
+     participating in the app's full-height flex track. */
+  .lgv[data-variant="header"],
+  .lgv[data-variant="header"] > .lgv-content {
+  min-height: 0;
+  height: fit-content;
+  }
+
+  .lgv-layer {
   position: absolute;
   inset: 0;
   border-radius: inherit;
