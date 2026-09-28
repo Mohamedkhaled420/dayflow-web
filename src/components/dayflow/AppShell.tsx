@@ -210,7 +210,7 @@ export function AppShell() {
         <LiquidGlassView
           variant="header"
           effect="regular"
-          className="flex min-h-0 items-center gap-2 px-3.5 py-2"
+          className="flex w-full min-h-0 items-center gap-2 px-3.5 py-2"
           style={{
             ["--lg-fill" as string]:
               "color-mix(in srgb, var(--df-mobile-nav-fill) 55%, transparent)",

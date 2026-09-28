@@ -1057,6 +1057,7 @@ select {
 
   [data-lgv][data-variant="header"] > .lgv-content {
   display: flex;
+  width: 100%;
   min-width: 0;
   align-items: center;
   gap: 0.5rem;
