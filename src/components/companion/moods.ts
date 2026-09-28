@@ -88,6 +88,33 @@ export const POKE_QUIPS = [
   "Boop back.",
 ];
 
+export const LEVEL_QUIPS = [
+  "Level up! Did you see that?!",
+  "I'm getting stronger. Because of you.",
+  "New level. New prowl.",
+];
+
+export const EVOLVE_QUIPS = [
+  "I… I evolved! Look at me!",
+  "A new form! The streak did this.",
+  "Rawr — the LEGENDARY rawr.",
+];
+
+export const STREAK_QUIPS = [
+  "Streak milestone! Consistency looks good on us.",
+  "That's dedication. I'm taking notes.",
+];
+
+export const HEADBAND_QUIPS = [
+  "A headband?! For me?! I'll wear it forever.",
+  "First PR, first trophy. It suits me, right?",
+];
+
+export const CROWN_QUIPS = [
+  "A crown… I am ROYALTY now.",
+  "Thirty days. You did that. I just watched, regally.",
+];
+
 export function pick<T>(lines: readonly T[]): T {
   return lines[Math.floor(Math.random() * lines.length)];
 }

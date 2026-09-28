@@ -117,7 +117,9 @@ export function deriveGoals(row: ProfileRow | null): Goals {
 
 const pad2 = (n: number) => String(n).padStart(2, "0");
 
-const localDateKey = (iso: string): string => {
+/** Local YYYY-MM-DD key for an ISO timestamp (shared with the
+ *  companion's daily counters). */
+export const localDateKey = (iso: string): string => {
   const d = new Date(iso);
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 };

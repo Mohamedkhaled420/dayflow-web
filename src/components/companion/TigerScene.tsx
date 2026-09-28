@@ -21,6 +21,8 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 import * as THREE from "three";
 import type { CompanionMood } from "./moods";
+import { Crown, Headband, StageAura } from "./Cosmetics";
+import type { CompanionStage } from "@/lib/companion/progress";
 import { COMPANION_LIGHTS } from "@/styles/palette";
 
 const MODEL_URL = "/models/dia-tiger.glb";
@@ -62,14 +64,21 @@ function usePointerRef() {
   return pointer;
 }
 
+export interface CompanionCosmetics {
+  headband: boolean;
+  crown: boolean;
+}
+
 function TigerModel({
   mood,
   pokeNonce,
   reducedMotion,
+  cosmetics,
 }: {
   mood: CompanionMood;
   pokeNonce: number;
   reducedMotion: boolean;
+  cosmetics: CompanionCosmetics;
 }) {
   const { scene } = useLoader(
     GLTFLoader,
@@ -169,6 +178,10 @@ function TigerModel({
       <group ref={poker}>
         <primitive object={model} />
       </group>
+      {/* Worn cosmetics ride the rig (bob/look-at) but not the
+          poker — she squashes, her hat stays on. */}
+      {cosmetics.headband && <Headband reducedMotion={reducedMotion} />}
+      {cosmetics.crown && <Crown reducedMotion={reducedMotion} />}
     </group>
   );
 }
@@ -199,10 +212,14 @@ export default function TigerScene({
   mood,
   pokeNonce,
   reducedMotion,
+  cosmetics,
+  stage,
 }: {
   mood: CompanionMood;
   pokeNonce: number;
   reducedMotion: boolean;
+  cosmetics: CompanionCosmetics;
+  stage: CompanionStage;
 }) {
   // Warm key light (theme ivory) + cool rim (the app's water blue) —
   // palette-sourced so she always feels part of Dayflow.
@@ -222,7 +239,13 @@ export default function TigerScene({
       <directionalLight position={[2.4, 3.4, 3.2]} intensity={1.5} color={keyColor} />
       <directionalLight position={[-3, 2.2, -2.4]} intensity={0.65} color={rimColor} />
       <ContactShadow mood={mood} />
-      <TigerModel mood={mood} pokeNonce={pokeNonce} reducedMotion={reducedMotion} />
+      <StageAura stage={stage} reducedMotion={reducedMotion} />
+      <TigerModel
+        mood={mood}
+        pokeNonce={pokeNonce}
+        reducedMotion={reducedMotion}
+        cosmetics={cosmetics}
+      />
     </Canvas>
   );
 }

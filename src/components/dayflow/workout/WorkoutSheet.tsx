@@ -358,8 +358,13 @@ function WorkoutForm({
       });
     }
     // The companion celebrates PRs — spin-hop + confetti + quip.
+    // The exercise names ride along as celebrate detail so the LLM
+    // quip engine can name-drop the lift.
     if (prs.length > 0) {
-      useCompanionStore.getState().celebrate("pr");
+      useCompanionStore.getState().celebrate(
+        "pr",
+        prs.map((p) => p.name).join(", ")
+      );
       useCompanionStore.getState().say(
         `New PR${prs.length > 1 ? "s" : ""} — ${prs[0].name}!`
       );

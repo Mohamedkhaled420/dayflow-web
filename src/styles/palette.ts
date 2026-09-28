@@ -94,6 +94,24 @@ export const COMPANION_LIGHTS = {
 } as const;
 
 /**
+ * Companion cosmetics + progression (same three.js exemption as
+ * COMPANION_LIGHTS — materials can't read CSS variables). Colors for
+ * Dia's unlockables and evolution auras:
+ *  - headband / knot: coral training band (first PR unlock)
+ *  - crown / gem:     gold + aqua royal set (30-day streak unlock)
+ *  - auraHunter:      cool confident halo (stage 2)
+ *  - auraLegend:      warm gold halo (stage 3)
+ */
+export const COMPANION_COSMETICS = {
+  headband: "#FF5A5F",
+  headbandKnot: "#E6484D",
+  crown: "#F5B93F",
+  crownGem: "#5AC8FA",
+  auraHunter: "#8FD3FF",
+  auraLegend: "#FFD166",
+} as const;
+
+/**
  * PWA install surfaces (Phase 4 ship): manifest theme_color /
  * background_color and the browser <meta name="theme-color">, pinned
  * to the Lively Pastel light window surface (--df-window-bg #A5B4FC —
