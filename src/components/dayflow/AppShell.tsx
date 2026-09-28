@@ -326,7 +326,7 @@ export function AppShell() {
       >
         <nav
           aria-label="Mobile primary"
-          className="grid grid-cols-5 items-center px-1.5 pb-1.5 pt-1.5"
+          className="grid w-full grid-cols-5 items-center px-1.5 pb-1.5 pt-1.5"
         >
           {TABS.filter((item) => item.id !== "settings").map((t) => (
             <DockItem

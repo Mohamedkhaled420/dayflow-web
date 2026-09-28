@@ -1064,7 +1064,9 @@ select {
   }
 
   [data-lgv][data-variant="dock"] > .lgv-content {
+  display: flex;
   width: 100%;
+  min-width: 0;
   }
 
   .lgv-layer {
