@@ -32,6 +32,7 @@ import {
   X,
 } from "lucide-react";
 import { useDayflowStore } from "@/store/useDayflowStore";
+import { useCompanionStore } from "@/store/companionStore";
 import { localDateTime } from "@/lib/viewmodel";
 import { keyForOffset } from "@/lib/seed";
 import { useToast } from "@/hooks/use-toast";
@@ -355,6 +356,13 @@ function WorkoutForm({
         title: `New PR — ${pr.name}`,
         description: `Estimated 1RM ${pr.est} kg`,
       });
+    }
+    // The companion celebrates PRs — spin-hop + confetti + quip.
+    if (prs.length > 0) {
+      useCompanionStore.getState().celebrate("pr");
+      useCompanionStore.getState().say(
+        `New PR${prs.length > 1 ? "s" : ""} — ${prs[0].name}!`
+      );
     }
     toast({
       title: editing ? "Workout updated" : "Workout logged",

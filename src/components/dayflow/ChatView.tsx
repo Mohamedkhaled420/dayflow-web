@@ -43,6 +43,7 @@ import {
   StickyNote,
 } from "lucide-react";
 import { useDayflowStore } from "@/store/useDayflowStore";
+import { useCompanionStore } from "@/store/companionStore";
 import { useDayflowData } from "@/lib/viewmodel";
 import { useToast } from "@/hooks/use-toast";
 import { triggerHaptic, hapticSelect } from "@/lib/haptics";
@@ -264,6 +265,12 @@ export function ChatView() {
   const [saving, setSaving] = useState(false);
   const [coachTurns, setCoachTurns] = useState<CoachTurn[]>([]);
   const [asking, setAsking] = useState(false);
+  // Companion sync: while the coach streams, Dia thinks (3D mood).
+  const setCompanionThinking = useCompanionStore((s) => s.setThinking);
+  useEffect(() => {
+    setCompanionThinking(asking);
+    return () => setCompanionThinking(false);
+  }, [asking, setCompanionThinking]);
   const [coachError, setCoachError] = useState<string | null>(null);
   const [mode, setMode] = useState<DiaCoachMode>("journal");
   /** Streaming coach text while it arrives (null = not streaming). */

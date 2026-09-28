@@ -79,6 +79,21 @@ export const THEME_META_COLORS = {
 } as const;
 
 /**
+ * Companion (Dia, the 3D tiger) scene lighting. three.js materials
+ * cannot read CSS custom properties, so the companion's key/rim/
+ * shadow colors live HERE with the other exempt data colors and
+ * stay in sync with the Lively Pastel surfaces by hand.
+ *  - keyLight: warm ivory sun (matches the app's warm surfaces)
+ *  - rimLight: the water category blue — thematic + reads on fur
+ *  - shadow:  ink-tinted contact shadow, softened by opacity
+ */
+export const COMPANION_LIGHTS = {
+  keyLight: "#FFE9D6",
+  rimLight: CATEGORY_COLORS.water,
+  shadow: "#1B1B2A",
+} as const;
+
+/**
  * PWA install surfaces (Phase 4 ship): manifest theme_color /
  * background_color and the browser <meta name="theme-color">, pinned
  * to the Lively Pastel light window surface (--df-window-bg #A5B4FC —

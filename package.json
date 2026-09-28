@@ -13,6 +13,8 @@
   },
   "dependencies": {
     "@radix-ui/react-toast": "^1.2.14",
+    "@react-three/drei": "^10.7.0",
+    "@react-three/fiber": "^9.3.0",
     "@supabase/ssr": "0.7.0",
     "@supabase/supabase-js": "2.57.4",
     "class-variance-authority": "^0.7.1",
@@ -25,6 +27,7 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "tailwind-merge": "^3.3.1",
+    "three": "^0.180.0",
     "zod": "^3.25.76",
     "zustand": "^5.0.6"
   },
@@ -33,6 +36,7 @@
     "@types/node": "^24.0.0",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
+    "@types/three": "^0.180.0",
     "eslint": "^9.30.0",
     "eslint-config-next": "^16.1.1",
     "tailwindcss": "^4.1.11",

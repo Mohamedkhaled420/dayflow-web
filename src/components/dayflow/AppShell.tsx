@@ -28,6 +28,7 @@ import { hapticSelect } from "@/lib/haptics";
 import { springSoft } from "@/lib/motion";
 import { useDockHidden, watchDockKeyboard } from "@/hooks/use-dock-visibility";
 import { useKeyboardTracking } from "@/components/ui/Sheet";
+import { DiaCompanion } from "@/components/companion/DiaCompanion";
 
 // Phase 4 bundle diet: every tab view is code-split and streams in
 // behind the boot skeleton, so none of the view bundles ride the
@@ -340,6 +341,10 @@ export function AppShell() {
           ))}
         </nav>
       </LiquidGlassView>
+
+      {/* Dia — the living 3D companion (lazy three.js chunk,
+          deferred until idle inside the component itself). */}
+      <DiaCompanion />
 
       {/* Morning Triad gate (T1d) — gates the Focus tab. */}
       <MorningTriadGate
