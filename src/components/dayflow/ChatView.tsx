@@ -423,11 +423,15 @@ export function ChatView() {
       target?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
+    if (mode === "journal") {
+      scrollRef.current?.scrollTo({ top: 0, behavior: "auto" });
+      return;
+    }
     scrollRef.current?.scrollTo({
       top: scrollRef.current.scrollHeight,
       behavior: "smooth",
     });
-  }, [entries.length, coachTurns.length, liveReply, asking, historyCursor]);
+  }, [entries.length, coachTurns.length, liveReply, asking, historyCursor, mode]);
 
   const draftText = journalHtmlToText(draft).trim();
 
@@ -902,8 +906,8 @@ export function ChatView() {
       {/* message flow — the shell's hero area */}
       <div
         ref={scrollRef}
-        className="df-scroll h-full min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 pb-2 pt-10 sm:px-6 flex"
-        style={{ scrollPaddingTop: "2.5rem" }}
+        className="df-scroll h-full min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-4 pb-2 pt-6 sm:px-6 flex"
+        style={{ scrollPaddingTop: "1.5rem" }}
         role="log"
         aria-label="Journal entries and coach replies"
         aria-live="polite"
@@ -922,7 +926,7 @@ export function ChatView() {
         {visibleTurns.length === 0 && (
           <>
             <section
-              className="df-rise relative mt-3 overflow-hidden rounded-[24px] px-5 py-4"
+              className="df-rise relative mt-2 shrink-0 overflow-hidden rounded-[20px] px-3 py-2.5 sm:mt-3 sm:rounded-[24px] sm:px-5 sm:py-4"
               style={{
                 background: "var(--df-hero-panel)",
                 border: "0.5px solid var(--df-hero-panel-edge)",
@@ -974,7 +978,7 @@ export function ChatView() {
                 <DoodleCluster className="h-12 w-12" />
               </StickerTilt>
               <p
-                className="mt-3 max-w-[30ch] text-[15.5px] font-extrabold leading-snug"
+                className="mt-2 hidden max-w-[30ch] text-[15.5px] font-extrabold leading-snug sm:block sm:mt-3"
                 style={{ color: "var(--df-text-primary)" }}
               >
                 Design your <Marker>perfect daily routine</Marker> with your private coach.
@@ -985,7 +989,7 @@ export function ChatView() {
                   hapticSelect();
                   setFocusSignal((n) => n + 1);
                 }}
-                className="df-press df-btn-primary mt-3.5 inline-flex h-10 items-center gap-1.5 px-5 text-[13px] font-bold"
+                className="df-press df-btn-primary mt-3.5 hidden h-10 items-center gap-1.5 px-5 text-[13px] font-bold sm:inline-flex"
               >
                 <NotebookPen className="h-4 w-4" aria-hidden="true" />
                 Start writing
