@@ -307,8 +307,9 @@ export function AppShell() {
       <LiquidGlassView
         variant="dock"
         effect="regular"
-        className="df-mobile-dock lg:hidden fixed inset-x-3 z-50"
+        className="df-mobile-dock lg:hidden fixed inset-x-4 w-auto z-50"
         style={{
+          width: "calc(100% - 2rem)",
           ["--lg-fill" as string]:
             "color-mix(in srgb, var(--df-mobile-nav-fill) 60%, transparent)",
           border: "0.5px solid var(--df-chip-border)",
