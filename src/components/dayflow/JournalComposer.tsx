@@ -270,7 +270,7 @@ export function JournalComposer({
         onBlur={emit}
         onFocus={() => setFocused(true)}
         onKeyDown={onKeyDown}
-        className="df-prose min-h-[84px] flex-1 px-3 py-2.5 text-[13px] leading-relaxed outline-none"
+        className="df-prose min-h-[64px] flex-1 px-3 py-2 text-[13px] leading-relaxed outline-none sm:min-h-[84px] sm:py-2.5"
         style={{ color: "var(--df-text-primary)", overflowY: "auto" }}
       />
     </div>
@@ -290,7 +290,7 @@ export function JournalComposer({
 
   const card = (
     <div
-      className={`relative flex flex-col overflow-hidden transition-shadow ${
+      className={`df-journal-composer relative flex flex-col overflow-hidden transition-shadow ${
         fullscreen ? "h-full" : ""
       } ${glowClass}`}
       onBlur={(e) => {

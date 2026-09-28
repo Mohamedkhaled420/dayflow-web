@@ -773,7 +773,7 @@ export function ChatView() {
         }
         footer={
         <div
-          className="px-4 pb-[max(0.75rem,calc(var(--keyboard-height,0px)-var(--safe-area-bottom,0px)-80px))] pt-2 sm:px-6"
+          className="px-4 pb-[max(0.5rem,calc(var(--keyboard-height,0px)-var(--safe-area-bottom,0px)-72px))] pt-1 sm:px-6"
         >
           {/* Keyboard lift (standalone-PWA fix): the composer sits at
               panel-bottom − this padding. The panel already reserves
@@ -788,7 +788,7 @@ export function ChatView() {
               broken cut-off ("Plan tom…") instead of a scroll hint —
               a plain clipped chip is the standard iOS affordance. */}
           <div
-            className="df-scroll -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-2"
+            className="df-scroll -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1"
             role="list"
             aria-label="Quick prompts for the coach"
           >
@@ -823,7 +823,7 @@ export function ChatView() {
               flex-wrap: on phones the mood picker + two buttons don't
               fit one 390px line, so the save/ask group wraps to its own
               right-aligned row instead of overflowing the screen. */}
-          <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-2">
+          <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1">
             <div
               className="flex items-center gap-0.5"
               role="radiogroup"
@@ -839,7 +839,7 @@ export function ChatView() {
                     aria-checked={active}
                     aria-label={m.label}
                     onClick={() => setMood(m.score)}
-                    className="df-press grid size-10 place-items-center rounded-full"
+                    className="df-press grid size-9 place-items-center rounded-full sm:size-10"
                     style={{
                       background: active ? "var(--df-chat-soft-fill)" : "transparent",
                       border: active
@@ -861,7 +861,7 @@ export function ChatView() {
                 type="button"
                 onClick={() => void saveEntry()}
                 disabled={!draftText || saving}
-                className="df-press df-btn-primary min-h-11 flex items-center gap-1.5 rounded-full px-3.5 text-[12.5px] font-semibold disabled:opacity-40"
+                className="df-press df-btn-primary min-h-9 flex items-center gap-1 rounded-full px-3 text-[12px] font-semibold disabled:opacity-40 sm:min-h-11 sm:gap-1.5 sm:px-3.5 sm:text-[12.5px]"
               >
                 <NotebookPen className="h-3.5 w-3.5" />
                 {saving ? "Saving…" : "Save entry"}
@@ -880,7 +880,7 @@ export function ChatView() {
                         ? "Ask the coach about your recent entries"
                         : "Ask the coach about your recent workouts"
                 }
-                className="df-press df-btn-secondary min-h-11 flex items-center gap-1.5 rounded-full px-3.5 text-[12.5px] font-semibold disabled:opacity-40"
+                className="df-press df-btn-secondary min-h-9 flex items-center gap-1 rounded-full px-3 text-[12px] font-semibold disabled:opacity-40 sm:min-h-11 sm:gap-1.5 sm:px-3.5 sm:text-[12.5px]"
               >
                 {asking ? (
                   <LogoLoop size="sm" />
