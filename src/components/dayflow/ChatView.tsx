@@ -902,8 +902,8 @@ export function ChatView() {
       {/* message flow — the shell's hero area */}
       <div
         ref={scrollRef}
-        className="df-scroll h-full min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 pb-2 pt-6 sm:px-6 flex"
-        style={{ scrollPaddingTop: "1.25rem" }}
+        className="df-scroll h-full min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 pb-2 pt-10 sm:px-6 flex"
+        style={{ scrollPaddingTop: "2.5rem" }}
         role="log"
         aria-label="Journal entries and coach replies"
         aria-live="polite"
