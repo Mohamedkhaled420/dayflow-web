@@ -1240,3 +1240,901 @@ select {
     opacity: calc(var(--lg-rim-opacity, 0.6) * 0.3);
   }
 }
+
+/* ============================================================
+   dff — the Apple-style form kit (Phase 12b)
+   Faithful translation of the "Log a block — Apple-style
+   redesign" reference. Colors resolve from --df-f-* tokens
+   (theme.css) + the runtime category accent --dff-c (set on
+   the sheet root by React). Scoped to .dff-sheet so it can
+   never leak into the rest of the app.
+   ============================================================ */
+
+.dff-sheet {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 440px;
+  background: var(--df-f-sheet);
+  border: 1px solid var(--df-f-line);
+  border-radius: 32px;
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  backdrop-filter: blur(40px) saturate(180%);
+  box-shadow: var(--df-f-shadow);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+  overflow: hidden;
+  color: var(--df-f-ink);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter,
+    system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.4;
+}
+/* phone: anchored bottom, full-bleed, show the grab handle */
+.dff-sheet.dff-phone {
+  max-width: none;
+  border-radius: 34px 34px 0 0;
+  border-left: 0;
+  border-right: 0;
+  border-bottom: 0;
+}
+.dff-sheet.dff-phone .dff-grab {
+  display: block;
+}
+.dff-sheet.dff-phone .dff-head {
+  padding-top: 26px;
+}
+.dff-sheet.dff-phone .dff-title {
+  font-size: 28px;
+}
+.dff-sheet.dff-phone .dff-aurora {
+  -webkit-filter: blur(50px);
+  filter: blur(50px);
+}
+
+/* aurora — three drifting blobs behind the glass */
+.dff-aurora {
+  position: absolute;
+  inset: -20%;
+  z-index: 0;
+  -webkit-filter: blur(70px);
+  filter: blur(70px);
+  opacity: 0.9;
+  pointer-events: none;
+  border-radius: inherit;
+  overflow: hidden;
+}
+.dff-aurora i {
+  position: absolute;
+  width: 46vmax;
+  height: 46vmax;
+  border-radius: 50%;
+  animation: dff-drift 22s ease-in-out infinite alternate;
+}
+.dff-aurora i:nth-child(1) {
+  background: var(--df-f-blob1);
+  left: 5%;
+  top: 0;
+}
+.dff-aurora i:nth-child(2) {
+  background: var(--df-f-blob2);
+  right: 0;
+  top: 20%;
+  animation-delay: -8s;
+}
+.dff-aurora i:nth-child(3) {
+  background: var(--df-f-blob3);
+  left: 25%;
+  bottom: -10%;
+  animation-delay: -14s;
+}
+@keyframes dff-drift {
+  to {
+    transform: translate(8vmax, -6vmax) scale(1.15);
+  }
+}
+
+/* header — big question, small sub, round ✕ */
+.dff-head {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 22px 20px 12px;
+}
+.dff-title {
+  font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, Inter,
+    sans-serif;
+  font-weight: 700;
+  font-size: 26px;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  margin: 2px 0 4px;
+  color: var(--df-f-ink);
+}
+.dff-sub {
+  color: var(--df-f-mute);
+  font-size: 14px;
+}
+.dff-x {
+  width: 44px;
+  height: 44px;
+  margin: -6px -6px 0 0;
+  border-radius: 50%;
+  border: 0;
+  background: var(--df-f-chip);
+  color: var(--df-f-mute);
+  font-size: 16px;
+  cursor: pointer;
+  flex: none;
+  display: grid;
+  place-items: center;
+}
+.dff-grab {
+  position: absolute;
+  top: 7px;
+  left: 50%;
+  width: 38px;
+  height: 5px;
+  margin-left: -19px;
+  border-radius: 3px;
+  background: var(--df-f-line);
+  display: none;
+}
+
+.dff-sheet.dff-phone .dff-body {
+  padding: 4px 20px 14px;
+  padding-bottom: max(14px, var(--safe-area-bottom, 0px));
+}
+.dff-sheet.dff-phone .dff-actions {
+  padding: 12px 20px 16px;
+  padding-bottom: max(16px, var(--safe-area-bottom, 0px));
+}
+
+/* scroll body */
+.dff-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 4px 20px 14px;
+  scrollbar-width: none;
+  position: relative;
+  z-index: 1;
+}
+.dff-body::-webkit-scrollbar {
+  display: none;
+}
+.dff-locked .dff-body,
+.dff-body.dff-locked {
+  overflow: hidden;
+}
+
+/* category strip — icons collapse to nothing until picked */
+.dff-cats {
+  display: flex;
+  gap: 3px;
+  padding: 4px;
+  margin-bottom: 12px;
+  border-radius: 22px;
+  background: var(--df-f-chip);
+  touch-action: pan-y;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.dff-cat {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 18px;
+  background: transparent;
+  color: var(--df-f-mute);
+  font-weight: 600;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  overflow: hidden;
+  white-space: nowrap;
+  padding: 0;
+  transition: flex-grow 0.5s cubic-bezier(0.32, 0.72, 0, 1), background 0.3s,
+    color 0.3s, box-shadow 0.3s, border-color 0.3s;
+}
+.dff-cat svg {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.3s;
+}
+.dff-cat span {
+  max-width: 0;
+  opacity: 0;
+  margin-left: 0;
+  overflow: hidden;
+  transition: max-width 0.5s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.25s,
+    margin 0.5s;
+}
+.dff-cat:hover svg {
+  color: var(--df-f-ink);
+}
+.dff-cat[aria-checked="true"] {
+  flex-grow: 3.3;
+  color: var(--df-f-ink);
+  background: color-mix(in srgb, var(--dff-c) 16%, var(--df-f-field));
+  border-color: color-mix(in srgb, var(--dff-c) 45%, transparent);
+  box-shadow: 0 8px 18px -10px var(--dff-c);
+}
+.dff-cat[aria-checked="true"] svg {
+  color: var(--dff-c);
+  transform: scale(1.1);
+}
+.dff-cat[aria-checked="true"] span {
+  max-width: 90px;
+  opacity: 1;
+  margin-left: 7px;
+}
+.dff-cat .dff-pop {
+  display: contents;
+}
+.dff-cat .dff-pop svg {
+  animation: dff-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes dff-pop {
+  40% {
+    transform: scale(1.45) rotate(-10deg);
+  }
+}
+
+/* fields — glass with the cursor spotlight */
+.dff-field {
+  position: relative;
+  border-radius: 18px;
+  background: var(--df-f-field);
+  border: 1px solid var(--df-f-line);
+  overflow: hidden;
+  transition: box-shadow 0.25s, border-color 0.25s;
+}
+.dff-field::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    180px circle at var(--mx, 50%) var(--my, 50%),
+    color-mix(in srgb, var(--dff-c) 18%, transparent),
+    transparent 70%
+  );
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+.dff-field:hover::before,
+.dff-field:focus-within::before {
+  opacity: 1;
+}
+.dff-field:focus-within {
+  border-color: var(--dff-c);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--dff-c) 22%, transparent);
+}
+.dff-field input,
+.dff-field textarea {
+  position: relative;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--df-f-ink);
+  font-family: inherit;
+  font-weight: 500;
+  font-size: 17px;
+  line-height: 1.4;
+  padding: 15px 16px;
+  outline: none;
+  resize: none;
+}
+.dff-field textarea {
+  font-size: 16px;
+  min-height: 76px;
+}
+.dff-field ::placeholder {
+  color: var(--df-f-mute);
+  opacity: 0.8;
+}
+.dff-field.dff-num input {
+  padding-right: 52px;
+}
+.dff-field.dff-num.dff-hero input {
+  font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, Inter,
+    sans-serif;
+  font-weight: 700;
+  font-size: 38px;
+  letter-spacing: -0.04em;
+  padding: 12px 16px 14px;
+}
+.dff-field.dff-num.dff-hero .dff-unit {
+  font-size: 15px;
+}
+.dff-unit {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--df-f-mute);
+  pointer-events: none;
+}
+
+/* recent blocks — horizontal pills */
+.dff-recent {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  margin: 10px -20px 0;
+  padding: 0 20px;
+  scrollbar-width: none;
+}
+.dff-recent:empty {
+  display: none;
+}
+.dff-recent::-webkit-scrollbar {
+  display: none;
+}
+.dff-recent button {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  background: var(--df-f-chip);
+  color: var(--df-f-ink);
+  padding: 10px 14px;
+  border-radius: 999px;
+  font-family: inherit;
+  font-weight: 500;
+  font-size: 13px;
+  cursor: pointer;
+}
+.dff-recent i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--dff-rc);
+  flex: none;
+}
+
+/* the "when" card */
+.dff-when {
+  margin: 16px 0 12px;
+  padding: 16px;
+  border-radius: 22px;
+  background: var(--df-f-field);
+  border: 1px solid var(--df-f-line);
+}
+.dff-dur {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.dff-big {
+  font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, Inter,
+    sans-serif;
+  font-weight: 700;
+  font-size: 38px;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+.dff-step {
+  display: flex;
+  gap: 6px;
+}
+.dff-step button {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 0;
+  background: var(--df-f-chip);
+  color: var(--df-f-ink);
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 18px;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+.dff-step button:active {
+  transform: scale(0.88);
+}
+.dff-note-line {
+  font-size: 13px;
+  color: var(--df-f-mute);
+  margin: 6px 0 0;
+  min-height: 0;
+}
+.dff-note-line:empty {
+  display: none;
+  margin: 0;
+}
+.dff-note-line b {
+  color: var(--dff-c);
+  font-weight: 600;
+}
+
+/* the 24-hour track */
+.dff-track {
+  position: relative;
+  height: 30px;
+  border-radius: 12px;
+  background: var(--df-f-chip);
+  cursor: pointer;
+  overflow: hidden;
+  margin-top: 14px;
+  touch-action: pan-y;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.dff-seg {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  border-radius: 9px;
+  background: var(--dff-c);
+  box-shadow: 0 4px 14px -4px var(--dff-c);
+  transition: left 0.35s cubic-bezier(0.3, 1.2, 0.4, 1),
+    width 0.35s cubic-bezier(0.3, 1.2, 0.4, 1), background 0.3s;
+}
+.dff-track.dff-drag .dff-seg {
+  transition: none;
+}
+.dff-ticks {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--df-f-mute);
+  margin: 6px 2px 14px;
+}
+
+/* start / end — field-styled time buttons */
+.dff-times {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 6px;
+  align-items: center;
+}
+.dff-tf {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: 10px 14px 11px;
+  text-align: left;
+  color: var(--df-f-ink);
+  cursor: pointer;
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+}
+.dff-tf > * {
+  position: relative;
+}
+.dff-tl {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--df-f-mute);
+  transition: color 0.25s;
+}
+.dff-tl u {
+  text-decoration: none;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--dff-c);
+  background: color-mix(in srgb, var(--dff-c) 14%, transparent);
+  padding: 1px 7px;
+  border-radius: 999px;
+}
+.dff-tv {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+.dff-tv b {
+  font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, Inter,
+    sans-serif;
+  font-weight: 700;
+  font-size: 24px;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+}
+.dff-tv em {
+  font-style: normal;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--df-f-mute);
+}
+.dff-tv.dff-roll b {
+  animation: dff-roll 0.38s cubic-bezier(0.32, 0.72, 0, 1);
+}
+@keyframes dff-roll {
+  from {
+    transform: translateY(45%);
+    opacity: 0;
+  }
+}
+.dff-tf.dff-on {
+  border-color: var(--dff-c);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--dff-c) 22%, transparent);
+}
+.dff-tf.dff-on .dff-tl {
+  color: var(--dff-c);
+}
+.dff-arr {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--df-f-chip);
+  color: var(--df-f-mute);
+  flex: none;
+}
+.dff-arr svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* quick duration — segmented control + Now */
+.dff-quick {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  align-items: stretch;
+}
+.dff-qseg {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  padding: 4px;
+  border-radius: 20px;
+  background: var(--df-f-chip);
+  touch-action: pan-y;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.dff-qseg button {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 0;
+  min-width: 0;
+  height: 38px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--df-f-mute);
+  border-radius: 16px;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: color 0.25s;
+}
+.dff-qseg button:hover {
+  color: var(--df-f-ink);
+}
+.dff-qseg button.on {
+  color: var(--df-f-ink);
+}
+.dff-thumb {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  width: calc((100% - 8px) / 5);
+  border-radius: 16px;
+  opacity: 0;
+  background: color-mix(in srgb, var(--dff-c) 16%, var(--df-f-field));
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--dff-c) 45%, transparent),
+    0 8px 18px -10px var(--dff-c);
+  transform: translateX(calc(var(--dff-qi, 0) * 100%));
+  transition: transform 0.45s cubic-bezier(0.34, 1.3, 0.5, 1), opacity 0.25s;
+}
+.dff-qseg.dff-has .dff-thumb {
+  opacity: 1;
+}
+.dff-qnow {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 20px;
+  background: var(--df-f-chip);
+  color: var(--df-f-ink);
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.dff-qnow svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.dff-qnow:active {
+  transform: scale(0.94);
+}
+
+/* counted note */
+.dff-note {
+  margin-top: 12px;
+}
+.dff-count {
+  position: absolute;
+  right: 12px;
+  bottom: 8px;
+  font-size: 11px;
+  color: var(--df-f-mute);
+  font-variant-numeric: tabular-nums;
+}
+
+/* actions footer */
+.dff-actions {
+  display: flex;
+  gap: 10px;
+  margin: 0;
+  padding: 12px 20px 16px;
+  border-top: 1px solid var(--df-f-line);
+  background: var(--df-f-actions-bg);
+  position: relative;
+  z-index: 1;
+}
+.dff-btn {
+  flex: 1;
+  height: 54px;
+  border-radius: 18px;
+  border: 0;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 16px;
+  cursor: pointer;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s;
+}
+.dff-btn:active {
+  transform: scale(0.97);
+}
+.dff-ghost {
+  flex: 0 0 32%;
+  background: var(--df-f-chip);
+  color: var(--df-f-ink);
+}
+.dff-go {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(
+    135deg,
+    var(--dff-c),
+    color-mix(in srgb, var(--dff-c) 60%, var(--df-f-go-2))
+  );
+  color: var(--df-f-go-ink);
+  box-shadow: 0 12px 28px -10px var(--dff-c);
+}
+.dff-go::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    110deg,
+    transparent 30%,
+    var(--df-f-go-shine) 50%,
+    transparent 70%
+  );
+  transform: translateX(-120%);
+}
+.dff-go:not(:disabled):hover::after {
+  transform: translateX(120%);
+  transition: transform 0.8s;
+}
+.dff-go:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+.dff-go svg {
+  width: 22px;
+  height: 22px;
+  stroke: var(--df-f-go-ink);
+  stroke-width: 3;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 30;
+  stroke-dashoffset: 30;
+}
+.dff-go.dff-done svg {
+  animation: dff-draw 0.5s forwards;
+}
+@keyframes dff-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.dff-danger {
+  background: color-mix(in srgb, var(--df-destructive) 14%, transparent);
+  color: var(--df-destructive-text);
+}
+
+/* the wheel picker — a sheet within the sheet */
+.dff-wsc {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 4;
+}
+.dff-wsc.dff-open {
+  pointer-events: auto;
+}
+.dff-wback {
+  position: absolute;
+  inset: 0;
+  background: var(--df-f-wback);
+  opacity: 0;
+  transition: opacity 0.35s;
+}
+.dff-wsc.dff-open .dff-wback {
+  opacity: 1;
+}
+.dff-wpanel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 16px 20px 22px;
+  border-radius: 28px 28px 32px 32px;
+  background: var(--df-f-panel);
+  -webkit-backdrop-filter: blur(30px);
+  backdrop-filter: blur(30px);
+  border-top: 1px solid var(--df-f-line);
+  transform: translateY(105%);
+  transition: transform 0.5s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.dff-sheet.dff-phone .dff-wpanel {
+  border-radius: 28px 28px 0 0;
+}
+.dff-wsc.dff-open .dff-wpanel {
+  transform: none;
+}
+.dff-wdrag {
+  touch-action: none;
+  cursor: grab;
+}
+.dff-wgrab {
+  width: 38px;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--df-f-line);
+  margin: -8px auto 12px;
+}
+.dff-whead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  font-size: 16px;
+}
+.dff-whead button {
+  border: 0;
+  background: var(--dff-c);
+  color: var(--df-f-go-ink);
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 7px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.dff-wheels {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  height: 200px;
+  margin-top: 8px;
+}
+.dff-band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 80px;
+  height: 40px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--dff-c) 14%, var(--df-f-chip));
+}
+.dff-wh {
+  position: relative;
+  height: 200px;
+  overflow-y: scroll;
+  scroll-snap-type: y mandatory;
+  padding: 80px 0;
+  scrollbar-width: none;
+  text-align: center;
+  outline: none;
+  -webkit-mask-image: linear-gradient(
+    transparent,
+    black 32%,
+    black 68%,
+    transparent
+  );
+  mask-image: linear-gradient(transparent, black 32%, black 68%, transparent);
+}
+.dff-wh::-webkit-scrollbar {
+  display: none;
+}
+.dff-wh div {
+  height: 40px;
+  line-height: 40px;
+  scroll-snap-align: center;
+  font-size: 22px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--df-f-mute);
+  cursor: pointer;
+  transition: color 0.15s, transform 0.2s;
+}
+.dff-wh div.sel {
+  color: var(--df-f-ink);
+  font-weight: 600;
+  transform: scale(1.08);
+}
+
+/* pointer affordances */
+.dff-sheet button {
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.dff-sheet button:focus-visible {
+  outline: 3px solid var(--dff-c);
+  outline-offset: 2px;
+}
+@media (hover: none) {
+  .dff-field::before {
+    display: none;
+  }
+  .dff-go:not(:disabled):hover::after {
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dff-sheet,
+  .dff-sheet *,
+  .dff-sheet *::before,
+  .dff-sheet *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

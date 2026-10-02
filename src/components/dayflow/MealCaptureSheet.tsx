@@ -31,12 +31,20 @@ import { useDayflowStore } from "@/store/useDayflowStore";
 import { localDateTime } from "@/lib/viewmodel";
 import { toMinutes } from "@/lib/compute";
 import {
+  Aurora,
   CharCounter,
-  CountedNote,
-  TimeRail,
-  TimeRow,
+  CountedField,
+  DayTrack,
+  FormActions,
+  NowButton,
+  NumField,
+  SpotField,
+  TimeButton,
+  TrackTicks,
+  WheelPicker,
   minutesToHM,
   nowMinutes,
+  spotlightMove,
 } from "@/components/dayflow/FormControls";
 import { useToast } from "@/hooks/use-toast";
 import { useIsPhone } from "@/hooks/use-media-query";
@@ -134,10 +142,12 @@ function MealCaptureForm({ onClose, dateKey }: { onClose: () => void; dateKey?: 
   const [photo, setPhoto] = useState<{ base64: string; dataUrl: string } | null>(null);
   const [note, setNote] = useState("");
   const [description, setDescription] = useState("");
-  // Phase 12: meals get the block form's "when" treatment — a rail
-  // marker + Logged-at row. null = untouched = log at the current
-  // clock time (previous behavior, byte-for-byte).
+  // Phase 12: meals get the block form's "when" treatment — a point
+  // marker on the 24-hour track + the Logged-at wheel. null =
+  // untouched = log at the current clock time (previous behavior).
   const [mealTime, setMealTime] = useState<string | null>(null);
+  const [wheel, setWheel] = useState(false);
+  const [done, setDone] = useState(false);
   const [defaultNow] = useState(nowHM);
   const [railNow] = useState(nowMinutes);
   const todayKey = new Date().toISOString().slice(0, 10);
@@ -254,7 +264,7 @@ function MealCaptureForm({ onClose, dateKey }: { onClose: () => void; dateKey?: 
     Number(draft.calories) >= 0;
 
   const logMeal = async (src: string) => {
-    if (!validNumbers) return;
+    if (!validNumbers || done) return;
     const target = dateKey ?? todayKey;
     await addMealLog({
       name: draft.name.trim(),
@@ -270,16 +280,25 @@ function MealCaptureForm({ onClose, dateKey }: { onClose: () => void; dateKey?: 
           : localDateTime(target, defaultNow),
     });
     triggerHaptic();
-    toast({
-      title: "Meal logged",
-      description: `${draft.name.trim()} · ${Math.round(Number(draft.calories))} kcal`,
-    });
-    onClose();
+    // the reference's flourish: the check draws itself, then we go.
+    // Close FIRST — a toast hiccup must never trap the sheet open.
+    setDone(true);
+    window.setTimeout(() => {
+      onClose();
+      toast({
+        title: "Meal logged",
+        description: `${draft.name.trim()} · ${Math.round(Number(draft.calories))} kcal`,
+      });
+    }, 700);
   };
 
   return (
-    <div className="w-full">
+    <div
+      className={`contents${wheel ? " dff-locked" : ""}`}
+      style={{ "--dff-c": MEALS_COLOR } as React.CSSProperties}
+    >
       <Header step={step} onClose={onClose} />
+      <div className="dff-body">
       {error && (
         <div
           className="mt-3 rounded-[14px] px-3 py-2 text-[12px]"
@@ -368,16 +387,15 @@ function MealCaptureForm({ onClose, dateKey }: { onClose: () => void; dateKey?: 
             />
           </div>
           <StickyActionBar>
-            <button onClick={() => setStep("pick")} className="df-press df-btn-secondary df-btn-capsule h-11 px-4 text-[12.5px] font-semibold">
+            <button onClick={() => setStep("pick")} className="dff-btn dff-ghost" style={{ height: 46, flex: "0 0 32%" }}>
               Back
             </button>
-            <div className="flex-1" />
             <button
               onClick={() => void analyze()}
               disabled={!photo || busy}
-              className="df-press df-btn-primary df-btn-capsule h-11 px-4 text-[12.5px] font-semibold flex items-center gap-1.5 disabled:opacity-40"
+              className="dff-btn dff-go"
+              style={{ height: 46 }}
             >
-              <ScanLine className="h-3.5 w-3.5" />
               {busy ? "Analyzing…" : "Analyze photo"}
             </button>
           </StickyActionBar>
@@ -385,37 +403,28 @@ function MealCaptureForm({ onClose, dateKey }: { onClose: () => void; dateKey?: 
       )}
 
       {step === "describe" && (
-        <div className="mt-4">
-          <FieldLabel>What did you eat?</FieldLabel>
-          <div className="mt-1.5">
-            <CountedNote
-              value={description}
-              onChange={setDescription}
-              max={500}
-              placeholder="2 eggs and toast with avocado"
-              ariaLabel="Meal description"
-              rows={3}
-            />
-          </div>
-          <StickyActionBar>
-            <button onClick={() => setStep("pick")} className="df-press df-btn-secondary df-btn-capsule h-11 px-4 text-[12.5px] font-semibold">
-              Back
-            </button>
-            <div className="flex-1" />
-            <button
-              onClick={() => void analyze()}
-              disabled={description.trim().length < 2 || busy}
-              className="df-press df-btn-primary df-btn-capsule h-11 px-4 text-[12.5px] font-semibold flex items-center gap-1.5 disabled:opacity-40"
-            >
-              <ScanLine className="h-3.5 w-3.5" />
-              {busy ? "Estimating…" : "Estimate"}
-            </button>
-          </StickyActionBar>
+        <div className="mt-3">
+          <CountedField
+            value={description}
+            onChange={setDescription}
+            max={500}
+            placeholder="2 eggs and toast with avocado"
+            ariaLabel="Meal description"
+          />
+          <FormActions
+            className="sticky bottom-0"
+            style={{ margin: "12px -20px 0" }}
+            ghostLabel="Back"
+            onGhost={() => setStep("pick")}
+            goLabel={busy ? "Estimating…" : "Estimate"}
+            onGo={() => void analyze()}
+            disabled={description.trim().length < 2 || busy}
+          />
         </div>
       )}
 
       {(step === "manual" || step === "confirm") && (
-        <div className="mt-4">
+        <div className="mt-3">
           {step === "confirm" && (
             <div
               className="mb-3 rounded-full px-3.5 py-2 text-[11px] font-semibold"
@@ -423,9 +432,9 @@ function MealCaptureForm({ onClose, dateKey }: { onClose: () => void; dateKey?: 
                 background:
                   source === "ai"
                     ? `color-mix(in srgb, ${MEALS_COLOR} 14%, transparent)`
-                    : "var(--df-chip-fill)",
+                    : "var(--df-f-chip)",
                 border: `0.5px solid color-mix(in srgb, ${MEALS_COLOR} 40%, transparent)`,
-                color: "var(--df-text-secondary)",
+                color: "var(--df-f-ink)",
               }}
             >
               {source === "ai"
@@ -434,41 +443,25 @@ function MealCaptureForm({ onClose, dateKey }: { onClose: () => void; dateKey?: 
             </div>
           )}
           {/* the question — same pattern as "What did you spend time on?" */}
-          <p className="text-[12px] font-semibold" style={{ color: "var(--df-text-secondary)" }}>
-            What did you eat?
-          </p>
-          <input
+          <SpotField
             value={draft.name}
-            onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value.slice(0, 80) }))}
+            onChange={(v) => setDraft((d) => ({ ...d, name: v.slice(0, 80) }))}
             placeholder="Grilled chicken salad"
-            aria-label="Meal name"
-            className="df-input-glass w-full rounded-[18px] px-4 h-12 mt-1.5 outline-none text-base"
-            style={{
-              color: "var(--df-text-primary)",
-            }}
+            ariaLabel="Meal name"
+            enterBlur
           />
 
           {/* calories — the meal form's hero value (the "1h" slot) */}
-          <div className="mt-4 flex justify-center" role="group" aria-label="Calories">
-            <div className="df-input-glass flex h-14 min-w-[190px] items-center justify-center gap-1.5 rounded-[18px] px-5">
-              <input
-                value={draft.calories}
-                onChange={(e) =>
-                  setDraft((d) => ({
-                    ...d,
-                    calories: e.target.value.replace(/[^0-9]/g, "").slice(0, 5),
-                  }))
-                }
-                inputMode="numeric"
-                placeholder="—"
-                aria-label="Calories in kcal"
-                className="w-[92px] bg-transparent text-center text-[24px] font-bold tabular-nums outline-none placeholder:text-[var(--df-text-muted)]"
-                style={{ color: MEALS_COLOR }}
-              />
-              <span className="text-[12px] font-semibold" style={{ color: "var(--df-text-muted)" }}>
-                kcal
-              </span>
-            </div>
+          <div className="mt-3">
+            <NumField
+              big
+              value={draft.calories}
+              onChange={(v) => setDraft((d) => ({ ...d, calories: v }))}
+              unit="kcal"
+              placeholder="—"
+              ariaLabel="Calories in kcal"
+              maxLen={5}
+            />
           </div>
 
           {/* macros — three-up under the hero */}
@@ -496,39 +489,48 @@ function MealCaptureForm({ onClose, dateKey }: { onClose: () => void; dateKey?: 
             />
           </div>
 
-          {/* when — the 24-hour rail (point marker) + precise row */}
-          <div className="mt-4">
-            <TimeRail
+          {/* when — the 24-hour track (point pill) + the Logged-at wheel */}
+          <section className="dff-when" aria-label="Time">
+            <DayTrack
+              mode="point"
               startMin={toMinutes(mealTime ?? defaultNow)}
               onChange={(m) => setMealTime(minutesToHM(m))}
-              color={MEALS_COLOR}
-              isToday={isToday}
-              nowMin={railNow}
-              ariaLabel="When did you eat — 12 AM to 12 AM"
             />
-          </div>
-          <div className="mt-4">
-            <TimeRow label="Logged at" value={mealTime ?? defaultNow} onChange={setMealTime} />
-          </div>
-          <StickyActionBar>
-            <button
-              onClick={() => setStep("pick")}
-              className="df-press df-btn-secondary df-btn-capsule h-11 px-4 text-[12.5px] font-semibold"
-            >
-              Back
-            </button>
-            <div className="flex-1" />
-            <button
-              onClick={() => void logMeal(step === "manual" ? "manual" : source === "fallback" ? "manual" : "ai")}
-              disabled={!validNumbers}
-              className="df-press df-btn-primary df-btn-capsule h-11 px-4 text-[12.5px] font-semibold flex items-center gap-1.5 disabled:opacity-40"
-            >
-              <Check className="h-3.5 w-3.5" />
-              Log meal
-            </button>
-          </StickyActionBar>
+            <TrackTicks />
+            <div className="dff-times" style={{ gridTemplateColumns: "1fr auto" }}>
+              <TimeButton
+                label="Logged at"
+                minutes={toMinutes(mealTime ?? defaultNow)}
+                on={wheel}
+                onClick={() => setWheel(true)}
+              />
+              <NowButton
+                ariaLabel="Log at the current time"
+                onClick={() => setMealTime(minutesToHM(nowMinutes()))}
+              />
+            </div>
+          </section>
+          <FormActions
+            className="sticky bottom-0"
+            style={{ margin: "12px -20px 0" }}
+            ghostLabel="Back"
+            onGhost={() => setStep("pick")}
+            goLabel="Log meal"
+            onGo={() => void logMeal(step === "manual" ? "manual" : source === "fallback" ? "manual" : "ai")}
+            disabled={!validNumbers}
+            done={done}
+          />
         </div>
       )}
+      </div>
+
+      <WheelPicker
+        open={wheel}
+        title="Logged at"
+        value={toMinutes(mealTime ?? defaultNow)}
+        onChange={(m) => setMealTime(minutesToHM(m))}
+        onClose={() => setWheel(false)}
+      />
     </div>
   );
 }
@@ -544,29 +546,28 @@ function Header({ step, onClose }: { step: Step; onClose: () => void }) {
           : step === "manual"
             ? "Manual entry"
             : "Confirm estimate";
+  const sub =
+    step === "pick"
+      ? "What did you eat?"
+      : step === "manual" || step === "confirm"
+        ? "Calories & macros, the Cal AI way"
+        : "";
   return (
-    <div className="flex items-start justify-between gap-3">
-      <div className="min-w-0">
-        <h2 className="text-[16px] font-bold tracking-tight" style={{ color: "var(--df-text-primary)" }}>
-          {title}
-        </h2>
-        <p className="text-[11.5px] mt-0.5" style={{ color: "var(--df-text-muted)" }}>
-          Calories & macros, the Cal AI way
-        </p>
+    <header className="dff-head">
+      <div className="dff-grab" aria-hidden="true" />
+      <div>
+        <h1 className="dff-title">{title}</h1>
+        {sub && <div className="dff-sub">{sub}</div>}
       </div>
       <button
-        onClick={onClose}
+        type="button"
+        className="dff-x"
         aria-label="Close"
-        className="df-press shrink-0 -mt-0.5 h-8 w-8 rounded-full grid place-items-center"
-        style={{
-          background: "var(--df-chip-fill)",
-          border: "0.5px solid var(--df-chip-border)",
-          color: "var(--df-text-secondary)",
-        }}
+        onClick={onClose}
       >
-        <X className="h-4 w-4" strokeWidth={2.2} />
+        <X className="h-4 w-4" strokeWidth={2.2} aria-hidden="true" />
       </button>
-    </div>
+    </header>
   );
 }
 
@@ -665,10 +666,9 @@ function MacroInput({
         <span className="normal-case font-medium opacity-70"> ({unit})</span>
       </FieldLabel>
       <div
-        className="df-input-glass mt-1.5 rounded-full px-4 h-12 flex items-center"
-        style={{
-          border: `0.5px solid color-mix(in srgb, ${color} 30%, var(--df-input-border))`,
-        }}
+        className="dff-field dff-num mt-1.5"
+        onPointerMove={spotlightMove}
+        style={{ "--dff-c": color } as React.CSSProperties}
       >
         <input
           value={value}
@@ -676,9 +676,8 @@ function MacroInput({
           inputMode="numeric"
           placeholder="—"
           aria-label={`${label} in ${unit}`}
-          className="w-full bg-transparent outline-none text-base tabular-nums"
-          style={{ color: "var(--df-text-primary)" }}
         />
+        <span className="dff-unit">{unit}</span>
       </div>
     </div>
   );
@@ -705,6 +704,8 @@ function Scrim({ onClose, children }: { onClose: () => void; children: React.Rea
       aria-modal="true"
       aria-label="Log a meal"
     >
+      {/* the reference's aurora — drifting blobs behind the glass */}
+      <Aurora />
       {children}
     </motion.div>
   );
@@ -719,7 +720,7 @@ function DesktopShell({ onClose, children }: { onClose: () => void; children: Re
         animate={reducedMotion ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }}
         exit={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 14, scale: 0.97 }}
         transition={reducedMotion ? { duration: 0.18 } : springSoft}
-        className="w-full max-w-[420px] rounded-2xl p-5 df-material"
+        className="dff-sheet"
         onClick={(e) => e.stopPropagation()}
       >
         {children}
@@ -737,7 +738,7 @@ function SheetShell({ onClose, children }: { onClose: () => void; children: Reac
         animate={reducedMotion ? { opacity: 1 } : { y: 0, opacity: 1 }}
         exit={reducedMotion ? { opacity: 0 } : { y: "100%", opacity: 0.5 }}
         transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
-        className="w-full rounded-t-[24px] overflow-hidden df-material"
+        className="dff-sheet dff-phone"
         style={{
           /* Keyboard lift (MealCaptureForm tracks --keyboard-height):
              ride above the software keyboard, cap the panel so it never
@@ -751,10 +752,7 @@ function SheetShell({ onClose, children }: { onClose: () => void; children: Reac
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mx-auto mt-2.5 mb-1 h-[5px] w-9 rounded-full" style={{ background: "var(--df-chip-border)" }} />
-        <div className="df-scroll overflow-y-auto px-5 pb-[max(18px,var(--safe-area-bottom,0px))] max-h-[calc(82dvh-var(--keyboard-height,0px))]">
-          {children}
-        </div>
+        {children}
       </motion.div>
     </Scrim>
   );

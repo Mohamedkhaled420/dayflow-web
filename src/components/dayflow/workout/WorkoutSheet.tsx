@@ -36,10 +36,15 @@ import { useCompanionStore } from "@/store/companionStore";
 import { localDateTime } from "@/lib/viewmodel";
 import { toMinutes } from "@/lib/compute";
 import {
-  DurationHero,
-  NumRow,
-  TimeRail,
-  TimeRow,
+  Aurora,
+  DayTrack,
+  DurationRow,
+  NumField,
+  QuickDuration,
+  SpotField,
+  TimePair,
+  TrackTicks,
+  WheelPicker,
   minutesToHM,
   nowMinutes,
 } from "@/components/dayflow/FormControls";
@@ -398,40 +403,33 @@ function WorkoutForm({
   const reducedMotion = useReducedMotion();
 
   const body = (
-    <div className="flex flex-col min-h-0 flex-1">
+    <div
+      className="contents"
+      style={{ "--dff-c": FITNESS } as React.CSSProperties}
+    >
       {/* header */}
-      <div className="flex items-center gap-2.5 shrink-0">
-        <span
-          className="h-9 w-9 rounded-[12px] grid place-items-center shrink-0"
-          style={{
-            background: `color-mix(in srgb, ${FITNESS} 15%, transparent)`,
-            color: FITNESS,
-          }}
-        >
-          <Dumbbell className="h-4 w-4" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <h2 className="text-[15px] font-bold" style={{ color: "var(--df-text-primary)" }}>
-            {editing ? "Edit gym session" : "Gym session"}
-          </h2>
-          <p className="text-[11px] truncate" style={{ color: "var(--df-text-muted)" }}>
+      <header className="dff-head">
+        <div className="dff-grab" aria-hidden="true" />
+        <div>
+          <h1 className="dff-title">{editing ? "Edit gym session" : "Gym session"}</h1>
+          <div className="dff-sub">
             {session.length > 0 && derivedTitle
               ? `Suggested title — ${derivedTitle}`
               : "Pick exercises, log sets, rest, repeat"}
-          </p>
+          </div>
         </div>
         <button
+          type="button"
+          className="dff-x"
           onClick={requestClose}
           aria-label="Close"
-          className="df-press shrink-0 h-8 w-8 grid place-items-center rounded-full"
-          style={{ background: "var(--df-chip-fill)", color: "var(--df-text-secondary)" }}
         >
-          <X className="h-4 w-4" />
+          <X className="h-4 w-4" strokeWidth={2.2} aria-hidden="true" />
         </button>
-      </div>
+      </header>
 
       {step === "picker" ? (
-        <div className="mt-3 flex flex-col min-h-0 flex-1">
+        <div className="mt-3 flex flex-col min-h-0 flex-1 dff-body">
           <ExercisePicker
             picked={picked}
             onPick={addExercise}
@@ -484,7 +482,7 @@ function WorkoutForm({
           animate={reducedMotion ? { opacity: 1 } : { y: 0, opacity: 1 }}
           exit={reducedMotion ? { opacity: 0 } : { y: "100%", opacity: 0.5 }}
           transition={{ duration: 0.24, ease: [0.32, 0.72, 0, 1] }}
-          className="w-full rounded-t-[24px] overflow-hidden df-material flex flex-col"
+          className="dff-sheet dff-phone"
           style={{
             height: "92dvh",
             /* Keyboard lift (shared --keyboard-height) — same fix as
@@ -499,13 +497,7 @@ function WorkoutForm({
           }}
           onClick={(e) => e.stopPropagation()}
         >
-          <div
-            className="mx-auto mt-2.5 mb-1 h-[5px] w-9 rounded-full shrink-0"
-            style={{ background: "var(--df-chip-border)" }}
-          />
-          <div className="flex flex-col min-h-0 flex-1 px-4 pb-[max(12px,var(--safe-area-bottom,0px))]">
-            {body}
-          </div>
+          {body}
         </motion.div>
       ) : (
         <motion.div
@@ -513,11 +505,11 @@ function WorkoutForm({
           animate={reducedMotion ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }}
           exit={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 14, scale: 0.97 }}
           transition={reducedMotion ? { duration: 0.18 } : springSoft}
-          className="w-full max-w-[520px] rounded-2xl df-material flex flex-col"
-          style={{ height: "min(82dvh, 720px)" }}
+          className="dff-sheet"
+          style={{ height: "min(82dvh, 720px)", maxWidth: 520 }}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="flex flex-col min-h-0 flex-1 p-5">{body}</div>
+          {body}
         </motion.div>
       )}
     </Scrim>
@@ -560,54 +552,86 @@ interface BuildProps {
 
 function BuildStep(p: BuildProps) {
   const durNum = Math.round(Number(p.durationMin));
-  return (
-    <div className="mt-3 flex flex-col min-h-0 flex-1 overflow-y-auto df-scroll -mx-1 px-1">
-      {/* title + when */}
-      <div className="df-input-glass rounded-full px-4 h-12 flex items-center shrink-0">
-        <input
-          value={p.title}
-          onChange={(e) => p.setTitle(e.target.value.slice(0, 60))}
-          placeholder={p.placeholder}
-          aria-label="Workout title"
-          className="w-full bg-transparent outline-none text-base"
-          style={{ color: "var(--df-text-primary)" }}
-        />
-      </div>
+  const startNum = toMinutes(p.startHM);
+  const endNum = (startNum + durNum) % 1440;
+  const overnight = startNum + durNum > 1440;
+  const [wheel, setWheel] = useState<"st" | "en" | null>(null);
 
-      {/* duration — the block-form hero, gym-flavored chips */}
-      <div className="mt-3 shrink-0">
-        <DurationHero
+  // wheel commits — the reference's math (start keeps the end fixed)
+  const onWheelChange = (m: number) => {
+    if (wheel === "st") {
+      const newDur = ((endNum - m + 1440) % 1440) || durNum;
+      p.setStartHM(minutesToHM(m));
+      p.setDurationMin(String(newDur));
+    } else if (wheel === "en") {
+      p.setDurationMin(String(((m - startNum + 1440) % 1440) || 15));
+    }
+  };
+  const onNow = () => {
+    const n = nowMinutes();
+    p.setStartHM(minutesToHM((n - durNum + 1440) % 1440));
+  };
+
+  return (
+    <div
+      className={`mt-1 flex flex-col min-h-0 flex-1 overflow-y-auto df-scroll dff-body${
+        wheel ? " dff-locked" : ""
+      }`}
+    >
+      {/* title */}
+      <SpotField
+        value={p.title}
+        onChange={(v) => p.setTitle(v.slice(0, 60))}
+        placeholder={p.placeholder}
+        ariaLabel="Workout title"
+        enterBlur
+      />
+
+      {/* the when card — hero duration, session window on the 24-hour
+          track, Start/End wheels, quick chips + Now (matches the block
+          form). */}
+      <section className="dff-when" aria-label="Session window">
+        <DurationRow value={durNum} onChange={(m) => p.setDurationMin(String(m))} />
+        <div className="dff-note-line" aria-live="polite">
+          {overnight ? (
+            <>
+              <b>Crosses midnight</b> · ends tomorrow
+            </>
+          ) : (
+            ""
+          )}
+        </div>
+        <DayTrack
+          startMin={startNum}
+          durationMin={durNum}
+          mode="block"
+          onChange={(m) => p.setStartHM(minutesToHM(m))}
+        />
+        <TrackTicks />
+        <TimePair
+          startMin={startNum}
+          endMin={endNum}
+          endBadge={overnight ? "Tomorrow" : undefined}
+          onPickStart={() => setWheel("st")}
+          onPickEnd={() => setWheel("en")}
+          active={wheel === "st" ? "start" : wheel === "en" ? "end" : null}
+        />
+        <QuickDuration
           value={durNum}
           onChange={(m) => p.setDurationMin(String(m))}
-          chips={[30, 45, 60, 75, 90, 120]}
-          ariaLabel="Session duration"
+          onNow={onNow}
+          chips={[30, 45, 60, 90, 120]}
         />
-      </div>
+      </section>
 
-      {/* the 24-hour scrubber — drag the session block, resize its
-          edges, or tap to jump (matches Log-a-block). */}
-      <div className="mt-3 shrink-0">
-        <TimeRail
-          startMin={toMinutes(p.startHM)}
-          durationMin={durNum}
-          onChange={(m) => p.setStartHM(minutesToHM(m))}
-          onDurationChange={(d) => p.setDurationMin(String(d))}
-          color={FITNESS}
-          isToday={p.isToday}
-          nowMin={p.nowMin}
-          ariaLabel="Session window — 12 AM to 12 AM"
-        />
-      </div>
-
-      {/* precise start + calories — the reference's settings rows */}
-      <div className="mt-3 grid grid-cols-2 gap-2 shrink-0">
-        <TimeRow label="Start time" value={p.startHM} onChange={p.setStartHM} />
-        <NumRow
-          label="Calories"
-          unit="kcal"
+      {/* calories — the gym form's metric field */}
+      <div className="mt-3">
+        <NumField
           value={p.calories}
           onChange={p.setCalories}
+          unit="kcal"
           placeholder="—"
+          ariaLabel="Active calories in kcal"
           maxLen={4}
         />
       </div>
@@ -678,7 +702,7 @@ function BuildStep(p: BuildProps) {
       <div className="h-1 shrink-0" />
 
       {/* sticky footer */}
-      <div className="df-sheet-footer sticky bottom-0 mt-auto pt-2 pb-1 -mx-1 px-1">
+      <div className="df-sheet-footer sticky bottom-0 mt-auto pt-2 pb-1 -mx-5 px-5">
         {/* rest pill */}
         {p.restLeft != null && p.restLeft > 0 && (
           <div
@@ -774,13 +798,21 @@ function BuildStep(p: BuildProps) {
           <button
             onClick={p.save}
             disabled={!p.valid}
-            className="df-press df-btn-primary df-btn-capsule h-11 px-5 text-[13px] font-semibold flex items-center gap-1.5 disabled:opacity-40 shrink-0"
+            className="dff-btn dff-go shrink-0"
+            style={{ height: 46, flex: "0 0 auto", padding: "0 22px", fontSize: 14 }}
           >
-            <Check className="h-4 w-4" />
             {p.valid ? "Save workout" : "Add exercises"}
           </button>
         </div>
       </div>
+
+      <WheelPicker
+        open={wheel !== null}
+        title={wheel === "st" ? "Start time" : "End time"}
+        value={wheel === "st" ? startNum : endNum}
+        onChange={onWheelChange}
+        onClose={() => setWheel(null)}
+      />
     </div>
   );
 }
@@ -1080,6 +1112,8 @@ function Scrim({ onClose, children }: { onClose: () => void; children: React.Rea
       aria-modal="true"
       aria-label="Log a gym session"
     >
+      {/* the reference's aurora — drifting blobs behind the glass */}
+      <Aurora />
       {children}
     </motion.div>
   );

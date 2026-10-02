@@ -429,6 +429,27 @@
      so it lives here as its own token — components reference it
      via var(--df-brand-deep), never raw hex. */
   --df-brand-deep: #1a79eb;
+
+  /* --- dff: the Apple-style form kit (Phase 12b, "Log a block" redesign).
+     Cool-glass family — deliberately its own layer, scoped to the log
+     forms' sheets; everything else keeps the Lively Pastel tokens.
+     Mirrors the reference palette 1:1 (light values). */
+  --df-f-sheet: rgba(255, 255, 255, 0.72);
+  --df-f-ink: #14151c;
+  --df-f-mute: #6b6e80;
+  --df-f-line: rgba(20, 21, 28, 0.08);
+  --df-f-field: rgba(255, 255, 255, 0.7);
+  --df-f-chip: rgba(20, 21, 28, 0.05);
+  --df-f-shadow: 0 30px 80px -20px rgba(40, 50, 120, 0.35);
+  --df-f-blob1: #c9d2ff;
+  --df-f-blob2: #ffd9e8;
+  --df-f-blob3: #c8f3e6;
+  --df-f-wback: rgba(10, 12, 30, 0.28);
+  --df-f-panel: rgba(238, 240, 247, 0.9);
+  --df-f-actions-bg: rgba(238, 240, 247, 0.4);
+  --df-f-go-2: #ff7ad9;
+  --df-f-go-ink: #ffffff;
+  --df-f-go-shine: rgba(255, 255, 255, 0.35);
 }
 
 .dark {
@@ -668,4 +689,22 @@
     rgba(253, 186, 116, 0.08) 45%,
     rgba(30, 27, 46, 0) 70%
   );
+
+  /* --- dff: the Apple-style form kit (dark) --- */
+  --df-f-sheet: rgba(30, 31, 44, 0.68);
+  --df-f-ink: #f4f5fb;
+  --df-f-mute: #9a9db3;
+  --df-f-line: rgba(255, 255, 255, 0.09);
+  --df-f-field: rgba(255, 255, 255, 0.06);
+  --df-f-chip: rgba(255, 255, 255, 0.07);
+  --df-f-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.7);
+  --df-f-blob1: #2b3170;
+  --df-f-blob2: #5a2442;
+  --df-f-blob3: #14463a;
+  --df-f-wback: rgba(10, 12, 30, 0.28);
+  --df-f-panel: rgba(12, 13, 20, 0.9);
+  --df-f-actions-bg: rgba(12, 13, 20, 0.4);
+  --df-f-go-2: #ff7ad9;
+  --df-f-go-ink: #ffffff;
+  --df-f-go-shine: rgba(255, 255, 255, 0.35);
 }

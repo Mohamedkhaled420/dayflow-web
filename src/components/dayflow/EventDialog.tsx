@@ -4,13 +4,18 @@
 // session, meal, sleep…). Replaces the native app's automatic capture:
 // on the web you log blocks by hand, which also makes them yours.
 //
-// Apple-design behaviors (from emilkowalski/skills apple-design):
+// Phase 12b — the "Log a block — Apple-style redesign" reference,
+// matched 1:1: aurora-backed glass sheet, expanding category pills
+// that tint the whole form, spotlight fields, the big duration with
+// round steppers, a draggable 24-hour track, Start/End buttons that
+// open an iOS wheel picker, a sliding-thumb quick control + Now,
+// recent-block pills and the gradient CTA that draws its checkmark.
+//
+// Apple-design behaviors kept from before:
 // - Phone: bottom sheet with a grab handle — drag it down to dismiss
 //   (1:1 tracking, release-velocity handoff, rubber-band at the top).
-// - Desktop: centered material that "materializes" — spring scale+fade
-//   from the direction it will exit (symmetric paths).
-// - Escape closes; body scroll is locked while open; haptics confirm
-//   commits on the same frame as the visual change.
+// - Desktop: centered material that "materializes" — spring scale+fade.
+// - Escape closes the wheel first, then the sheet; body scroll locks.
 //
 // The form state lives in a keyed inner component so opening the
 // dialog for create/edit remounts it with fresh values — no
@@ -23,39 +28,54 @@ import {
   useDragControls,
   useReducedMotion,
 } from "motion/react";
-import { Check, Clock, Sparkles, Trash2, X } from "lucide-react";
-import { CategoryIcon } from "@/components/dayflow/category-icons";
-import { DoodleSparkle } from "@/components/dayflow/doodles";
-import { LOGGABLE_CATEGORIES, localDateTime } from "@/lib/viewmodel";
 import {
-  useDayflowStore,
-} from "@/store/useDayflowStore";
+  Activity,
+  Briefcase,
+  Coffee,
+  Moon,
+  Sparkles,
+  User,
+  Utensils,
+  X,
+} from "lucide-react";
+import { LOGGABLE_CATEGORIES, localDateTime } from "@/lib/viewmodel";
+import { useDayflowStore } from "@/store/useDayflowStore";
 import { keyForOffset } from "@/lib/seed";
 import { toMinutes, eventDuration } from "@/lib/compute";
 import {
-  CountedNote,
-  DurationHero,
-  TimeRail,
-  TimeRow,
-  fmtClock,
+  Aurora,
+  CategoryStrip,
+  CountedField,
+  DayTrack,
+  DurationRow,
+  FormActions,
+  NumField,
+  QuickDuration,
+  SpotField,
+  TimePair,
+  TrackTicks,
+  WheelPicker,
+  fmtDur,
   minutesToHM,
   nowMinutes,
+  type FormCategory,
 } from "@/components/dayflow/FormControls";
 import { useToast } from "@/hooks/use-toast";
 import { useIsPhone } from "@/hooks/use-media-query";
-import { hapticSuccess, hapticWarn, triggerHaptic } from "@/lib/haptics";
+import { hapticSuccess, hapticWarn, haptic } from "@/lib/haptics";
 import { useKeyboardTracking } from "@/components/ui/Sheet";
 import { useDockHideRequest } from "@/hooks/use-dock-visibility";
-import { springSheet, springSoft } from "@/lib/motion";
+import { springSheet } from "@/lib/motion";
 import type { Category, TrackEvent } from "@/lib/types";
 
+/** Category-specific title suggestions — the reference's placeholders. */
 const PLACEHOLDERS: Record<string, string> = {
   work: "Deep work — sprint planning",
-  personal: "Side project — portfolio site",
-  fitness: "Gym — upper body push",
-  meals: "Lunch with the team",
-  sleep: "Sleep",
-  leisure: "Reading, a walk, gaming…",
+  personal: "Inbox zero and errands",
+  fitness: "Zone 2 run",
+  meals: "Slow breakfast",
+  sleep: "Night sleep",
+  leisure: "Reading on the balcony",
 };
 
 /** "Something else…" pseudo-category (0011 "log anything"): selecting
@@ -82,29 +102,49 @@ const prettifyCategory = (slug: string): string =>
     .replace(/\b\w/g, (m) => m.toUpperCase())
     .trim();
 
-const pad = (n: number) => String(n).padStart(2, "0");
+/** Strip icons (the reference's glyph set, via lucide). */
+const STRIP_ICONS: Record<string, React.ReactNode> = {
+  work: <Briefcase />,
+  personal: <User />,
+  fitness: <Activity />,
+  meals: <Utensils />,
+  sleep: <Moon />,
+  leisure: <Coffee />,
+};
 
-const nowHM = () => {
-  const d = new Date();
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+/** Short labels for the strip — "Personal work" is too long to expand. */
+const SHORT_LABELS: Record<string, string> = {
+  personal: "Personal",
 };
 
 /** Phase 12 — smart defaults per category when CREATING a block:
  *  sleep wants tonight 23:00 × 8h, meals are ~45 min, workouts an
  *  hour. Applied only on chip switch in create mode — never on edit,
  *  so a prefill is never clobbered. */
-const CATEGORY_DEFAULTS: Record<string, { start?: string; dur: number }> = {
-  sleep: { start: "23:00", dur: 480 },
+const CATEGORY_DEFAULTS: Record<string, { start?: number; dur: number }> = {
+  sleep: { start: 23 * 60, dur: 480 },
   meals: { dur: 45 },
   fitness: { dur: 60 },
 };
 
-/** "HH:MM" + minutes → "HH:MM", wrapping past midnight. */
-const addMinutes = (hm: string, minutes: number): string => {
-  const total =
-    (Number(hm.slice(0, 2)) * 60 + Number(hm.slice(3, 5)) + minutes) % (24 * 60);
-  return `${pad(Math.floor(total / 60))}:${pad(total % 60)}`;
+/** Recent blocks — the reference's pill row (localStorage, max 4). */
+const RECENTS_KEY = "dayflow:recent-blocks";
+interface RecentBlock {
+  cat: string;
+  title: string;
+  dur: number;
+}
+const loadRecents = (): RecentBlock[] => {
+  try {
+    const raw = localStorage.getItem(RECENTS_KEY);
+    const parsed = raw ? (JSON.parse(raw) as RecentBlock[]) : [];
+    return Array.isArray(parsed) ? parsed.slice(0, 4) : [];
+  } catch {
+    return [];
+  }
 };
+
+const DAY = 24 * 60;
 
 interface Props {
   open: boolean;
@@ -139,7 +179,8 @@ export function EventDialog({ open, onClose, event, dateKey }: Props) {
     };
   }, [open]);
 
-  // Escape dismisses (wayfinding — never trap the user).
+  // Escape dismisses (wayfinding — never trap the user). The wheel
+  // picker owns its own capture-phase Escape; it closes first.
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -187,6 +228,8 @@ export function EventDialog({ open, onClose, event, dateKey }: Props) {
           aria-modal="true"
           aria-label={event ? "Edit tracked block" : "Log a block"}
         >
+          {/* the reference's aurora — drifting blobs behind the glass */}
+          <Aurora />
           <motion.div
             initial={
               reducedMotion
@@ -220,11 +263,7 @@ export function EventDialog({ open, onClose, event, dateKey }: Props) {
               didDragRef.current = true;
             }}
             onDragEnd={onDragEnd}
-            className={
-              isPhone
-                ? "w-full rounded-t-[24px] overflow-hidden df-material"
-                : "w-full max-w-[420px] rounded-2xl p-5 df-material"
-            }
+            className={isPhone ? "dff-sheet dff-phone" : "dff-sheet"}
             style={
               isPhone
                 ? {
@@ -297,8 +336,6 @@ function EventForm({
 
   const timeCategories = LOGGABLE_CATEGORIES;
 
-  const initialStart = event?.start ?? nowHM();
-
   // Editing a freeform custom block: its categoryId is a slug outside
   // the system set — select the custom chip and prefill its name.
   const editingKnownCat = event
@@ -315,23 +352,31 @@ function EventForm({
     event && !editingKnownCat ? prettifyCategory(event.categoryId) : ""
   );
   const [title, setTitle] = useState(event?.title ?? "");
-  const [start, setStart] = useState(initialStart);
-  // Phase 12: duration-first — the end time is derived (start + dur).
-  // eventDuration() already understands overnight wrapping.
+  // Phase 12b: the reference's model — {start, dur}. The end is
+  // always derived; minutes-of-day everywhere.
+  const [startMin, setStartMin] = useState(() =>
+    event ? toMinutes(event.start) : nowMinutes()
+  );
   const [durationMin, setDurationMin] = useState(() =>
     event ? eventDuration(event) : 60
   );
   // Sleep -> resting heart rate; Workout -> active calories.
-  // (The old free-text notes had no server column — PRD §2 tables —
-  // until activity_logs gave generic blocks one, 0011.)
   const [metric, setMetric] = useState("");
   // Generic activity blocks carry an optional freeform note.
   const [notes, setNotes] = useState(
     event?.source === "activity" ? (event.notes ?? "") : ""
   );
-  // Derived end (wrapping past midnight = overnight) + rail context.
-  const end = addMinutes(start, durationMin);
-  const [railNow] = useState(nowMinutes);
+  // The wheel picker: which side is being edited ("st" | "en" | null).
+  const [wheel, setWheel] = useState<"st" | "en" | null>(null);
+  // The Go button's check-draw flourish while the save settles.
+  const [done, setDone] = useState(false);
+  // Recent blocks (create mode affordance — the reference's pill row).
+  const [recents] = useState<RecentBlock[]>(loadRecents);
+
+  const endMin = (startMin + durationMin) % DAY;
+  const overnight = startMin + durationMin > DAY;
+  const start = minutesToHM(startMin);
+  const end = minutesToHM(endMin);
   const todayKey = keyForOffset(0);
   const isToday = (event?.dateKey ?? dateKey ?? todayKey) === todayKey;
 
@@ -342,7 +387,7 @@ function EventForm({
     if (!event) {
       const def = CATEGORY_DEFAULTS[id];
       if (def) {
-        if (def.start) setStart(def.start);
+        if (def.start != null) setStartMin(def.start);
         setDurationMin(def.dur);
       }
     }
@@ -352,8 +397,9 @@ function EventForm({
   const isSleep = categoryId === "sleep";
   const isFitness = categoryId === "fitness";
   const isCustom = categoryId === CUSTOM_ID;
-  const overnight = toMinutes(end) <= toMinutes(start);
   const duration = durationMin;
+  // The dynamic accent — the selected category tints the whole sheet.
+  const accent = isCustom || !validCat ? "var(--df-accent)" : validCat.colorHex;
   // The table this save will write to, from the CURRENT chip selection.
   const writeTarget: "sleep" | "workout" | "activity" = isSleep
     ? "sleep"
@@ -368,8 +414,45 @@ function EventForm({
     (isSleep || title.trim().length > 0) &&
     (!isCustom || customCategory.trim().length > 0) &&
     duration > 0 &&
-    duration < 24 * 60 &&
+    duration < DAY &&
     (metric.trim() === "" || (Number(metric) >= 0 && Number.isFinite(Number(metric))));
+
+  // ---- strip items (system cats + "Something else") --------------
+  const stripItems: FormCategory[] = [
+    ...timeCategories.map((c) => ({
+      id: c.id,
+      label: SHORT_LABELS[c.id] ?? c.name,
+      color: c.colorHex,
+      icon: STRIP_ICONS[c.id] ?? <Sparkles />,
+    })),
+    { id: CUSTOM_ID, label: "Other", color: "var(--df-accent)", icon: <Sparkles /> },
+  ];
+
+  const recentsColor = (cat: string): string =>
+    timeCategories.find((c) => c.id === cat)?.colorHex ?? "var(--df-accent)";
+
+  const applyRecent = (r: RecentBlock) => {
+    haptic(6);
+    // plain sets — a recent carries its own duration, so category
+    // defaults must not clobber it
+    setCategoryId(r.cat);
+    setDurationMin(r.dur);
+    setTitle(r.title);
+  };
+
+  const pushRecent = () => {
+    try {
+      const ttl = title.trim();
+      if (!ttl) return;
+      const next = [
+        { cat: categoryId === CUSTOM_ID ? "work" : categoryId, title: ttl, dur: duration },
+        ...loadRecents().filter((r) => r.title !== ttl),
+      ].slice(0, 4);
+      localStorage.setItem(RECENTS_KEY, JSON.stringify(next));
+    } catch {
+      /* storage unavailable — recents are a nicety, never a blocker */
+    }
+  };
 
   /** Delete the row behind an edited event from ITS source table. */
   const deleteOriginal = async (ev: TrackEvent) => {
@@ -379,7 +462,7 @@ function EventForm({
   };
 
   const save = async () => {
-    if (!valid) return;
+    if (!valid || done) return;
     const dayKey = event?.dateKey ?? dateKey ?? keyForOffset(0);
     const metricNum = metric.trim() === "" ? null : Math.round(Number(metric));
     const range = `${start}–${end}`;
@@ -396,10 +479,6 @@ function EventForm({
         await addSleepLog(payload);
         if (event) await deleteOriginal(event);
       }
-      toast({
-        title: event ? "Sleep updated" : "Sleep logged",
-        description: `${range} · ${Math.floor(duration / 60)}h ${duration % 60 ? `${duration % 60}m` : ""}`,
-      });
     } else if (writeTarget === "workout") {
       const payload = {
         type: title.trim(),
@@ -412,7 +491,6 @@ function EventForm({
         await addWorkoutLog(payload);
         if (event) await deleteOriginal(event);
       }
-      toast({ title: event ? "Workout updated" : "Workout logged", description: `${title.trim()} · ${range}` });
     } else {
       // Generic block: category (system id or slugified custom name),
       // title, duration and an optional note ride activity_logs.
@@ -428,13 +506,28 @@ function EventForm({
         await addActivityLog(payload);
         if (event) await deleteOriginal(event);
       }
-      toast({
-        title: event ? "Block updated" : "Block logged",
-        description: `${title.trim()} · ${range}`,
-      });
     }
-    triggerHaptic();
-    onClose();
+    if (!event) pushRecent();
+    hapticSuccess();
+    // the reference's flourish: the check draws itself, then we go.
+    // Close FIRST — a toast hiccup must never trap the sheet open.
+    setDone(true);
+    window.setTimeout(() => {
+      onClose();
+      if (writeTarget === "sleep") {
+        toast({
+          title: event ? "Sleep updated" : "Sleep logged",
+          description: `${range} · ${fmtDur(duration)}`,
+        });
+      } else if (writeTarget === "workout") {
+        toast({ title: event ? "Workout updated" : "Workout logged", description: `${title.trim() || "Workout"} · ${range}` });
+      } else {
+        toast({
+          title: event ? "Block updated" : "Block logged",
+          description: `${title.trim()} · ${range}`,
+        });
+      }
+    }, 700);
   };
 
   const remove = async () => {
@@ -450,366 +543,174 @@ function EventForm({
   // T2b: keep the phone sheet above the software keyboard.
   useKeyboardTracking();
 
-  if (!isPhone) {
-    return (
-      <>
-        <FormHeader event={event} onClose={onClose} />
-        <FormBody
-          event={event}
-          timeCategories={timeCategories}
-          categoryId={categoryId}
-          setCategoryId={selectCategory}
-          title={title}
-          setTitle={setTitle}
-          start={start}
-          setStart={setStart}
-          setStartMin={(m) => setStart(minutesToHM(m))}
-          durationMin={durationMin}
-          setDurationMin={setDurationMin}
-          metric={metric}
-          setMetric={setMetric}
-          notes={notes}
-          setNotes={setNotes}
-          isSleep={isSleep}
-          isFitness={isFitness}
-          isCustom={isCustom}
-          customCategory={customCategory}
-          setCustomCategory={setCustomCategory}
-          titleLabel={
-            isFitness ? "Workout" : isCustom ? "Activity" : validCat?.name ?? "Activity"
-          }
-          duration={duration}
-          overnight={overnight}
-          isToday={isToday}
-          nowMin={railNow}
-          valid={valid}
-          save={save}
-          remove={remove}
-          onClose={onClose}
-        />
-      </>
-    );
-  }
+  // ---- wheel commits (the reference's exact math) ----------------
+  const onWheelChange = (m: number) => {
+    if (wheel === "st") {
+      // keep the END fixed — the duration stretches to meet it
+      const newDur = ((endMin - m + DAY) % DAY) || durationMin;
+      setStartMin(m);
+      setDurationMin(newDur);
+    } else if (wheel === "en") {
+      setDurationMin(((m - startMin + DAY) % DAY) || 15);
+    }
+  };
 
-  // Phone: bottom sheet — the header zone is the drag handle; the body
-  // scrolls if it grows past the sheet.
+  const onNow = () => {
+    // pin the END to the current clock — the start slides back
+    const n = nowMinutes();
+    setStartMin((n - durationMin + DAY) % DAY);
+  };
+
   return (
-    <div className="flex max-h-[calc(88dvh-var(--keyboard-height,0px))] flex-col">
-      <div
-        className="shrink-0 pt-2.5 pb-1 px-5"
+    <div
+      className={`contents${wheel ? " dff-locked" : ""}`}
+      style={{ "--dff-c": accent } as React.CSSProperties}
+    >
+      <header
+        className="dff-head"
         onPointerDown={draggable ? onDragStart : undefined}
         style={draggable ? { touchAction: "none" } : undefined}
       >
-        <div className="mx-auto mb-2.5 h-[5px] w-9 rounded-full" style={{ background: "var(--df-chip-border)" }} />
-        <FormHeader event={event} onClose={onClose} />
-      </div>
-      <div className="df-scroll overflow-y-auto px-5 pb-[max(18px,var(--safe-area-bottom,0px))]">
-        <FormBody
-          event={event}
-          timeCategories={timeCategories}
-          categoryId={categoryId}
-          setCategoryId={selectCategory}
-          title={title}
-          setTitle={setTitle}
-          start={start}
-          setStart={setStart}
-          setStartMin={(m) => setStart(minutesToHM(m))}
-          durationMin={durationMin}
-          setDurationMin={setDurationMin}
-          metric={metric}
-          setMetric={setMetric}
-          notes={notes}
-          setNotes={setNotes}
-          isSleep={isSleep}
-          isFitness={isFitness}
-          isCustom={isCustom}
-          customCategory={customCategory}
-          setCustomCategory={setCustomCategory}
-          titleLabel={
-            isFitness ? "Workout" : isCustom ? "Activity" : validCat?.name ?? "Activity"
-          }
-          duration={duration}
-          overnight={overnight}
-          isToday={isToday}
-          nowMin={railNow}
-          valid={valid}
-          save={save}
-          remove={remove}
-          onClose={onClose}
-        />
-      </div>
-    </div>
-  );
-}
-
-function FormHeader({ event, onClose }: { event: TrackEvent | null; onClose: () => void }) {
-  return (
-    <div className="flex items-start justify-between gap-3">
-      <div className="min-w-0">
-        <h2 className="text-[16px] font-bold tracking-tight" style={{ color: "var(--df-text-primary)" }}>
-          <DoodleSparkle className="mr-1.5 inline-block h-4 w-4 -rotate-6 align-baseline" />
-          {event ? "Edit block" : "Log a block"}
-        </h2>
-        <p className="text-[11.5px] mt-0.5" style={{ color: "var(--df-text-muted)" }}>
-          {event ? "Update the details of this entry." : "What did you spend time on?"}
-        </p>
-      </div>
-      <button
-        onClick={onClose}
-        aria-label="Close"
-        className="df-press shrink-0 -mt-0.5 h-8 w-8 rounded-full grid place-items-center"
-        style={{
-          background: "var(--df-chip-fill)",
-          border: "0.5px solid var(--df-chip-border)",
-          color: "var(--df-text-secondary)",
-        }}
-      >
-        <X className="h-4 w-4" strokeWidth={2.2} />
-      </button>
-    </div>
-  );
-}
-
-interface FormBodyProps {
-  event: TrackEvent | null;
-  timeCategories: Category[];
-  categoryId: string;
-  setCategoryId: (v: string) => void;
-  title: string;
-  setTitle: (v: string) => void;
-  start: string;
-  setStart: (v: string) => void;
-  /** rail drags report minutes-of-day */
-  setStartMin: (m: number) => void;
-  durationMin: number;
-  setDurationMin: (m: number) => void;
-  /** Resting HR (sleep) or active calories (workout). */
-  metric: string;
-  setMetric: (v: string) => void;
-  /** Optional freeform note — generic activity blocks only. */
-  notes: string;
-  setNotes: (v: string) => void;
-  isSleep: boolean;
-  isFitness: boolean;
-  isCustom: boolean;
-  customCategory: string;
-  setCustomCategory: (v: string) => void;
-  /** Title field label — "Workout", "Meals", "Activity"… follows the chip. */
-  titleLabel: string;
-  duration: number;
-  overnight: boolean;
-  /** target day is today → the rail draws its live "now" line */
-  isToday: boolean;
-  nowMin: number;
-  valid: boolean;
-  save: () => void;
-  remove: () => void;
-  onClose: () => void;
-}
-
-function FormBody(p: FormBodyProps) {
-  const cat = p.timeCategories.find((c) => c.id === p.categoryId);
-  const blockColor = p.isCustom || !cat ? "var(--df-accent)" : cat.colorHex;
-
-  return (
-    <>
-      {/* the answer — the header already asked "What did you spend
-          time on?"; sleep is titled server-side, so it gets no field. */}
-      {!p.isSleep && (
-        <div className="df-input-glass mt-3.5 flex min-h-[52px] items-center rounded-[18px] px-4">
-          <input
-            value={p.title}
-            onChange={(e) => p.setTitle(e.target.value)}
-            placeholder={PLACEHOLDERS[p.categoryId] ?? "What did you do?"}
-            aria-label={`${p.titleLabel} description`}
-            maxLength={80}
-            className="w-full bg-transparent text-[16px] outline-none placeholder:text-[var(--df-text-muted)]"
-            style={{ color: "var(--df-text-primary)" }}
-            autoFocus={!p.isCustom}
-          />
+        <div className="dff-grab" aria-hidden="true" />
+        <div>
+          <h1 className="dff-title">{event ? "Edit block" : "Log a block"}</h1>
+          <div className="dff-sub">
+            {event ? "Update the details of this entry." : "What did you spend time on?"}
+          </div>
         </div>
-      )}
+        <button
+          type="button"
+          className="dff-x"
+          aria-label="Close"
+          onClick={onClose}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <X className="h-4 w-4" strokeWidth={2.2} aria-hidden="true" />
+        </button>
+      </header>
 
-      {/* category chips — every TIME category is loggable (0011),
-          plus the freeform "Something else…" chip. */}
-      <div className="mt-3 flex flex-wrap gap-1.5" role="group" aria-label="Category">
-          {p.timeCategories.map((c) => {
-            const active = c.id === p.categoryId;
-            return (
-              <button
-                key={c.id}
-                onClick={() => p.setCategoryId(c.id)}
-                className="df-press df-glass-chip rounded-full h-9 pl-2.5 pr-3 flex items-center gap-1.5 text-[12px] font-semibold"
-                style={{
-                  background: active
-                    ? `color-mix(in srgb, ${c.colorHex} 22%, transparent)`
-                    : "var(--df-chip-fill)",
-                  border: active
-                    ? `1.5px solid color-mix(in srgb, ${c.colorHex} 65%, transparent)`
-                    : "0.5px solid var(--df-chip-border)",
-                  color: "var(--df-text-primary)",
-                }}
-                aria-pressed={active}
-              >
-                <CategoryIcon name={c.icon} className="h-3.5 w-3.5" style={{ color: c.colorHex }} />
-                {c.name}
-              </button>
-            );
-          })}
-          <button
-            onClick={() => p.setCategoryId(CUSTOM_ID)}
-            className="df-press df-glass-chip rounded-full h-9 pl-2.5 pr-3 flex items-center gap-1.5 text-[12px] font-semibold"
-            style={{
-              background: p.isCustom
-                ? "color-mix(in srgb, var(--df-accent) 20%, transparent)"
-                : "var(--df-chip-fill)",
-              border: p.isCustom
-                ? "1.5px solid color-mix(in srgb, var(--df-accent) 60%, transparent)"
-                : "0.5px solid var(--df-chip-border)",
-              color: "var(--df-text-primary)",
-            }}
-            aria-pressed={p.isCustom}
-          >
-            <Sparkles className="h-3.5 w-3.5" style={{ color: "var(--df-accent)" }} />
-            Something else…
-          </button>
-      </div>
+      <div className="dff-body">
+        <CategoryStrip
+          items={stripItems}
+          value={categoryId}
+          onChange={selectCategory}
+        />
 
-      {/* custom category name — revealed by the "Something else…" chip */}
-      {p.isCustom && (
-        <div className="mt-3.5">
-          <label
-            className="text-[10.5px] font-bold uppercase tracking-[0.06em]"
-            style={{ color: "var(--df-text-secondary)" }}
-          >
-            Category name
-          </label>
-          <div className="df-input-glass mt-1.5 rounded-full px-4 min-h-12 flex items-center">
-            <input
-              value={p.customCategory}
-              onChange={(e) => p.setCustomCategory(e.target.value)}
+        {/* the answer — the header already asked the question; the
+            placeholder suggests one per category (the reference). */}
+        <SpotField
+          value={title}
+          onChange={setTitle}
+          placeholder={isCustom ? "What was it?" : (PLACEHOLDERS[categoryId] ?? "What did you do?")}
+          ariaLabel="Title"
+          maxLength={60}
+          enterBlur
+        />
+
+        {/* custom category name — revealed by "Something else…" */}
+        {isCustom && (
+          <div className="mt-3">
+            <SpotField
+              value={customCategory}
+              onChange={setCustomCategory}
               placeholder="e.g. Study, Gaming, Errands"
-              aria-label="Custom category name"
+              ariaLabel="Custom category name"
               maxLength={24}
-              className="w-full bg-transparent outline-none text-base placeholder:text-[var(--df-text-muted)]"
-              style={{ color: "var(--df-text-primary)" }}
               autoFocus
             />
           </div>
-        </div>
-      )}
+        )}
 
-      {/* duration — the reference's hero "1h": steppers around a big
-          value, quick chips beneath. Replaces the old Start/End pair
-          (the end is now derived: start + duration). */}
-      <div className="mt-5">
-        <DurationHero value={p.durationMin} onChange={p.setDurationMin} />
-      </div>
+        {/* recent blocks — one tap re-primes the form */}
+        {!event && recents.length > 0 && (
+          <div className="dff-recent" aria-label="Recent blocks">
+            {recents.map((r, i) => (
+              <button
+                key={`${r.title}-${i}`}
+                type="button"
+                style={{ "--dff-rc": recentsColor(r.cat) } as React.CSSProperties}
+                onClick={() => applyRecent(r)}
+              >
+                <i aria-hidden="true" />
+                {r.title} · {fmtDur(r.dur)}
+              </button>
+            ))}
+          </div>
+        )}
 
-      {/* the 24-hour scrubber — drag the block to move it, drag an
-          edge to resize, tap anywhere to jump. Overnight blocks wrap
-          around midnight with a faded tail. */}
-      <div className="mt-4">
-        <TimeRail
-          startMin={toMinutes(p.start)}
-          durationMin={p.durationMin}
-          onChange={p.setStartMin}
-          onDurationChange={p.setDurationMin}
-          color={blockColor}
-          isToday={p.isToday}
-          nowMin={p.nowMin}
-          ariaLabel="When — 12 AM to 12 AM"
-        />
-        <div
-          className="mt-1.5 flex items-center gap-1.5 text-[11px]"
-          style={{ color: "var(--df-text-muted)" }}
-          aria-live="polite"
-        >
-          <Clock className="h-3 w-3" aria-hidden="true" />
-          {fmtClock(toMinutes(p.start))} – {fmtClock(toMinutes(p.start) + p.duration)}
-          {p.overnight && " · crosses midnight (e.g. sleep)"}
-        </div>
-      </div>
-
-
-      {/* metric — resting HR for sleep, active calories for workouts.
-          Generic activity blocks have no metric; they get a note. */}
-      {(p.isSleep || p.isFitness) && (
-      <div className="mt-4">
-        <label
-          className="text-[10.5px] font-bold uppercase tracking-[0.06em]"
-          style={{ color: "var(--df-text-secondary)" }}
-        >
-          {p.isSleep ? "Resting HR" : "Active calories"}{" "}
-          <span className="normal-case font-medium opacity-70">
-            (optional — {p.isSleep ? "bpm" : "kcal"})
-          </span>
-        </label>
-        <div className="df-input-glass mt-1.5 rounded-full px-4 min-h-12 flex items-center">
-          <input
-            value={p.metric}
-            onChange={(e) => p.setMetric(e.target.value.replace(/[^0-9]/g, ""))}
-            inputMode="numeric"
-            placeholder={p.isSleep ? "58" : "320"}
-            aria-label={p.isSleep ? "Resting heart rate in bpm" : "Active calories in kcal"}
-            className="w-full bg-transparent outline-none text-base tabular-nums placeholder:text-[var(--df-text-muted)]"
-            style={{ color: "var(--df-text-primary)" }}
+        {/* the when card — hero duration, 24-hour track, wheels */}
+        <section className="dff-when" aria-label="Time">
+          <DurationRow value={durationMin} onChange={setDurationMin} />
+          <div className="dff-note-line" aria-live="polite">
+            {overnight ? (
+              <>
+                <b>Crosses midnight</b> · ends tomorrow
+              </>
+            ) : (
+              ""
+            )}
+          </div>
+          <DayTrack
+            startMin={startMin}
+            durationMin={durationMin}
+            mode="block"
+            onChange={setStartMin}
           />
-        </div>
-      </div>
-      )}
+          <TrackTicks />
+          <TimePair
+            startMin={startMin}
+            endMin={endMin}
+            endBadge={overnight ? "Tomorrow" : undefined}
+            onPickStart={() => setWheel("st")}
+            onPickEnd={() => setWheel("en")}
+            active={wheel === "st" ? "start" : wheel === "en" ? "end" : null}
+          />
+          <QuickDuration value={durationMin} onChange={setDurationMin} onNow={onNow} />
+        </section>
 
-      {/* note with the reference's live counter — generic activity
-          blocks only (activity_logs.notes), capped at 140. */}
-      {!p.isSleep && !p.isFitness && (
-        <div className="mt-4">
-          <CountedNote
-            value={p.notes}
-            onChange={p.setNotes}
+        {/* metric — resting HR for sleep, active calories for workouts. */}
+        {(isSleep || isFitness) && (
+          <div className="mt-3">
+            <NumField
+              value={metric}
+              onChange={setMetric}
+              unit={isSleep ? "bpm" : "kcal"}
+              placeholder={isSleep ? "58" : "320"}
+              ariaLabel={isSleep ? "Resting heart rate in bpm" : "Active calories in kcal"}
+              maxLen={4}
+            />
+          </div>
+        )}
+
+        {/* note with the live counter — blocks that can save one. */}
+        {!isSleep && !isFitness && (
+          <CountedField
+            value={notes}
+            onChange={setNotes}
             max={140}
-            placeholder="Anything worth remembering about it?"
+            placeholder="Add a note (optional)"
             ariaLabel="Note"
           />
-        </div>
-      )}
-
-      {/* precise start — the reference's "Start time" row: the rail
-          is the fast path, this is the exact one. */}
-      <div className="mt-4">
-        <TimeRow label="Start time" value={p.start} onChange={p.setStart} />
-      </div>
-
-      {/* actions — sticky on phone so Log/Save never sit under the
-          dock band; inert on desktop (no scroll ancestor). */}
-      <div className="df-sheet-footer sticky bottom-0 mt-4 -mx-5 px-5 pt-2.5 pb-1 flex items-center gap-2">
-        {p.event && (
-          <button
-            onClick={p.remove}
-            className="df-press df-btn-capsule h-11 px-3 flex items-center gap-1.5 text-[12px] font-semibold"
-            style={{
-              background: "color-mix(in srgb, var(--df-destructive) 12%, transparent)",
-              border: "0.5px solid color-mix(in srgb, var(--df-destructive) 35%, transparent)",
-              color: "var(--df-destructive-text)",
-            }}
-            aria-label="Delete block"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            Delete
-          </button>
         )}
-        <div className="flex-1" />
-        <button onClick={p.onClose} className="df-press df-btn-secondary df-btn-capsule h-11 px-4 text-[12.5px] font-semibold">
-          Cancel
-        </button>
-        <button
-          onClick={p.save}
-          disabled={!p.valid}
-          className="df-press df-btn-primary df-btn-capsule h-11 px-4 text-[12.5px] font-semibold flex items-center gap-1.5 disabled:opacity-40"
-        >
-          <Check className="h-3.5 w-3.5" />
-          {p.event ? "Save changes" : "Log block"}
-        </button>
       </div>
-    </>
+
+      <FormActions
+        ghostLabel={event ? "Delete" : "Cancel"}
+        ghostClassName={event ? "dff-danger" : undefined}
+        onGhost={event ? remove : onClose}
+        goLabel={event ? "Save changes" : "Log block"}
+        onGo={() => void save()}
+        disabled={!valid}
+        done={done}
+      />
+
+      <WheelPicker
+        open={wheel !== null}
+        title={wheel === "st" ? "Start time" : "End time"}
+        value={wheel === "st" ? startMin : endMin}
+        onChange={onWheelChange}
+        onClose={() => setWheel(null)}
+      />
+    </div>
   );
 }
