@@ -377,6 +377,13 @@
   --df-time-pill-border: rgba(28, 25, 23, 0.08);
   --df-time-pill-active: #6ee7b7;
   --df-time-pill-active-ink: #0f172a;
+  /* 24-hour timeline scrubber (Apple-style log forms) */
+  --df-rail-track: rgba(28, 25, 23, 0.08);
+  --df-rail-tick: rgba(28, 25, 23, 0.15);
+  --df-rail-tick-major: rgba(28, 25, 23, 0.28);
+  --df-rail-now: #f43f5e;
+  --df-rail-handle-ring: #ffffff;
+  --df-rail-handle-shadow: 0 2px 8px rgba(28, 25, 23, 0.25);
   --df-quick-ink: #1c1917;
   --df-quick-tag-fill: rgba(255, 255, 255, 0.93);
   --df-quick-tag-ink: #1c1917;
@@ -624,6 +631,13 @@
   --df-time-pill-border: #474070;
   --df-time-pill-active: #6ee7b7;
   --df-time-pill-active-ink: #0f172a;
+  /* 24-hour timeline scrubber (dark) */
+  --df-rail-track: rgba(255, 255, 255, 0.09);
+  --df-rail-tick: rgba(255, 255, 255, 0.16);
+  --df-rail-tick-major: rgba(255, 255, 255, 0.3);
+  --df-rail-now: #fb7185;
+  --df-rail-handle-ring: #fffbf5;
+  --df-rail-handle-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
   --df-quick-ink: #1c1917;
   --df-quick-tag-fill: rgba(255, 255, 255, 0.93);
   --df-quick-tag-ink: #1c1917;

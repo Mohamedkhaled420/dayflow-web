@@ -23,7 +23,7 @@ import {
   useDragControls,
   useReducedMotion,
 } from "motion/react";
-import { Check, ChevronDown, Clock, Sparkles, Trash2, X } from "lucide-react";
+import { Check, Clock, Sparkles, Trash2, X } from "lucide-react";
 import { CategoryIcon } from "@/components/dayflow/category-icons";
 import { DoodleSparkle } from "@/components/dayflow/doodles";
 import { LOGGABLE_CATEGORIES, localDateTime } from "@/lib/viewmodel";
@@ -32,6 +32,15 @@ import {
 } from "@/store/useDayflowStore";
 import { keyForOffset } from "@/lib/seed";
 import { toMinutes, eventDuration } from "@/lib/compute";
+import {
+  CountedNote,
+  DurationHero,
+  TimeRail,
+  TimeRow,
+  fmtClock,
+  minutesToHM,
+  nowMinutes,
+} from "@/components/dayflow/FormControls";
 import { useToast } from "@/hooks/use-toast";
 import { useIsPhone } from "@/hooks/use-media-query";
 import { hapticSuccess, hapticWarn, triggerHaptic } from "@/lib/haptics";
@@ -80,11 +89,15 @@ const nowHM = () => {
   return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
-/** Phase 11 — the reference add-schedule time grid: on-the-hour
- *  start pills, 06:00 → 22:00. */
-const QUICK_START_TIMES: string[] = Array.from({ length: 17 }, (_, i) =>
-  `${pad(6 + i)}:00`
-);
+/** Phase 12 — smart defaults per category when CREATING a block:
+ *  sleep wants tonight 23:00 × 8h, meals are ~45 min, workouts an
+ *  hour. Applied only on chip switch in create mode — never on edit,
+ *  so a prefill is never clobbered. */
+const CATEGORY_DEFAULTS: Record<string, { start?: string; dur: number }> = {
+  sleep: { start: "23:00", dur: 480 },
+  meals: { dur: 45 },
+  fitness: { dur: 60 },
+};
 
 /** "HH:MM" + minutes → "HH:MM", wrapping past midnight. */
 const addMinutes = (hm: string, minutes: number): string => {
@@ -285,8 +298,6 @@ function EventForm({
   const timeCategories = LOGGABLE_CATEGORIES;
 
   const initialStart = event?.start ?? nowHM();
-  const startM = toMinutes(initialStart);
-  const endM = (startM + 60) % (24 * 60);
 
   // Editing a freeform custom block: its categoryId is a slug outside
   // the system set — select the custom chip and prefill its name.
@@ -305,8 +316,10 @@ function EventForm({
   );
   const [title, setTitle] = useState(event?.title ?? "");
   const [start, setStart] = useState(initialStart);
-  const [end, setEnd] = useState(
-    event?.end ?? `${pad(Math.floor(endM / 60))}:${pad(endM % 60)}`
+  // Phase 12: duration-first — the end time is derived (start + dur).
+  // eventDuration() already understands overnight wrapping.
+  const [durationMin, setDurationMin] = useState(() =>
+    event ? eventDuration(event) : 60
   );
   // Sleep -> resting heart rate; Workout -> active calories.
   // (The old free-text notes had no server column — PRD §2 tables —
@@ -316,17 +329,31 @@ function EventForm({
   const [notes, setNotes] = useState(
     event?.source === "activity" ? (event.notes ?? "") : ""
   );
-  // Phone: the 17-pill "Start at…" grid starts COLLAPSED — with every
-  // category now loggable the sheet grew past one screen on 390px,
-  // pushing the note + Log button under the fold.
-  const [timesOpen, setTimesOpen] = useState(false);
+  // Derived end (wrapping past midnight = overnight) + rail context.
+  const end = addMinutes(start, durationMin);
+  const [railNow] = useState(nowMinutes);
+  const todayKey = keyForOffset(0);
+  const isToday = (event?.dateKey ?? dateKey ?? todayKey) === todayKey;
+
+  /** Chip select — in create mode each category brings its own
+   *  sensible when/how-long defaults (sleep = 23:00 × 8h…). */
+  const selectCategory = (id: string) => {
+    setCategoryId(id);
+    if (!event) {
+      const def = CATEGORY_DEFAULTS[id];
+      if (def) {
+        if (def.start) setStart(def.start);
+        setDurationMin(def.dur);
+      }
+    }
+  };
 
   const validCat: Category | undefined = timeCategories.find((c) => c.id === categoryId);
   const isSleep = categoryId === "sleep";
   const isFitness = categoryId === "fitness";
   const isCustom = categoryId === CUSTOM_ID;
-  const overnight = end !== start && toMinutes(end) <= toMinutes(start);
-  const duration = start && end ? eventDuration({ start, end } as TrackEvent) : 0;
+  const overnight = toMinutes(end) <= toMinutes(start);
+  const duration = durationMin;
   // The table this save will write to, from the CURRENT chip selection.
   const writeTarget: "sleep" | "workout" | "activity" = isSleep
     ? "sleep"
@@ -431,13 +458,14 @@ function EventForm({
           event={event}
           timeCategories={timeCategories}
           categoryId={categoryId}
-          setCategoryId={setCategoryId}
+          setCategoryId={selectCategory}
           title={title}
           setTitle={setTitle}
           start={start}
           setStart={setStart}
-          end={end}
-          setEnd={setEnd}
+          setStartMin={(m) => setStart(minutesToHM(m))}
+          durationMin={durationMin}
+          setDurationMin={setDurationMin}
           metric={metric}
           setMetric={setMetric}
           notes={notes}
@@ -452,13 +480,12 @@ function EventForm({
           }
           duration={duration}
           overnight={overnight}
+          isToday={isToday}
+          nowMin={railNow}
           valid={valid}
           save={save}
           remove={remove}
           onClose={onClose}
-          compactTimes={isPhone}
-          timesOpen={timesOpen}
-          setTimesOpen={setTimesOpen}
         />
       </>
     );
@@ -481,13 +508,14 @@ function EventForm({
           event={event}
           timeCategories={timeCategories}
           categoryId={categoryId}
-          setCategoryId={setCategoryId}
+          setCategoryId={selectCategory}
           title={title}
           setTitle={setTitle}
           start={start}
           setStart={setStart}
-          end={end}
-          setEnd={setEnd}
+          setStartMin={(m) => setStart(minutesToHM(m))}
+          durationMin={durationMin}
+          setDurationMin={setDurationMin}
           metric={metric}
           setMetric={setMetric}
           notes={notes}
@@ -502,13 +530,12 @@ function EventForm({
           }
           duration={duration}
           overnight={overnight}
+          isToday={isToday}
+          nowMin={railNow}
           valid={valid}
           save={save}
           remove={remove}
           onClose={onClose}
-          compactTimes={isPhone}
-          timesOpen={timesOpen}
-          setTimesOpen={setTimesOpen}
         />
       </div>
     </div>
@@ -552,8 +579,10 @@ interface FormBodyProps {
   setTitle: (v: string) => void;
   start: string;
   setStart: (v: string) => void;
-  end: string;
-  setEnd: (v: string) => void;
+  /** rail drags report minutes-of-day */
+  setStartMin: (m: number) => void;
+  durationMin: number;
+  setDurationMin: (m: number) => void;
   /** Resting HR (sleep) or active calories (workout). */
   metric: string;
   setMetric: (v: string) => void;
@@ -569,29 +598,41 @@ interface FormBodyProps {
   titleLabel: string;
   duration: number;
   overnight: boolean;
+  /** target day is today → the rail draws its live "now" line */
+  isToday: boolean;
+  nowMin: number;
   valid: boolean;
   save: () => void;
   remove: () => void;
   onClose: () => void;
-  /** Phone: collapse the quick-start grid behind a toggle. */
-  compactTimes: boolean;
-  timesOpen: boolean;
-  setTimesOpen: (v: boolean) => void;
 }
 
 function FormBody(p: FormBodyProps) {
+  const cat = p.timeCategories.find((c) => c.id === p.categoryId);
+  const blockColor = p.isCustom || !cat ? "var(--df-accent)" : cat.colorHex;
+
   return (
     <>
+      {/* the answer — the header already asked "What did you spend
+          time on?"; sleep is titled server-side, so it gets no field. */}
+      {!p.isSleep && (
+        <div className="df-input-glass mt-3.5 flex min-h-[52px] items-center rounded-[18px] px-4">
+          <input
+            value={p.title}
+            onChange={(e) => p.setTitle(e.target.value)}
+            placeholder={PLACEHOLDERS[p.categoryId] ?? "What did you do?"}
+            aria-label={`${p.titleLabel} description`}
+            maxLength={80}
+            className="w-full bg-transparent text-[16px] outline-none placeholder:text-[var(--df-text-muted)]"
+            style={{ color: "var(--df-text-primary)" }}
+            autoFocus={!p.isCustom}
+          />
+        </div>
+      )}
+
       {/* category chips — every TIME category is loggable (0011),
           plus the freeform "Something else…" chip. */}
-      <div className="mt-4">
-        <label
-          className="text-[10.5px] font-bold uppercase tracking-[0.06em]"
-          style={{ color: "var(--df-text-secondary)" }}
-        >
-          Category
-        </label>
-        <div className="mt-1.5 flex flex-wrap gap-1.5">
+      <div className="mt-3 flex flex-wrap gap-1.5" role="group" aria-label="Category">
           {p.timeCategories.map((c) => {
             const active = c.id === p.categoryId;
             return (
@@ -632,7 +673,6 @@ function FormBody(p: FormBodyProps) {
             <Sparkles className="h-3.5 w-3.5" style={{ color: "var(--df-accent)" }} />
             Something else…
           </button>
-        </div>
       </div>
 
       {/* custom category name — revealed by the "Something else…" chip */}
@@ -659,157 +699,43 @@ function FormBody(p: FormBodyProps) {
         </div>
       )}
 
-      {/* title — sleep blocks are titled server-side, everyone else
-          describes what they actually did */}
-      {!p.isSleep && (
-      <div className="mt-3.5">
-        <label
-          className="text-[10.5px] font-bold uppercase tracking-[0.06em]"
-          style={{ color: "var(--df-text-secondary)" }}
-        >
-          {p.titleLabel}
-        </label>
-        <div className="df-input-glass mt-1.5 rounded-full px-4 min-h-12 flex items-center">
-          <input
-            value={p.title}
-            onChange={(e) => p.setTitle(e.target.value)}
-            placeholder={PLACEHOLDERS[p.categoryId] ?? "What did you do?"}
-            aria-label={`${p.titleLabel} description`}
-            className="w-full bg-transparent outline-none text-base placeholder:text-[var(--df-text-muted)]"
-            style={{ color: "var(--df-text-primary)" }}
-            autoFocus={!p.isCustom}
-          />
-        </div>
-      </div>
-      )}
-
-      {/* times */}
-      <div className="mt-3.5 grid grid-cols-2 gap-2.5">
-        {(
-          [
-            { label: "Start", value: p.start, set: p.setStart },
-            { label: "End", value: p.end, set: p.setEnd },
-          ] as const
-        ).map((f) => (
-          <div key={f.label}>
-            <label
-              className="text-[10.5px] font-bold uppercase tracking-[0.06em]"
-              style={{ color: "var(--df-text-secondary)" }}
-            >
-              {f.label}
-            </label>
-            <div className="df-input-glass mt-1.5 rounded-full px-4 h-11 flex items-center gap-2">
-              <Clock className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--df-text-muted)" }} />
-              <input
-                type="time"
-                value={f.value}
-                onChange={(e) => f.set(e.target.value)}
-                aria-label={`${f.label} time`}
-                className="w-full bg-transparent outline-none text-base [color-scheme:light] dark:[color-scheme:dark]"
-                style={{ color: "var(--df-text-primary)" }}
-              />
-            </div>
-          </div>
-        ))}
+      {/* duration — the reference's hero "1h": steppers around a big
+          value, quick chips beneath. Replaces the old Start/End pair
+          (the end is now derived: start + duration). */}
+      <div className="mt-5">
+        <DurationHero value={p.durationMin} onChange={p.setDurationMin} />
       </div>
 
-      {/* duration hint */}
-      <div
-        className="mt-2 text-[11px] flex items-center gap-1.5"
-        style={{ color: "var(--df-text-muted)" }}
-        aria-live="polite"
-      >
-        <Clock className="h-3 w-3" />
-        {p.duration > 0 && (
-          <>
-            {p.duration >= 60
-              ? `${Math.floor(p.duration / 60)}h ${p.duration % 60 ? `${p.duration % 60}m` : ""}`
-              : `${p.duration}m`}
-            {p.overnight && " · crosses midnight (e.g. sleep)"}
-          </>
-        )}
-        {p.duration <= 0 && "End must be after start (or before it for overnight sleep)"}
-      </div>
-
-      {/* quick start times (Phase 11) — the reference add-schedule
-          time grid: on-the-hour pills from 06:00 to 22:00. Picking
-          one sets the START and keeps the current duration; the
-          active pill rides the mint signature. Phones start it
-          COLLAPSED (17 pills is half a screen) behind the toggle. */}
-      <div className="mt-3">
-        {p.compactTimes ? (
-          <button
-            type="button"
-            onClick={() => p.setTimesOpen(!p.timesOpen)}
-            aria-expanded={p.timesOpen}
-            className="df-press -ml-1 flex w-full items-center justify-between px-1 py-0.5"
-          >
-            <span
-              className="text-[10.5px] font-bold uppercase tracking-[0.06em]"
-              style={{ color: "var(--df-text-secondary)" }}
-            >
-              Start at…
-            </span>
-            <ChevronDown
-              className={`h-3.5 w-3.5 transition-transform ${p.timesOpen ? "rotate-180" : ""}`}
-              style={{ color: "var(--df-text-muted)" }}
-              aria-hidden="true"
-            />
-          </button>
-        ) : (
-          <label
-            className="text-[10.5px] font-bold uppercase tracking-[0.06em]"
-            style={{ color: "var(--df-text-secondary)" }}
-          >
-            Start at…
-          </label>
-        )}
-        {(!p.compactTimes || p.timesOpen) && (
+      {/* the 24-hour scrubber — drag the block to move it, drag an
+          edge to resize, tap anywhere to jump. Overnight blocks wrap
+          around midnight with a faded tail. */}
+      <div className="mt-4">
+        <TimeRail
+          startMin={toMinutes(p.start)}
+          durationMin={p.durationMin}
+          onChange={p.setStartMin}
+          onDurationChange={p.setDurationMin}
+          color={blockColor}
+          isToday={p.isToday}
+          nowMin={p.nowMin}
+          ariaLabel="When — 12 AM to 12 AM"
+        />
         <div
-          className="mt-1.5 grid grid-cols-4 gap-1.5"
-          role="group"
-          aria-label="Quick start times"
+          className="mt-1.5 flex items-center gap-1.5 text-[11px]"
+          style={{ color: "var(--df-text-muted)" }}
+          aria-live="polite"
         >
-          {QUICK_START_TIMES.map((t) => {
-            const active = p.start === t;
-            return (
-              <button
-                key={t}
-                type="button"
-                onClick={() => {
-                  p.setStart(t);
-                  if (p.duration > 0) {
-                    // keep the block's length when the start moves
-                    p.setEnd(addMinutes(t, p.duration));
-                  }
-                }}
-                aria-pressed={active}
-                className="df-press h-8 rounded-full text-[11.5px] font-bold tabular-nums"
-                style={
-                  active
-                    ? {
-                        background: "var(--df-time-pill-active)",
-                        color: "var(--df-time-pill-active-ink)",
-                      }
-                    : {
-                        background: "var(--df-time-pill-fill)",
-                        border: "0.5px solid var(--df-time-pill-border)",
-                        color: "var(--df-text-primary)",
-                      }
-                }
-              >
-                {t}
-              </button>
-            );
-          })}
+          <Clock className="h-3 w-3" aria-hidden="true" />
+          {fmtClock(toMinutes(p.start))} – {fmtClock(toMinutes(p.start) + p.duration)}
+          {p.overnight && " · crosses midnight (e.g. sleep)"}
         </div>
-        )}
       </div>
+
 
       {/* metric — resting HR for sleep, active calories for workouts.
           Generic activity blocks have no metric; they get a note. */}
       {(p.isSleep || p.isFitness) && (
-      <div className="mt-3.5">
+      <div className="mt-4">
         <label
           className="text-[10.5px] font-bold uppercase tracking-[0.06em]"
           style={{ color: "var(--df-text-secondary)" }}
@@ -833,30 +759,25 @@ function FormBody(p: FormBodyProps) {
       </div>
       )}
 
-      {/* note — generic activity blocks only (activity_logs.notes) */}
+      {/* note with the reference's live counter — generic activity
+          blocks only (activity_logs.notes), capped at 140. */}
       {!p.isSleep && !p.isFitness && (
-        <div className="mt-3.5">
-          <label
-            className="text-[10.5px] font-bold uppercase tracking-[0.06em]"
-            style={{ color: "var(--df-text-secondary)" }}
-          >
-            Note{" "}
-            <span className="normal-case font-medium opacity-70">(optional)</span>
-          </label>
-          <div className="df-input-glass mt-1.5 rounded-[16px] px-4 py-3">
-            <textarea
-              value={p.notes}
-              onChange={(e) => p.setNotes(e.target.value)}
-              placeholder="Anything worth remembering about it?"
-              aria-label="Note"
-              rows={2}
-              maxLength={280}
-              className="w-full bg-transparent outline-none resize-none text-[15px] leading-relaxed placeholder:text-[var(--df-text-muted)]"
-              style={{ color: "var(--df-text-primary)" }}
-            />
-          </div>
+        <div className="mt-4">
+          <CountedNote
+            value={p.notes}
+            onChange={p.setNotes}
+            max={140}
+            placeholder="Anything worth remembering about it?"
+            ariaLabel="Note"
+          />
         </div>
       )}
+
+      {/* precise start — the reference's "Start time" row: the rail
+          is the fast path, this is the exact one. */}
+      <div className="mt-4">
+        <TimeRow label="Start time" value={p.start} onChange={p.setStart} />
+      </div>
 
       {/* actions — sticky on phone so Log/Save never sit under the
           dock band; inert on desktop (no scroll ancestor). */}

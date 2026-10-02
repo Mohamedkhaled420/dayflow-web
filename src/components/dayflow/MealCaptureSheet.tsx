@@ -29,6 +29,15 @@ import {
 } from "lucide-react";
 import { useDayflowStore } from "@/store/useDayflowStore";
 import { localDateTime } from "@/lib/viewmodel";
+import { toMinutes } from "@/lib/compute";
+import {
+  CharCounter,
+  CountedNote,
+  TimeRail,
+  TimeRow,
+  minutesToHM,
+  nowMinutes,
+} from "@/components/dayflow/FormControls";
 import { useToast } from "@/hooks/use-toast";
 import { useIsPhone } from "@/hooks/use-media-query";
 import { useDockHideRequest } from "@/hooks/use-dock-visibility";
@@ -125,6 +134,14 @@ function MealCaptureForm({ onClose, dateKey }: { onClose: () => void; dateKey?: 
   const [photo, setPhoto] = useState<{ base64: string; dataUrl: string } | null>(null);
   const [note, setNote] = useState("");
   const [description, setDescription] = useState("");
+  // Phase 12: meals get the block form's "when" treatment — a rail
+  // marker + Logged-at row. null = untouched = log at the current
+  // clock time (previous behavior, byte-for-byte).
+  const [mealTime, setMealTime] = useState<string | null>(null);
+  const [defaultNow] = useState(nowHM);
+  const [railNow] = useState(nowMinutes);
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const isToday = (dateKey ?? todayKey) === todayKey;
   const [source, setSource] = useState<"ai" | "fallback" | "manual">("manual");
   const [draft, setDraft] = useState<EstimateDraft>({
     name: "",
@@ -238,9 +255,7 @@ function MealCaptureForm({ onClose, dateKey }: { onClose: () => void; dateKey?: 
 
   const logMeal = async (src: string) => {
     if (!validNumbers) return;
-    const todayKey = new Date().toISOString().slice(0, 10);
     const target = dateKey ?? todayKey;
-    const isToday = target === todayKey;
     await addMealLog({
       name: draft.name.trim(),
       calories: Math.round(Number(draft.calories)),
@@ -248,7 +263,11 @@ function MealCaptureForm({ onClose, dateKey }: { onClose: () => void; dateKey?: 
       carbs_g: draft.carbs_g.trim() === "" ? null : Math.round(Number(draft.carbs_g)),
       fat_g: draft.fat_g.trim() === "" ? null : Math.round(Number(draft.fat_g)),
       source: src,
-      logged_at: isToday ? new Date().toISOString() : localDateTime(target, nowHM()),
+      logged_at: mealTime
+        ? localDateTime(target, mealTime)
+        : isToday
+          ? new Date().toISOString()
+          : localDateTime(target, defaultNow),
     });
     triggerHaptic();
     toast({
@@ -333,13 +352,16 @@ function MealCaptureForm({ onClose, dateKey }: { onClose: () => void; dateKey?: 
             </button>
           )}
           <div className="mt-3">
-            <FieldLabel>Add a note (optional)</FieldLabel>
+            <div className="flex items-center justify-between">
+              <FieldLabel>Add a note (optional)</FieldLabel>
+              <CharCounter len={note.length} max={200} />
+            </div>
             <input
               value={note}
               onChange={(e) => setNote(e.target.value.slice(0, 200))}
               placeholder="e.g. large plate, half eaten"
               aria-label="Photo note"
-              className="df-input-glass w-full rounded-full px-4 h-11 outline-none text-base"
+              className="df-input-glass mt-1.5 w-full rounded-full px-4 h-11 outline-none text-base"
               style={{
                 color: "var(--df-text-primary)",
               }}
@@ -365,17 +387,16 @@ function MealCaptureForm({ onClose, dateKey }: { onClose: () => void; dateKey?: 
       {step === "describe" && (
         <div className="mt-4">
           <FieldLabel>What did you eat?</FieldLabel>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value.slice(0, 500))}
-            placeholder="2 eggs and toast with avocado"
-            aria-label="Meal description"
-            rows={3}
-            className="df-input-glass w-full rounded-[16px] px-4 py-2.5 outline-none text-base resize-none"
-            style={{
-              color: "var(--df-text-primary)",
-            }}
-          />
+          <div className="mt-1.5">
+            <CountedNote
+              value={description}
+              onChange={setDescription}
+              max={500}
+              placeholder="2 eggs and toast with avocado"
+              ariaLabel="Meal description"
+              rows={3}
+            />
+          </div>
           <StickyActionBar>
             <button onClick={() => setStep("pick")} className="df-press df-btn-secondary df-btn-capsule h-11 px-4 text-[12.5px] font-semibold">
               Back
@@ -412,27 +433,46 @@ function MealCaptureForm({ onClose, dateKey }: { onClose: () => void; dateKey?: 
                 : "Offline estimate — check the numbers before logging"}
             </div>
           )}
-          <FieldLabel>Meal</FieldLabel>
+          {/* the question — same pattern as "What did you spend time on?" */}
+          <p className="text-[12px] font-semibold" style={{ color: "var(--df-text-secondary)" }}>
+            What did you eat?
+          </p>
           <input
             value={draft.name}
             onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value.slice(0, 80) }))}
             placeholder="Grilled chicken salad"
             aria-label="Meal name"
-            className="w-full rounded-full px-4 h-12 outline-none text-base"
+            className="df-input-glass w-full rounded-[18px] px-4 h-12 mt-1.5 outline-none text-base"
             style={{
-              background: "var(--df-input-fill)",
-              border: "0.5px solid var(--df-input-border)",
               color: "var(--df-text-primary)",
             }}
           />
-          <div className="mt-3 grid grid-cols-2 gap-2.5">
-            <MacroInput
-              label="Calories"
-              unit="kcal"
-              color={MEALS_COLOR}
-              value={draft.calories}
-              onChange={(v) => setDraft((d) => ({ ...d, calories: v }))}
-            />
+
+          {/* calories — the meal form's hero value (the "1h" slot) */}
+          <div className="mt-4 flex justify-center" role="group" aria-label="Calories">
+            <div className="df-input-glass flex h-14 min-w-[190px] items-center justify-center gap-1.5 rounded-[18px] px-5">
+              <input
+                value={draft.calories}
+                onChange={(e) =>
+                  setDraft((d) => ({
+                    ...d,
+                    calories: e.target.value.replace(/[^0-9]/g, "").slice(0, 5),
+                  }))
+                }
+                inputMode="numeric"
+                placeholder="—"
+                aria-label="Calories in kcal"
+                className="w-[92px] bg-transparent text-center text-[24px] font-bold tabular-nums outline-none placeholder:text-[var(--df-text-muted)]"
+                style={{ color: MEALS_COLOR }}
+              />
+              <span className="text-[12px] font-semibold" style={{ color: "var(--df-text-muted)" }}>
+                kcal
+              </span>
+            </div>
+          </div>
+
+          {/* macros — three-up under the hero */}
+          <div className="mt-2.5 grid grid-cols-3 gap-2">
             <MacroInput
               label="Protein"
               unit="g"
@@ -454,6 +494,21 @@ function MealCaptureForm({ onClose, dateKey }: { onClose: () => void; dateKey?: 
               value={draft.fat_g}
               onChange={(v) => setDraft((d) => ({ ...d, fat_g: v }))}
             />
+          </div>
+
+          {/* when — the 24-hour rail (point marker) + precise row */}
+          <div className="mt-4">
+            <TimeRail
+              startMin={toMinutes(mealTime ?? defaultNow)}
+              onChange={(m) => setMealTime(minutesToHM(m))}
+              color={MEALS_COLOR}
+              isToday={isToday}
+              nowMin={railNow}
+              ariaLabel="When did you eat — 12 AM to 12 AM"
+            />
+          </div>
+          <div className="mt-4">
+            <TimeRow label="Logged at" value={mealTime ?? defaultNow} onChange={setMealTime} />
           </div>
           <StickyActionBar>
             <button

@@ -34,6 +34,15 @@ import {
 import { useDayflowStore } from "@/store/useDayflowStore";
 import { useCompanionStore } from "@/store/companionStore";
 import { localDateTime } from "@/lib/viewmodel";
+import { toMinutes } from "@/lib/compute";
+import {
+  DurationHero,
+  NumRow,
+  TimeRail,
+  TimeRow,
+  minutesToHM,
+  nowMinutes,
+} from "@/components/dayflow/FormControls";
 import { keyForOffset } from "@/lib/seed";
 import { useToast } from "@/hooks/use-toast";
 import { useIsPhone } from "@/hooks/use-media-query";
@@ -185,6 +194,10 @@ function WorkoutForm({
     });
   });
   const [askClose, setAskClose] = useState(false);
+  // Phase 12: rail context — the "now" line + today check.
+  const [railNow] = useState(nowMinutes);
+  const todayKey = keyForOffset(0);
+  const isToday = (dateKey ?? todayKey) === todayKey;
 
   // ---- rest timer ------------------------------------------------
   const [restLeft, setRestLeft] = useState<number | null>(null);
@@ -438,6 +451,8 @@ function WorkoutForm({
           setDurationMin={setDurationMin}
           calories={calories}
           setCalories={setCalories}
+          isToday={isToday}
+          nowMin={railNow}
           session={session}
           stats={stats}
           historyBest={historyBest}
@@ -521,6 +536,8 @@ interface BuildProps {
   setDurationMin: (v: string) => void;
   calories: string;
   setCalories: (v: string) => void;
+  isToday: boolean;
+  nowMin: number;
   session: WorkoutExercise[];
   stats: ReturnType<typeof workoutStats>;
   historyBest: Map<string, number>;
@@ -542,6 +559,7 @@ interface BuildProps {
 }
 
 function BuildStep(p: BuildProps) {
+  const durNum = Math.round(Number(p.durationMin));
   return (
     <div className="mt-3 flex flex-col min-h-0 flex-1 overflow-y-auto df-scroll -mx-1 px-1">
       {/* title + when */}
@@ -555,15 +573,43 @@ function BuildStep(p: BuildProps) {
           style={{ color: "var(--df-text-primary)" }}
         />
       </div>
-      <div className="mt-2 grid grid-cols-3 gap-2 shrink-0">
-        <TimeField label="Start" value={p.startHM} onChange={p.setStartHM} />
-        <NumField
-          label="Minutes"
-          value={p.durationMin}
-          onChange={p.setDurationMin}
-          placeholder="60"
+
+      {/* duration — the block-form hero, gym-flavored chips */}
+      <div className="mt-3 shrink-0">
+        <DurationHero
+          value={durNum}
+          onChange={(m) => p.setDurationMin(String(m))}
+          chips={[30, 45, 60, 75, 90, 120]}
+          ariaLabel="Session duration"
         />
-        <NumField label="kcal" value={p.calories} onChange={p.setCalories} placeholder="—" />
+      </div>
+
+      {/* the 24-hour scrubber — drag the session block, resize its
+          edges, or tap to jump (matches Log-a-block). */}
+      <div className="mt-3 shrink-0">
+        <TimeRail
+          startMin={toMinutes(p.startHM)}
+          durationMin={durNum}
+          onChange={(m) => p.setStartHM(minutesToHM(m))}
+          onDurationChange={(d) => p.setDurationMin(String(d))}
+          color={FITNESS}
+          isToday={p.isToday}
+          nowMin={p.nowMin}
+          ariaLabel="Session window — 12 AM to 12 AM"
+        />
+      </div>
+
+      {/* precise start + calories — the reference's settings rows */}
+      <div className="mt-3 grid grid-cols-2 gap-2 shrink-0">
+        <TimeRow label="Start time" value={p.startHM} onChange={p.setStartHM} />
+        <NumRow
+          label="Calories"
+          unit="kcal"
+          value={p.calories}
+          onChange={p.setCalories}
+          placeholder="—"
+          maxLen={4}
+        />
       </div>
 
       {/* repeat last */}
@@ -1010,73 +1056,6 @@ function NumCell({
         {unit}
       </span>
     </div>
-  );
-}
-
-function TimeField({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <div>
-      <FieldLabel>{label}</FieldLabel>
-      <div className="df-input-glass mt-1 rounded-full px-3.5 h-10 flex items-center gap-1">
-        <Clock className="h-3 w-3 shrink-0" style={{ color: "var(--df-text-muted)" }} />
-        <input
-          type="time"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          aria-label={label}
-          className="w-full bg-transparent outline-none text-[13.5px] tabular-nums [color-scheme:light] dark:[color-scheme:dark]"
-          style={{ color: "var(--df-text-primary)" }}
-        />
-      </div>
-    </div>
-  );
-}
-
-function NumField({
-  label,
-  value,
-  onChange,
-  placeholder,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-}) {
-  return (
-    <div className="min-w-0">
-      <FieldLabel>{label}</FieldLabel>
-      <div className="df-input-glass mt-1 rounded-full px-4 h-10 flex items-center">
-        <input
-          value={value}
-          onChange={(e) => onChange(e.target.value.replace(/[^0-9]/g, "").slice(0, 4))}
-          inputMode="numeric"
-          placeholder={placeholder}
-          aria-label={label}
-          className="w-full bg-transparent outline-none text-[13.5px] font-semibold tabular-nums"
-          style={{ color: "var(--df-text-primary)" }}
-        />
-      </div>
-    </div>
-  );
-}
-
-function FieldLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <label
-      className="text-[10px] font-bold uppercase tracking-[0.06em] flex items-center gap-1"
-      style={{ color: "var(--df-text-secondary)" }}
-    >
-      {children}
-    </label>
   );
 }
 
