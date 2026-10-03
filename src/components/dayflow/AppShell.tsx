@@ -1,16 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import dynamic from "next/dynamic";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import {
-  CalendarDays,
-  CalendarRange,
-  Clock3,
-  Flame,
-  NotebookPen,
-  Settings as SettingsIcon,
-} from "lucide-react";
+import { useReducedMotion } from "motion/react";
 import { LogoMark } from "@/components/brand/LogoMark";
 import { LogoLoop } from "@/components/brand/LogoLoop";
 import { SplashScreen } from "@/components/brand/SplashScreen";
@@ -19,33 +11,28 @@ import {
   MorningTriadGate,
   readMorningTriad,
 } from "@/components/dayflow/MorningTriadGate";
-import {
-  LiquidGlassContainer,
-  LiquidGlassFilters,
-  LiquidGlassView,
-} from "@/components/ui/LiquidGlass";
-import { hapticSelect } from "@/lib/haptics";
-import { springSoft } from "@/lib/motion";
+import { hapticSelect, haptic } from "@/lib/haptics";
 import { useDockHidden, watchDockKeyboard } from "@/hooks/use-dock-visibility";
 import { useKeyboardTracking } from "@/components/ui/Sheet";
 import { DiaCompanion } from "@/components/companion/DiaCompanion";
+import { TAB_ACCENTS } from "@/styles/palette";
 
-// Phase 4 bundle diet: every tab view is code-split and streams in
-// behind the boot skeleton, so none of the view bundles ride the
-// initial JS payload. The dock shows the same BootSkeleton the
-// rehydration gate already paints, so the swap is invisible.
-const TimelineView = dynamic(
-  () => import("./TimelineView").then((m) => m.TimelineView),
+// Phase 13 bundle diet: every tab view is code-split and streams in
+// behind the boot skeleton. The four pill panes stay MOUNTED once
+// loaded (keep-alive, like the reference iframe panes) so tab
+// switches are instant crossfades with preserved scroll + state.
+const TodayView = dynamic(() => import("./TodayView").then((m) => m.TodayView), {
+  ssr: false,
+  loading: ViewSkeleton,
+});
+const NutritionView = dynamic(
+  () => import("./NutritionView").then((m) => m.NutritionView),
   { ssr: false, loading: ViewSkeleton }
 );
-const DailyView = dynamic(() => import("./DailyView").then((m) => m.DailyView), {
-  ssr: false,
-  loading: ViewSkeleton,
-});
-const WeeklyView = dynamic(() => import("./WeeklyView").then((m) => m.WeeklyView), {
-  ssr: false,
-  loading: ViewSkeleton,
-});
+const TrainingView = dynamic(
+  () => import("./workout/TrainingView").then((m) => m.TrainingView),
+  { ssr: false, loading: ViewSkeleton }
+);
 const HabitsView = dynamic(() => import("./HabitsView").then((m) => m.HabitsView), {
   ssr: false,
   loading: ViewSkeleton,
@@ -54,13 +41,16 @@ const ChatView = dynamic(() => import("./ChatView").then((m) => m.ChatView), {
   ssr: false,
   loading: ViewSkeleton,
 });
-const SettingsView = dynamic(() => import("./SettingsView").then((m) => m.SettingsView), {
+const WeeklyView = dynamic(() => import("./WeeklyView").then((m) => m.WeeklyView), {
   ssr: false,
   loading: ViewSkeleton,
 });
+const SettingsView = dynamic(
+  () => import("./SettingsView").then((m) => m.SettingsView),
+  { ssr: false, loading: ViewSkeleton }
+);
 
-/** Brand loader shown while a lazy view chunk streams in (Phase 6.5:
- *  replaces the generic skeleton — md loop, centered, no wall). */
+/** Brand loader shown while a lazy view chunk streams in. */
 function ViewSkeleton() {
   return (
     <div
@@ -76,55 +66,85 @@ function ViewSkeleton() {
   );
 }
 
-export type TabId = "timeline" | "daily" | "weekly" | "habits" | "chat" | "settings";
+export type TabId =
+  | "today"
+  | "nutrition"
+  | "training"
+  | "habits"
+  | "journal"
+  | "weekly"
+  | "settings";
 
-/** The Focus surface is the circadian Timeline (PRD §4.2 / §4.9). */
-const FOCUS_TAB: TabId = "timeline";
+/** The Focus surface is the Today pane (PRD §4.2 / §4.9). */
+const FOCUS_TAB: TabId = "today";
 
-const TABS: {
-  id: TabId;
-  label: string;
-  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
-}[] = [
-  { id: "timeline", label: "Timeline", icon: Clock3 },
-  { id: "daily", label: "Daily", icon: CalendarDays },
-  { id: "weekly", label: "Weekly", icon: CalendarRange },
-  { id: "habits", label: "Habits", icon: Flame },
-  { id: "chat", label: "Journal", icon: NotebookPen },
-  { id: "settings", label: "Settings", icon: SettingsIcon },
+/** The four pill tabs — order IS the pill column order. */
+const PILL_TABS: { id: Extract<TabId, "today" | "nutrition" | "training" | "habits">; label: string }[] = [
+  { id: "today", label: "Today" },
+  { id: "nutrition", label: "Nutrition" },
+  { id: "training", label: "Training" },
+  { id: "habits", label: "Habits" },
 ];
 
+const TAB_ICON: Record<string, ReactNode> = {
+  today: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 7.5V12l3 2" />
+    </svg>
+  ),
+  nutrition: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M7 3v8M4 3v5a3 3 0 0 0 6 0V3M7 11v10M17 21V3c-2.5 1.5-3.5 5-3.5 8h3.5" />
+    </svg>
+  ),
+  training: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11" />
+    </svg>
+  ),
+  habits: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M8.5 12.2l2.4 2.4 4.6-5" />
+    </svg>
+  ),
+};
+
+/** Cross-pane log intents — the plus FAB / quick-menu fire these;
+ *  the owning pane opens its sheet when the nonce changes. */
+export type LogAction = "block" | "meal" | "workout";
+
 export function AppShell() {
-  const [tab, setTab] = useState<TabId>("timeline");
+  const [tab, setTab] = useState<TabId>(FOCUS_TAB);
   const [ready, setReady] = useState(false);
   // Morning Triad: the gate is DERIVED (profile + Focus tab + the
-  // localStorage day-record), never set from an effect. Dismissal
-  // and unlock are user events; triadNonce forces the re-render
-  // that re-reads the day-record.
+  // localStorage day-record), never set from an effect.
   const [triadDismissed, setTriadDismissed] = useState(false);
   const [triadNonce, setTriadNonce] = useState(0);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [pending, setPending] = useState<{
+    action: LogAction;
+    nonce: number;
+  } | null>(null);
+  const longPress = useRef(false);
+  const lpTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reducedMotion = useReducedMotion();
+  void reducedMotion;
 
   const profileRow = useDayflowStore((s) => s.profile);
   const isSyncing = useDayflowStore((s) => s.isSyncing);
+  const workoutLogs = useDayflowStore((s) => s.workoutLogs);
 
   // Dock avoidance (S2, Rule B): ref-counted hide requests — the
-  // keyboard watcher is global; immersive surfaces (fullscreen
-  // journal editor) register their own requests via the hook.
+  // keyboard watcher is global; log sheets + the fullscreen journal
+  // editor register their own requests. The pill slides away while
+  // ANY request is active (the reference body.full behavior).
   const dockHidden = useDockHidden();
   useEffect(() => watchDockKeyboard(), []);
-
-  // GLOBAL keyboard tracking (standalone-PWA fix): the shared
-  // --keyboard-height var used to exist only while a sheet was
-  // mounted — on the Journal tab (no sheet) the on-screen keyboard
-  // buried the composer, because the fixed 100dvh flex shell can
-  // never scroll it into view. The tracker is reference-counted,
-  // so per-sheet mounts stay safe alongside this global one.
   useKeyboardTracking();
 
-  // Morning Triad gate conditions (PRD §4.9): only when the
-  // occupational status is NOT 'employed_structured' and the
-  // morning anchor is enforced on the profile.
+  // Morning Triad gate conditions (PRD §4.9).
   const triadRequired = useMemo(() => {
     const occ =
       profileRow?.occupational_context &&
@@ -137,10 +157,6 @@ export function AppShell() {
     return status !== "employed_structured" && enforce;
   }, [profileRow]);
 
-  // Rehydrate the Delta Sync store's IndexedDB snapshot after
-  // mount (the first render uses empty state so server HTML and
-  // the hydration pass match exactly), then pull server deltas in
-  // the background — never blocking first paint.
   useEffect(() => {
     let cancelled = false;
     Promise.resolve(useDayflowStore.persist.rehydrate())
@@ -154,8 +170,6 @@ export function AppShell() {
     };
   }, []);
 
-  // The gate shows whenever a gated user is ON the Focus tab without
-  // today's anchor record — boot included, no effect needed.
   const triadOpen =
     triadRequired &&
     ready &&
@@ -164,317 +178,298 @@ export function AppShell() {
     !readMorningTriad();
   void triadNonce;
 
-  const select = useCallback(
-    (t: TabId) => {
-      hapticSelect();
-      if (t === FOCUS_TAB && triadRequired && !readMorningTriad()) {
-        // Gate the Focus tab behind the morning check-in (T1d):
-        // switch onto Focus, where the derived gate takes over.
-        setTab(t);
-        return;
-      }
-      setTab(t);
-    },
-    [triadRequired]
+  const todayKey = useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }, []);
+  // Training pill dot: a workout is due today and none is logged yet.
+  const trainingDue = useMemo(
+    () => !workoutLogs.some((w) => (w.logged_at ?? "").slice(0, 10) === todayKey),
+    [workoutLogs, todayKey]
   );
 
-  const content = useMemo(() => {
-    if (!ready) return <SplashScreen />;
+  const go = useCallback(
+    (t: TabId) => {
+      hapticSelect();
+      setTab(t);
+      setMenuOpen(false);
+    },
+    []
+  );
+
+  const fire = useCallback((action: LogAction) => {
+    setPending({ action, nonce: Date.now() });
+  }, []);
+
+  /** Reference plus behavior: contextual quick-action on the active
+   *  pane (meal sheet on Nutrition, generator on Training), the
+   *  quick-log menu everywhere else. */
+  const onPlus = useCallback(() => {
+    if (longPress.current) return;
+    if (menuOpen) {
+      setMenuOpen(false);
+      return;
+    }
+    haptic();
+    if (tab === "nutrition") {
+      fire("meal");
+    } else if (tab === "training") {
+      fire("workout");
+    } else {
+      setMenuOpen(true);
+    }
+  }, [tab, menuOpen, fire]);
+
+  const onPlusPointerDown = useCallback(() => {
+    longPress.current = false;
+    lpTimer.current = setTimeout(() => {
+      longPress.current = true;
+      setMenuOpen(true);
+      haptic();
+    }, 480);
+  }, []);
+  const cancelLongPress = useCallback(() => {
+    if (lpTimer.current) clearTimeout(lpTimer.current);
+  }, []);
+
+  // Close the menu on any outside pointer.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDown = (e: PointerEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (!el?.closest?.("[data-dfx-menu],[data-dfx-fab]")) setMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", onDown);
+    return () => document.removeEventListener("pointerdown", onDown);
+  }, [menuOpen]);
+
+  const menuAction = useCallback(
+    (action: LogAction, destTab: TabId) => {
+      setMenuOpen(false);
+      // Reference cadence: land on the pane first, then open the
+      // sheet ~420ms later so the crossfade reads as intentional.
+      setTab(destTab);
+      setTimeout(() => fire(action), 420);
+    },
+    [fire]
+  );
+
+  // Keyboard: Escape closes the menu.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    addEventListener("keydown", onKey);
+    return () => removeEventListener("keydown", onKey);
+  }, []);
+
+  const accent =
+    tab === "journal"
+      ? TAB_ACCENTS.today
+      : tab === "weekly"
+        ? TAB_ACCENTS.habits
+        : tab === "settings"
+          ? TAB_ACCENTS.today
+          : TAB_ACCENTS[tab];
+  const pillIndex = PILL_TABS.findIndex((t) => t.id === tab);
+
+  const overflowPane = useMemo(() => {
     switch (tab) {
-      case "timeline":
-        return <TimelineView />;
-      case "daily":
-        return <DailyView />;
+      case "journal":
+        return <ChatView />;
       case "weekly":
         return <WeeklyView />;
-      case "habits":
-        return <HabitsView />;
-      case "chat":
-        return <ChatView />;
       case "settings":
-        return <SettingsView onNavigate={select} />;
+        return <SettingsView onNavigate={go} />;
+      default:
+        return null;
     }
-  }, [tab, ready, select]);
+  }, [tab, go]);
 
-  const activeTab = TABS.find((t) => t.id === tab)!;
+  const blockNonce = pending?.action === "block" ? pending.nonce : 0;
+  const mealNonce = pending?.action === "meal" ? pending.nonce : 0;
+  const workoutNonce = pending?.action === "workout" ? pending.nonce : 0;
 
   return (
-    <div className="df-app df-window w-full sm:p-[15px]">
-      {/* T1 material filters — mounted once, referenced by the two
-          Liquid Glass surfaces (mobile dock + Habits Log CTA). */}
-      <LiquidGlassFilters />
-
-      {/* Mobile header — Liquid Glass T1 surface #2 (PRD §6.2).
-          Floating capsule (iOS 26 nav-bar material): the glass refracts
-          the window gradients; hairline + fill ride the --lg-* tokens. */}
-      <header className="lg:hidden sticky top-0 z-40 shrink-0 px-2 pt-[max(0.375rem,var(--safe-area-top,0px))] pb-1">
-        <LiquidGlassView
-          variant="header"
-          effect="regular"
-          className="flex w-full min-h-0 items-center gap-2 px-3.5 py-2"
-          style={{
-            ["--lg-fill" as string]:
-              "color-mix(in srgb, var(--df-mobile-nav-fill) 55%, transparent)",
-            border: "0.5px solid var(--df-chip-border)",
-          }}
-        >
-          <div className="flex min-w-0 flex-1 items-center gap-2.5 whitespace-nowrap">
-            <LogoMark size={30} />
-            <div className="flex min-w-0 items-center gap-1.5">
-              <p className="text-[13px] font-semibold leading-none" style={{ color: "var(--df-text-primary)" }}>Dayflow</p>
-              {/* Phase 6.5: sync indicator beside the title (never in the dock) */}
-              {isSyncing && <LogoLoop size="sm" />}
-            </div>
-            <p className="truncate text-[10px] leading-none" style={{ color: "var(--df-text-muted)" }}>{activeTab.label}</p>
-          </div>
-          <button onClick={() => select("settings")} aria-label="Settings" aria-current={tab === "settings" ? "page" : undefined} className="df-press ml-auto shrink-0 grid size-9 place-items-center rounded-full" style={{ color: "var(--df-text-secondary)", border: "0.5px solid var(--df-chip-border)", background: "var(--df-chip-fill)" }}>
-            <SettingsIcon className="size-[17px]" strokeWidth={1.8} />
-          </button>
-        </LiquidGlassView>
-      </header>
-
-      <div className="mx-auto flex w-full flex-1 min-h-0 items-stretch max-w-[1440px]">
-        {/* left gutter: logo + vertical sidebar */}
-        <aside className="hidden lg:flex w-[80px] shrink-0 flex-col items-center justify-between py-2">
-          <div className="df-rise" style={{ animationDelay: "0ms" }}>
-            <LogoMark size={40} />
-          </div>
-          {/* Desktop rail — Liquid Glass T1 surface #3 (PRD §6.2).
-              One glass pane (LiquidGlassContainer) carrying the nav
-              group — the macOS Tahoe sidebar material. */}
-          <LiquidGlassContainer
-            variant="rail"
-            className="df-rise"
-            style={{
-              animationDelay: "150ms",
-              ["--lg-fill" as string]:
-                "color-mix(in srgb, var(--df-mobile-nav-fill) 42%, transparent)",
-              border: "0.5px solid var(--df-chip-border)",
-            }}
-          >
-            <nav
-              aria-label="Primary"
-              className="flex flex-col items-center gap-[5px] px-1 py-1.5"
+    <div
+      className="df-app dfx-root w-full"
+      style={{ ["--dfx-accent" as string]: accent }}
+    >
+      {/* Shell header — brand + the overflow destinations (Journal,
+          Weekly, Settings) that live outside the four pill tabs. */}
+      <header className="dfx-header">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <LogoMark size={26} />
+          <div className="flex items-center gap-1.5">
+            <p
+              className="text-[13px] font-semibold leading-none"
+              style={{ color: "var(--df-text-primary)" }}
             >
-              {TABS.map((t) => (
-                <SidebarButton
-                  key={t.id}
-                  label={t.label}
-                  active={tab === t.id}
-                  onClick={() => select(t.id)}
-                  icon={<t.icon className="h-[17px] w-[17px]" strokeWidth={1.8} />}
-                />
-              ))}
-            </nav>
-          </LiquidGlassContainer>
-          <div className="h-6" />
-        </aside>
-
-        {/* main panel */}
-        <div
-          className="df-rise flex-1 min-h-0 min-w-0"
-          style={{ animationDelay: "100ms" }}
-        >
-          <div className="df-panel h-full min-h-0 overflow-hidden rounded-none sm:rounded-[24px] lg:pb-0">
-            {/* popLayout (not "wait"): lazy view chunks can resolve while
-                their tab child is exiting — mode="wait" deadlocks in that
-                window (exit never completes, the next tab never mounts).
-                popLayout lets the entering view take the layout flow
-                immediately while the old one pops out and fades. */}
-            <AnimatePresence mode="popLayout" initial={false}>
-              <motion.div
-                key={tab}
-                initial={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
-                animate={reducedMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
-                exit={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
-                transition={reducedMotion ? { duration: 0.15 } : springSoft}
-                className="h-full min-h-0 w-full max-w-full overflow-hidden"
-              >
-                {content}
-              </motion.div>
-            </AnimatePresence>
+              Dayflow
+            </p>
+            {isSyncing && <LogoLoop size="sm" />}
           </div>
         </div>
+        <div className="dfx-header-actions">
+          <button
+            className={`dfx-hbtn${tab === "journal" ? " on" : ""}`}
+            onClick={() => go("journal")}
+            aria-label="Journal"
+            aria-current={tab === "journal" ? "page" : undefined}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+            </svg>
+          </button>
+          <button
+            className={`dfx-hbtn${tab === "weekly" ? " on" : ""}`}
+            onClick={() => go("weekly")}
+            aria-label="Weekly review"
+            aria-current={tab === "weekly" ? "page" : undefined}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="4" y="5" width="16" height="15" rx="3" />
+              <path d="M4 10h16M9 3v4M15 3v4" />
+            </svg>
+          </button>
+          <button
+            className={`dfx-hbtn${tab === "settings" ? " on" : ""}`}
+            onClick={() => go("settings")}
+            aria-label="Settings"
+            aria-current={tab === "settings" ? "page" : undefined}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="3.2" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" />
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      {/* The stages — four keep-alive panes crossfading between
+          tabs, plus the on-demand overflow panes. */}
+      {!ready ? (
+        <SplashScreen />
+      ) : (
+        <div className="dfx-stages">
+          <div className={`dfx-pane${tab === "today" ? " on" : ""}`} aria-hidden={tab !== "today"}>
+            <TodayView blockNonce={blockNonce} />
+          </div>
+          <div className={`dfx-pane${tab === "nutrition" ? " on" : ""}`} aria-hidden={tab !== "nutrition"}>
+            <NutritionView mealNonce={mealNonce} />
+          </div>
+          <div className={`dfx-pane${tab === "training" ? " on" : ""}`} aria-hidden={tab !== "training"}>
+            <TrainingView generateNonce={workoutNonce} />
+          </div>
+          <div className={`dfx-pane${tab === "habits" ? " on" : ""}`} aria-hidden={tab !== "habits"}>
+            <HabitsView />
+          </div>
+          {overflowPane && (
+            <div className="dfx-pane on">{overflowPane}</div>
+          )}
+        </div>
+      )}
+
+      {/* The glass pill nav + plus FAB (reference #nav). Slides away
+          while any dock-hide request is active (keyboard / sheets). */}
+      <nav className={`dfx-nav${dockHidden ? " dfx-hidden" : ""}`} aria-label="Main">
+        <div
+          className="dfx-pill"
+          style={{ ["--dfx-i" as string]: pillIndex < 0 ? 0 : pillIndex }}
+          role="tablist"
+        >
+          <i className="dfx-hl" aria-hidden="true" style={{ opacity: pillIndex < 0 ? 0 : 1 }} />
+          {PILL_TABS.map((t) => (
+            <button
+              key={t.id}
+              role="tab"
+              className={`dfx-tab${tab === t.id ? " on" : ""}`}
+              onClick={() => go(t.id)}
+              aria-label={t.label}
+              aria-selected={tab === t.id}
+            >
+              {TAB_ICON[t.id]}
+              {t.label}
+              {t.id === "training" && trainingDue && <b className="dfx-dot" aria-hidden="true" />}
+            </button>
+          ))}
+        </div>
+        <button
+          className={`dfx-fab${menuOpen ? " x" : ""}`}
+          onPointerDown={onPlusPointerDown}
+          onPointerUp={cancelLongPress}
+          onPointerLeave={cancelLongPress}
+          onPointerCancel={cancelLongPress}
+          onClick={onPlus}
+          aria-label="Log something"
+          aria-expanded={menuOpen}
+          aria-haspopup="menu"
+          data-dfx-fab
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+        </button>
+      </nav>
+
+      {/* The quick-log menu (reference #menu) — floats above the
+          FAB, tinted per action. */}
+      <div className={`dfx-menu${menuOpen ? " on" : ""}`} role="menu" aria-label="Quick log" data-dfx-menu>
+        <button
+          role="menuitem"
+          style={{ ["--dfx-k" as string]: TAB_ACCENTS.training }}
+          onClick={() => menuAction("workout", "training")}
+        >
+          <i>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11" />
+            </svg>
+          </i>
+          Log a workout
+        </button>
+        <button
+          role="menuitem"
+          style={{ ["--dfx-k" as string]: TAB_ACCENTS.nutrition }}
+          onClick={() => menuAction("meal", "nutrition")}
+        >
+          <i>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M7 3v8M4 3v5a3 3 0 0 0 6 0V3M7 11v10M17 21V3c-2.5 1.5-3.5 5-3.5 8h3.5" />
+            </svg>
+          </i>
+          Log a meal
+        </button>
+        <button
+          role="menuitem"
+          style={{ ["--dfx-k" as string]: TAB_ACCENTS.today }}
+          onClick={() => menuAction("block", "today")}
+        >
+          <i>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="4" y="5" width="16" height="15" rx="3" />
+              <path d="M4 10h16M9 3v4M15 3v4" />
+            </svg>
+          </i>
+          Log a block
+        </button>
       </div>
 
-      {/* Mobile dock — Liquid Glass T1 surface #1 (PRD §6.2, max 4).
-          Dock avoidance Rule B: slides out (transform+opacity only)
-          while ANY hide request is active — keyboard open or the
-          fullscreen journal editor. The transform rides the style
-          prop. Rule C: the 88px reservation on the panel never
-          changes, so CLS stays 0. Bottom offset (incl. the
-          home-indicator safe area) is owned by the .df-mobile-dock
-          CSS rule — single safe-area authority. */}
-      <LiquidGlassView
-        variant="dock"
-        effect="regular"
-        className="df-mobile-dock lg:hidden fixed inset-x-4 w-auto z-50"
-        style={{
-          width: "calc(100% - 2rem)",
-          ["--lg-fill" as string]:
-            "color-mix(in srgb, var(--df-mobile-nav-fill) 60%, transparent)",
-          border: "0.5px solid var(--df-chip-border)",
-          ...(dockHidden
-            ? {
-                transform: "translateY(calc(100% + 20px))",
-                opacity: 0,
-                visibility: "hidden" as const,
-                pointerEvents: "none" as const,
-              }
-            : {}),
-        }}
-        aria-hidden={dockHidden}
-        inert={dockHidden}
-      >
-        <nav
-          aria-label="Mobile primary"
-          className="grid w-full grid-cols-5 items-center px-1.5 pb-1.5 pt-1.5"
-        >
-          {TABS.filter((item) => item.id !== "settings").map((t) => (
-            <DockItem
-              key={t.id}
-              label={t.label}
-              active={tab === t.id}
-              onClick={() => select(t.id)}
-              icon={<t.icon className="size-[17px]" strokeWidth={1.8} />}
-            />
-          ))}
-        </nav>
-      </LiquidGlassView>
-
-      {/* Dia — the living 3D companion (lazy three.js chunk,
-          deferred until idle inside the component itself). */}
+      {/* Dia — the living 3D companion (lazy three.js chunk). */}
       <DiaCompanion />
 
       {/* Morning Triad gate (T1d) — gates the Focus tab. */}
       <MorningTriadGate
         open={triadOpen}
         onUnlocked={() => {
-          // Day-record written inside the gate — re-read via nonce.
           setTriadDismissed(false);
           setTriadNonce((n) => n + 1);
         }}
         onClose={() => {
-          // Staying out of Focus: land on the Daily tab instead.
           setTriadDismissed(true);
           setTriadNonce((n) => n + 1);
-          setTab((current) => (current === FOCUS_TAB ? "daily" : current));
+          setTab((current) => (current === FOCUS_TAB ? "habits" : current));
         }}
       />
     </div>
-  );
-}
-
-function DockItem({
-  label,
-  icon,
-  active,
-  onClick,
-}: {
-  label: string;
-  icon: React.ReactNode;
-  active: boolean;
-  onClick: () => void;
-}) {
-  const reducedMotion = useReducedMotion();
-  return (
-    <button
-      onClick={onClick}
-      aria-label={label}
-      aria-current={active ? "page" : undefined}
-      className="df-press flex-1 min-w-0 h-[52px] rounded-full flex flex-col items-center justify-center gap-[3px]"
-      style={{ color: active ? "var(--df-accent-text)" : "var(--df-text-muted)" }}
-    >
-      <motion.span
-        className="relative grid size-[30px] place-items-center"
-        animate={
-          reducedMotion ? undefined : { scale: active ? 1.08 : 1, y: active ? -0.5 : 0 }
-        }
-        transition={springSoft}
-      >
-        {/* Lively Pastel: the active dock item rides a WHITE cast
-            pill — the selected-state capsule from the reference. */}
-        {active && (
-          <motion.span
-            className="absolute inset-0 rounded-full"
-            initial={reducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.7 }}
-            animate={reducedMotion ? { opacity: 1 } : { opacity: 1, scale: 1 }}
-            transition={springSoft}
-            style={{
-              background: "var(--df-sidebar-selected-fill)",
-              border: "0.5px solid var(--df-sidebar-selected-border)",
-              boxShadow: "0 2px 8px var(--df-sidebar-selected-glow)",
-            }}
-            aria-hidden="true"
-          />
-        )}
-        <span className="relative z-10">{icon}</span>
-      </motion.span>
-      <span
-        className="text-[9.5px] font-semibold leading-none"
-        style={{ opacity: active ? 1 : 0.8 }}
-      >
-        {label}
-      </span>
-    </button>
-  );
-}
-
-function SidebarButton({
-  label,
-  icon,
-  active,
-  onClick,
-}: {
-  label: string;
-  icon: React.ReactNode;
-  active: boolean;
-  onClick: () => void;
-}) {
-  const reducedMotion = useReducedMotion();
-  return (
-    <button
-      onClick={onClick}
-      aria-label={label}
-      aria-current={active ? "page" : undefined}
-      className="df-press group w-[61px] rounded-full py-2 flex flex-col items-center gap-[3px]"
-    >
-      <span className="relative w-[37px] h-[37px] grid place-items-center">
-        {active && (
-          <motion.span
-            className="absolute inset-0 rounded-full"
-            initial={reducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.88 }}
-            animate={reducedMotion ? { opacity: 1 } : { opacity: 1, scale: 1 }}
-            transition={springSoft}
-            style={{
-              background: "var(--df-sidebar-selected-fill)",
-              border: "0.58px solid var(--df-sidebar-selected-border)",
-              boxShadow:
-                "inset 0 0 0 2px var(--df-sidebar-selected-glow), 0 1px 2px var(--df-panel-shadow)",
-            }}
-          />
-        )}
-        <span
-          className="relative z-10"
-          style={{
-            color: active
-              ? "var(--df-sidebar-label-active)"
-              : "var(--df-sidebar-label)",
-          }}
-        >
-          {icon}
-        </span>
-      </span>
-      <span
-        className="text-[11.5px] font-medium leading-none"
-        style={{
-          color: active
-            ? "var(--df-sidebar-label-active)"
-            : "var(--df-sidebar-label)",
-        }}
-      >
-        {label}
-      </span>
-    </button>
   );
 }

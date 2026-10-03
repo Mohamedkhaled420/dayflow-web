@@ -1,722 +1,790 @@
 "use client";
 
 // ============================================================
-// Dayflow AI — HabitsView (Phase 5 T0/T1b/T3)
+// Dayflow AI — HabitsView (Phase 13, "Editorial Cream")
 // ------------------------------------------------------------
-// Identity-based habit tracking (PRD §4.3): habits live in the
-// `habits` table, completions in `habit_logs` — both through the
-// Delta Sync store (optimistic IndexedDB -> Supabase insert ->
-// cursor bump). Each habit keeps its 7-day met grid + flame
-// streak; completing fires the paired haptic + visual tick.
+// 1:1 port of the habits reference pane: the tick-dial hero with
+// the week donut strip, glass habit rows with the drawn tick +
+// backfill expander, the add-habit pill with suggestions, and
+// the six-tier seal vault with its celebration modal.
 //
-// The fitness surface also hosts the AI workout generator (T1b):
-// Generate Workout -> /api/ai/coach (mode: workout, JSON-mode
-// cascade) -> Zod-validated plan -> "Log Workout" writes
-// workout_logs. That Log CTA is Liquid Glass T1 surface #2
-// (PRD §6.2 budget: exactly 2 live instances app-wide).
+// Data flows through the Delta Sync store (optimistic
+// addHabit / deleteHabit / addHabitLog — the store exposes no
+// deleteHabitLog action, so completions are one-way: a check
+// adds today's log, a past-day tap backfills it, and already
+// filled days render inert — exactly like the pre-Phase-13
+// view). Colors arrive from palette.ts (HABIT_COLORS /
+// SEAL_TIERS / TAB_ACCENTS) — never literals.
 // ============================================================
 
-import { useMemo, useState } from "react";
-import { motion } from "motion/react";
-import { Dumbbell, Flame, Plus, Sparkles, Target, Trash2, Trophy } from "lucide-react";
-import { z } from "zod";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
+import { useReducedMotion } from "motion/react";
 import { useDayflowStore } from "@/store/useDayflowStore";
-import { useDayflowData } from "@/lib/viewmodel";
-import { keyForOffset } from "@/lib/seed";
-import { weekOf } from "@/lib/compute";
-import { fmtDuration } from "@/lib/compute";
-import { triggerHaptic, hapticWarn } from "@/lib/haptics";
-import { LiquidGlassView } from "@/components/ui/LiquidGlass";
-import { LogoLoop } from "@/components/brand/LogoLoop";
-import { DoodleCrown, DoodleSprout, Marker } from "@/components/dayflow/doodles";
-import { stripReasoning } from "@/lib/coach-text";
-import { CATEGORY_COLORS, GOAL_FALLBACK_COLORS } from "@/styles/palette";
-import { useToast } from "@/hooks/use-toast";
+import { localDateKey } from "@/lib/viewmodel";
+import { haptic } from "@/lib/haptics";
+import { HABIT_COLORS, SEAL_TIERS, TAB_ACCENTS } from "@/styles/palette";
 
-// ---------- streak math (habit_logs consecutive days) ----------
+// ---------- constants ----------
 
-const localKey = (iso: string) => {
-  const d = new Date(iso);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+type SealTier = (typeof SEAL_TIERS)[number];
+
+const DAY_LETTERS = ["M", "T", "W", "T", "F", "S", "S"] as const;
+const SUGGESTIONS = ["Meditate", "Journal", "Walk", "No sugar", "Floss"] as const;
+
+const FLAME_PATH =
+  "M12 3c1 3.5 5 5.5 5 10a5 5 0 0 1-10 0c0-2 1-3.2 2-4.2.2 1.2.8 2 1.6 2.4C10.2 8 10.8 5.2 12 3z";
+const CHECK_PATH = "M5 12.5l4.5 4.5L19 7.5";
+const MORE_PATH = "M6 12h.01M12 12h.01M18 12h.01";
+const PLUS_PATH = "M12 5v14M5 12h14";
+
+/** The 14-lobe scalloped seal silhouette (reference lobes()). */
+const lobes = (n: number, a: number, b: number) =>
+  Array.from({ length: n * 2 }, (_, i) => {
+    const r = i % 2 ? a : b;
+    const t = (i * Math.PI) / n;
+    return (
+      (i ? "L" : "M") +
+      (50 + r * Math.cos(t)).toFixed(1) +
+      " " +
+      (50 + r * Math.sin(t)).toFixed(1)
+    );
+  }).join("") + "Z";
+const SEAL_PATH = lobes(14, 40, 44.5);
+
+/** White glyphs inside each seal (reference TR[].g). */
+const SEAL_GLYPHS: Record<SealTier["key"], ReactNode> = {
+  spark: (
+    <path d="M50 32l3.5 11.5L65 47l-11.5 3.5L50 62l-3.5-11.5L35 47l11.5-3.5z" />
+  ),
+  kindle: (
+    <path d="M50 31c3 9 14 14 14 26a14 14 0 0 1-28 0c0-5 3-9 6-12 1 3 2 5 4.5 6.5C46 46 47 38 50 31z" />
+  ),
+  ember: (
+    <>
+      <circle cx="42" cy="56" r="4.5" />
+      <circle cx="58" cy="47" r="6.5" />
+      <circle cx="55" cy="61" r="3.5" />
+    </>
+  ),
+  hearth: (
+    <path d="M36 66V52a14 14 0 0 1 28 0v14zM44 66V56a6 6 0 0 1 12 0v10" />
+  ),
+  beacon: <path d="M44 68l3-24h6l3 24zM50 31v7M39 36l5 5M61 36l-5 5" />,
+  sun: (
+    <>
+      <circle cx="50" cy="50" r="8" />
+      <path d="M50 31v6M50 63v6M31 50h6M63 50h6M37 37l4 4M59 59l4 4M63 37l-4 4M41 59l-4 4" />
+    </>
+  ),
 };
 
-/** Days-of-week set holding at least one completion per habit. */
-function logsByHabitAndDay(habitLogs: { habit_id: string; completed_at: string }[]) {
-  const map = new Map<string, Set<string>>();
-  for (const log of habitLogs) {
-    const set = map.get(log.habit_id) ?? new Set<string>();
-    set.add(localKey(log.completed_at));
-    map.set(log.habit_id, set);
+// ---------- date helpers ----------
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+const keyOf = (d: Date) =>
+  `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const keyToDate = (k: string) => {
+  const [y, m, d] = k.split("-").map(Number);
+  return new Date(y, m - 1, d);
+};
+const addDays = (d: Date, n: number) => {
+  const x = new Date(d);
+  x.setDate(x.getDate() + n);
+  return x;
+};
+/** Local noon of a date-key as an ISO timestamp — backfilled logs
+ *  resolve to the tapped day through localDateKey(). */
+const noonIso = (k: string) => {
+  const d = keyToDate(k);
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12, 0, 0, 0).toISOString();
+};
+
+// ---------- streak ----------
+
+/** Consecutive logged days ending today (today-or-yesterday
+ *  anchored: a streak stays alive through an unfinished today). */
+function streakOf(
+  days: Set<string>,
+  todayKey: string,
+  yesterdayKey: string
+): number {
+  const anchor = days.has(todayKey)
+    ? todayKey
+    : days.has(yesterdayKey)
+      ? yesterdayKey
+      : null;
+  if (!anchor) return 0;
+  let cur = keyToDate(anchor);
+  let count = 0;
+  while (days.has(keyOf(cur))) {
+    count++;
+    cur = addDays(cur, -1);
   }
-  return map;
+  return count;
 }
 
-/** Consecutive completed days ending today (today is forgiven). */
-function habitStreak(days: Set<string>, todayKey: string): number {
-  let streak = 0;
-  for (let offset = -1; offset >= -364; offset--) {
-    const key = keyForOffset(offset);
-    if (days.has(key)) streak++;
-    else break;
+const tierOf = (s: number): SealTier | undefined =>
+  SEAL_TIERS.filter((t) => s >= t.days).pop();
+
+// ---------- celebration burst (reference hburst) ----------
+
+function hburstAt(el: Element | null, color: string, reduced: boolean) {
+  if (reduced || !el) return;
+  const r = el.getBoundingClientRect();
+  const x = r.left + r.width / 2;
+  const y = r.top + r.height / 2;
+  for (let i = 0; i < 14; i++) {
+    const p = document.createElement("i");
+    const a = (i / 14) * 6.28;
+    const d = 40 + Math.random() * 40;
+    p.style.cssText = `position:fixed;left:${x}px;top:${y}px;width:7px;height:7px;border-radius:50%;background:${color};pointer-events:none;z-index:80`;
+    document.body.appendChild(p);
+    p
+      .animate(
+        [
+          { transform: "translate(-50%,-50%) scale(1)", opacity: 1 },
+          {
+            transform: `translate(${Math.cos(a) * d - 3}px, ${
+              Math.sin(a) * d - 3
+            }px) scale(.2)`,
+            opacity: 0,
+          },
+        ],
+        { duration: 700, easing: "cubic-bezier(.2,.8,.3,1)" }
+      )
+      ?.addEventListener("finish", () => p.remove());
   }
-  if (days.has(todayKey)) streak += 1;
-  return streak;
 }
 
-// ---------- T1b: workout plan schema (Zod-validated before render) ----------
+// ---------- the scalloped seal badge ----------
 
-const WorkoutBlockSchema = z.object({
-  name: z.string().min(1),
-  sets: z.string().optional(),
-  durationMinutes: z.number().optional(),
-  intensity: z.string().optional(),
-  cue: z.string().optional(),
-});
+function SealBadge({
+  tier,
+  on,
+  idp,
+}: {
+  tier: SealTier;
+  on: boolean;
+  /** gradient-id prefix — unique per usage site */
+  idp: string;
+}) {
+  const gid = `dfh-${idp}-${tier.key}`;
+  return (
+    <svg
+      className={`dfh-sl${on ? " on" : ""}`}
+      viewBox="0 0 100 100"
+      aria-hidden="true"
+    >
+      <defs>
+        <linearGradient id={gid} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor={tier.a} />
+          <stop offset="1" stopColor={tier.b} />
+        </linearGradient>
+      </defs>
+      <path
+        className="dfh-sc"
+        d={SEAL_PATH}
+        fill={`url(#${gid})`}
+        stroke={`url(#${gid})`}
+        strokeWidth={5}
+        strokeLinejoin="round"
+      />
+      <circle
+        className="dfh-dt"
+        cx={50}
+        cy={50}
+        r={33}
+        fill="none"
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        strokeDasharray="0.1 4.1"
+      />
+      <circle className="dfh-dk" cx={50} cy={50} r={28} strokeWidth={1} />
+      <g
+        className="dfh-gl"
+        fill="none"
+        strokeWidth={3.2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        {SEAL_GLYPHS[tier.key]}
+      </g>
+    </svg>
+  );
+}
 
-const WorkoutPlanSchema = z.object({
-  title: z.string().min(1),
-  focus: z.string().optional(),
-  durationMinutes: z.number().int().positive().max(240).optional(),
-  blocks: z.array(WorkoutBlockSchema).min(1).max(14),
-});
+// ---------- the view ----------
 
-export type WorkoutPlan = z.infer<typeof WorkoutPlanSchema>;
-
-// ---------- view ----------
+type RowVM = {
+  id: string;
+  name: string;
+  color: string;
+  days: Set<string>;
+  streak: number;
+  doneToday: boolean;
+};
 
 export function HabitsView() {
+  const reducedMotion = useReducedMotion();
   const habits = useDayflowStore((s) => s.habits);
   const habitLogs = useDayflowStore((s) => s.habitLogs);
-  const workoutLogs = useDayflowStore((s) => s.workoutLogs);
   const addHabit = useDayflowStore((s) => s.addHabit);
   const deleteHabit = useDayflowStore((s) => s.deleteHabit);
   const addHabitLog = useDayflowStore((s) => s.addHabitLog);
-  const profileRow = useDayflowStore((s) => s.profile);
-  const { toast } = useToast();
 
-  const [newHabit, setNewHabit] = useState("");
-  const todayKey = keyForOffset(0);
-  const week = useMemo(() => weekOf(todayKey), [todayKey]);
+  // ---- clock (midnight-rollover safe, mirrors TodayView) ----
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
-  const data = useDayflowData();
-  const sleepLogs = useDayflowStore((s) => s.sleepLogs);
-  const hydrationLogs = useDayflowStore((s) => s.hydrationLogs);
+  // ---- local UI state ----
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [armedId, setArmedId] = useState<string | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
+  const [input, setInput] = useState("");
+  const [poppedId, setPoppedId] = useState<string | null>(null);
+  const [dialOn, setDialOn] = useState(false);
+  const [seal, setSeal] = useState<{ tier: SealTier; fresh: boolean } | null>(
+    null
+  );
+  const [sealOn, setSealOn] = useState(false);
 
-  // Today's goal cards — targets come from the profile sections
-  // (derived Goals), progress from the server-backed log tables.
-  const goals = useMemo(
-    () => [
-      {
-        key: "fitness" as const,
-        label: "Fitness",
-        done: workoutLogs
-          .filter((r) => localKey(r.logged_at) === todayKey)
-          .reduce((sum, r) => sum + (r.duration_minutes ?? 45), 0),
-        target: data.goals.fitnessMinutes,
-        colorHex: GOAL_FALLBACK_COLORS.fitness,
-      },
-      {
-        key: "sleep" as const,
-        label: "Sleep",
-        done: sleepLogs
-          .filter((r) => localKey(r.logged_at) === todayKey)
-          .reduce((sum, r) => sum + r.sleep_minutes, 0),
-        target: data.goals.sleepMinutes,
-        colorHex: GOAL_FALLBACK_COLORS.sleep,
-      },
-      {
-        key: "water" as const,
-        label: "Water",
-        done:
-          hydrationLogs
-            .filter((r) => localKey(r.logged_at) === todayKey)
-            .reduce((sum, r) => sum + r.amount_ml, 0) / Math.max(1, data.profile.waterGlassMl),
-        target: data.goals.waterGlasses,
-        colorHex: GOAL_FALLBACK_COLORS.water,
-      },
-    ],
-    [workoutLogs, sleepLogs, hydrationLogs, todayKey, data.goals, data.profile.waterGlassMl]
+  const checkRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const dialRef = useRef<HTMLDivElement | null>(null);
+  const sealBigRef = useRef<HTMLDivElement | null>(null);
+  const niceRef = useRef<HTMLButtonElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const armTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const timers = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+
+  const later = (fn: () => void, ms: number) => {
+    const id = setTimeout(() => {
+      timers.current.delete(id);
+      fn();
+    }, ms);
+    timers.current.add(id);
+  };
+  useEffect(() => {
+    const set = timers.current;
+    const arm = armTimer.current;
+    return () => {
+      set.forEach((id) => clearTimeout(id));
+      if (arm) clearTimeout(arm);
+    };
+  }, []);
+
+  // ---- derived data ----
+  const todayKey = localDateKey(now.toISOString());
+  const yesterdayKey = keyOf(addDays(now, -1));
+  const todayIdx = (now.getDay() + 6) % 7;
+
+  const logsByHabit = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    for (const log of habitLogs) {
+      const set = map.get(log.habit_id) ?? new Set<string>();
+      set.add(localDateKey(log.completed_at));
+      map.set(log.habit_id, set);
+    }
+    return map;
+  }, [habitLogs]);
+
+  const rows = useMemo<RowVM[]>(
+    () =>
+      habits.map((h, i) => {
+        const days = logsByHabit.get(h.id) ?? new Set<string>();
+        return {
+          id: h.id,
+          name: h.name,
+          color: h.color ?? HABIT_COLORS[i % HABIT_COLORS.length],
+          days,
+          streak: streakOf(days, todayKey, yesterdayKey),
+          doneToday: days.has(todayKey),
+        };
+      }),
+    [habits, logsByHabit, todayKey, yesterdayKey]
   );
 
-  const logsByHabit = useMemo(() => logsByHabitAndDay(habitLogs), [habitLogs]);
-  const completedToday = habits.filter((h) => logsByHabit.get(h.id)?.has(todayKey));
-  const bestStreak = habits.reduce(
-    (best, h) => {
-      const streak = habitStreak(logsByHabit.get(h.id) ?? new Set(), todayKey);
-      return streak > best.streak ? { name: h.name, streak } : best;
-    },
-    { name: "—", streak: 0 }
-  );
+  const week = useMemo(() => {
+    const monday = addDays(now, -todayIdx);
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = addDays(monday, i);
+      const key = keyOf(d);
+      return {
+        key,
+        letter: DAY_LETTERS[i],
+        dateNum: d.getDate(),
+        done: habits.filter((h) => logsByHabit.get(h.id)?.has(key)).length,
+        isToday: key === todayKey,
+        isFuture: key > todayKey,
+      };
+    });
+  }, [habits, logsByHabit, now, todayIdx, todayKey]);
 
-  const createHabit = async () => {
-    const name = newHabit.trim();
+  const total = habits.length;
+  const done = rows.filter((r) => r.doneToday).length;
+  const frac = total ? done / total : 0;
+  const bestStreak = rows.reduce((m, r) => Math.max(m, r.streak), 0);
+  const message = !total
+    ? "Add your first habit below."
+    : done === total
+      ? "All done today. Beautiful."
+      : done > 0
+        ? `${total - done} to go. Keep the flow.`
+        : "A fresh day. One tap to start.";
+  const earnedCount = SEAL_TIERS.filter((t) => bestStreak >= t.days).length;
+  const nextTier = SEAL_TIERS.find((t) => bestStreak < t.days) ?? null;
+
+  // tick dial sweeps in after the pane settles (reference double-rAF)
+  useEffect(() => {
+    const r = requestAnimationFrame(() =>
+      requestAnimationFrame(() => setDialOn(true))
+    );
+    return () => cancelAnimationFrame(r);
+  }, []);
+  const ticksOn = dialOn ? Math.round(frac * 30) : 0;
+
+  // ---- seal modal lifecycle ----
+  useEffect(() => {
+    if (!seal) return;
+    const r = requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        setSealOn(true);
+        // hand keyboard users an immediate Escape-able focus point
+        niceRef.current?.focus({ preventScroll: true });
+      })
+    );
+    return () => cancelAnimationFrame(r);
+  }, [seal]);
+
+  useEffect(() => {
+    if (!seal?.fresh) return;
+    const id = setTimeout(
+      () => hburstAt(sealBigRef.current, seal.tier.b, !!reducedMotion),
+      450
+    );
+    return () => clearTimeout(id);
+  }, [seal, reducedMotion]);
+
+  const closeSeal = () => {
+    setSealOn(false);
+    later(() => setSeal(null), 350);
+  };
+
+  useEffect(() => {
+    if (!seal) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeSeal();
+    };
+    addEventListener("keydown", onKey);
+    return () => removeEventListener("keydown", onKey);
+  }, [seal]);
+
+  // ---- handlers ----
+
+  const onCheck = (row: RowVM) => {
+    if (row.doneToday) return; // one-way: no deleteHabitLog in the store
+    haptic([10, 30, 10]);
+    setPoppedId(row.id);
+    later(() => setPoppedId((p) => (p === row.id ? null : p)), 600);
+    hburstAt(checkRefs.current[row.id] ?? null, row.color, !!reducedMotion);
+    // The optimistic store write is synchronous, so the new best is
+    // derivable now: only this habit's streak can have grown.
+    const wasBest = bestStreak;
+    const newBest = Math.max(wasBest, row.streak > 0 ? row.streak + 1 : 1);
+    void addHabitLog({ habit_id: row.id });
+    if (total > 0 && done + 1 === total) {
+      later(
+        () => hburstAt(dialRef.current, TAB_ACCENTS.habits, !!reducedMotion),
+        250
+      );
+    }
+    const crossed = SEAL_TIERS.filter(
+      (t) => wasBest < t.days && t.days <= newBest
+    );
+    const tier = crossed[crossed.length - 1];
+    if (tier) {
+      later(() => {
+        setSeal({ tier, fresh: true });
+        haptic([20, 50, 20, 50, 40]);
+      }, 700);
+    }
+  };
+
+  const onBackfill = (habitId: string, key: string, already: boolean) => {
+    if (already) return; // filled days are inert (add-only writes)
+    haptic(8);
+    void addHabitLog({ habit_id: habitId, completed_at: noonIso(key) });
+  };
+
+  const toggleOpen = (id: string) => {
+    haptic(4);
+    setOpenId((cur) => (cur === id ? null : id));
+    setArmedId(null);
+  };
+
+  const onDelete = (id: string) => {
+    if (armedId !== id) {
+      haptic(6);
+      setArmedId(id);
+      if (armTimer.current) clearTimeout(armTimer.current);
+      armTimer.current = setTimeout(() => setArmedId(null), 3200);
+      return;
+    }
+    haptic(12);
+    setArmedId(null);
+    setOpenId(null);
+    void deleteHabit(id);
+  };
+
+  const toggleAdd = () => {
+    haptic(4);
+    const next = !addOpen;
+    setAddOpen(next);
+    if (next) later(() => inputRef.current?.focus(), 380);
+  };
+
+  const addOne = (raw?: string) => {
+    const name = (raw ?? input).trim();
     if (!name) return;
-    setNewHabit("");
-    await addHabit({ name });
-    toast({ title: "Habit created", description: name });
+    haptic(10);
+    setInput("");
+    setAddOpen(false);
+    // first unused hue from the cycle — mirrors the reference PAL
+    const used = new Set(habits.map((h) => h.color));
+    const color =
+      HABIT_COLORS.find((c) => !used.has(c)) ??
+      HABIT_COLORS[habits.length % HABIT_COLORS.length];
+    void addHabit({ name, color });
   };
 
-  const completeHabit = async (habitId: string, name: string) => {
-    // PRD §4.3: sensory reward — haptic and visual tick on the
-    // same frame as the optimistic write.
-    triggerHaptic();
-    await addHabitLog({ habit_id: habitId });
-    toast({ title: "Done", description: `${name} — logged for today` });
-  };
+  const dateLabel = now.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+  });
+
+  // ---- render ----
 
   return (
-    <div className="df-scroll h-full overflow-y-auto px-4 sm:px-6 py-5 lg:mx-auto lg:w-full lg:max-w-[1060px]">
-      {/* header */}
-      <div className="flex items-end justify-between flex-wrap gap-2">
-        <div>
-          <h1 className="flex items-center gap-2 text-[21px] font-bold tracking-tight" style={{ color: "var(--df-text-primary)" }}>
-            <DoodleSprout className="h-6 w-6 -rotate-6" />
-            Habits &amp; goals
-          </h1>
-          <p className="text-[12.5px] mt-0.5" style={{ color: "var(--df-text-secondary)" }}>
-            Identity-based streaks — every tap lands in your Dayflow account.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="df-summary-card px-3.5 py-2 flex items-center gap-2" aria-label="Habits completed today">
-            <Trophy className="h-4 w-4" style={{ color: "var(--df-accent)" }} />
-            <span className="text-[13px] font-bold tabular-nums" style={{ color: "var(--df-text-primary)" }}>
-              {completedToday.length}/{habits.length || 0}
-            </span>
-            <span className="text-[11px]" style={{ color: "var(--df-text-muted)" }}>
-              today
-            </span>
-          </div>
-          <div className="df-summary-card px-3.5 py-2 flex items-center gap-2" aria-label="Best streak">
-            <Flame className="h-4 w-4" style={{ color: "var(--df-streak)", fill: "var(--df-streak-fill)" }} />
-            <span className="text-[13px] font-bold tabular-nums" style={{ color: "var(--df-text-primary)" }}>
-              {bestStreak.streak}d
-            </span>
-            {bestStreak.streak >= 7 && (
-              <DoodleCrown className="h-3.5 w-4.5 -rotate-6" aria-hidden="true" />
-            )}
-            <span className="text-[11px] max-w-[90px] truncate" style={{ color: "var(--df-text-muted)" }}>
-              {bestStreak.name} streak
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* habits */}
-      <section
-        className="mt-5 rounded-[20px] p-4"
-        style={{
-          background: "var(--df-daily-grid-fill)",
-          border: "0.5px solid var(--df-daily-grid-border)",
-        }}
-        aria-label="Weekly habit grid"
-      >
-        <div className="flex items-center gap-2">
-          <Target className="h-4 w-4" style={{ color: "var(--df-accent)" }} />
-          <h2 className="text-[13px] font-bold" style={{ color: "var(--df-text-primary)" }}>
-            This week
-          </h2>
-          <span className="text-[11.5px]" style={{ color: "var(--df-text-muted)" }}>
-            a filled dot means the habit was completed that day
-          </span>
+    <div
+      className="dfx-scroll df-scroll"
+      role="main"
+      aria-label="Habits"
+      style={{ ["--dfh-acc" as string]: TAB_ACCENTS.habits }}
+    >
+      <div className="dfx-page dfx-enter">
+        {/* header */}
+        <div style={{ ["--dfx-i" as string]: 0 }}>
+          <div className="dfx-sub">{dateLabel}</div>
+          <h1 className="dfx-h1">Habits</h1>
         </div>
 
-        <div className="mt-3 overflow-x-auto df-scroll">
-          {/* w-max: the grid keeps its true content width — rows never
-              shrink (that clipped day labels to 38px); phones scroll
-              the week horizontally instead. */}
-          <div className="w-max min-w-[480px] flex flex-col gap-2.5">
-            {/* day header */}
-            <div className="flex items-center gap-2 pl-[168px]">
-              {week.map((d) => (
-                <div key={d.dateKey} className="w-[44px] shrink-0 text-center">
-                  <div
-                    className="text-[10px] font-semibold uppercase tracking-wide"
-                    style={{ color: d.isToday ? "var(--df-accent-text)" : "var(--df-text-muted)" }}
-                  >
-                    {d.label}
-                  </div>
-                  <div
-                    className="text-[9.5px]"
-                    style={{
-                      color: d.isToday ? "var(--df-accent-text)" : "var(--df-text-muted)",
-                      fontWeight: d.isToday ? 700 : 400,
-                    }}
-                  >
-                    {d.isToday ? "today" : d.dateLabel}
-                  </div>
-                </div>
-              ))}
+        {/* hero — tick dial + message + flame pill + week donuts */}
+        <section
+          className="dfx-card dfh-hero"
+          aria-label="Today's habits"
+          style={{ ["--dfx-i" as string]: 1 }}
+        >
+          <div className="dfh-hr1">
+            <div
+              className="dfh-bigr"
+              ref={dialRef}
+              role="img"
+              aria-label={`Today: ${done} of ${total} habits done`}
+            >
+              <svg className="dfh-tk" viewBox="0 0 100 100" aria-hidden="true">
+                {Array.from({ length: 30 }, (_, i) => (
+                  <line
+                    key={i}
+                    x1="50"
+                    y1="5"
+                    x2="50"
+                    y2="15"
+                    transform={`rotate(${i * 12} 50 50)`}
+                    className={i < ticksOn ? "on" : ""}
+                    style={{ transitionDelay: `${i * 16}ms` }}
+                  />
+                ))}
+              </svg>
+              <b>
+                {done}/{total}
+                <small>today</small>
+              </b>
             </div>
+            <div className="dfh-hs">
+              <h2>{message}</h2>
+              <span
+                className="dfh-fl"
+                style={{ color: TAB_ACCENTS.nutrition }}
+              >
+                <svg viewBox="0 0 24 24" className="dfh-flame" aria-hidden="true">
+                  <path d={FLAME_PATH} />
+                </svg>
+                {bestStreak}d best streak
+              </span>
+            </div>
+          </div>
+          <div className="dfh-wkd">
+            {week.map((d) => (
+              <div
+                key={d.key}
+                className={`dfh-wd${d.isToday ? " t" : ""}${d.isFuture ? " fu" : ""}`}
+                role="img"
+                aria-label={`${d.letter} ${d.dateNum}: ${d.done} of ${total}${
+                  d.isToday ? ", today" : ""
+                }`}
+              >
+                <i
+                  style={{
+                    ["--dfh-f" as string]:
+                      total && !d.isFuture ? d.done / total : 0,
+                  }}
+                  aria-hidden="true"
+                />
+                {d.letter}
+              </div>
+            ))}
+          </div>
+        </section>
 
-            {habits.map((h) => {
-              const days = logsByHabit.get(h.id) ?? new Set<string>();
-              const streak = habitStreak(days, todayKey);
-              const doneToday = days.has(todayKey);
-              const color = h.color ?? CATEGORY_COLORS.fitness;
-              return (
-                <div key={h.id} className="flex items-center gap-2">
-                  <div className="w-[168px] shrink-0 flex items-center gap-2 pr-2">
-                    <span
-                      className="grid size-[18px] shrink-0 place-items-center rounded-full"
-                      style={{
-                        background: `color-mix(in srgb, ${color} 30%, var(--df-card-fill))`,
-                        boxShadow: `0 0 0 2px color-mix(in srgb, ${color} 32%, transparent)`,
-                      }}
-                      aria-hidden="true"
-                    >
-                      <span className="size-[7px] rounded-full" style={{ background: color }} />
-                    </span>
-                    <span
-                      className="text-[12px] font-semibold truncate"
-                      style={{ color: "var(--df-text-primary)" }}
-                      title={h.name}
-                    >
-                      {h.name}
-                    </span>
-                  </div>
-                  {week.map((d) => {
-                    const met = days.has(d.dateKey);
-                    return (
-                      <div key={d.dateKey} className="w-[44px] shrink-0 grid place-items-center">
-                        <motion.button
-                          type="button"
-                          initial={{ scale: 0.5, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1 }}
-                          transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-                          onClick={() => {
-                            if (d.isToday && !met) void completeHabit(h.id, h.name);
-                          }}
-                          aria-label={`${h.name} on ${d.label}${met ? " — completed" : ""}`}
-                          className="h-[26px] w-[26px] rounded-full grid place-items-center df-press"
-                          style={{
-                            background: met
-                              ? color
-                              : `color-mix(in srgb, ${color} ${d.isToday && !met ? "18%" : "0%"}, var(--df-daily-empty))`,
-                            border: met
-                              ? `0.5px solid color-mix(in srgb, ${color} 60%, transparent)`
-                              : "0.5px solid color-mix(in srgb, var(--df-text-muted) 25%, transparent)",
-                            opacity: d.isFuture ? 0.3 : 1,
-                            cursor: d.isToday && !met ? "pointer" : "default",
-                          }}
+        {/* habit rows */}
+        <div className="dfh-hlist" style={{ ["--dfx-i" as string]: 2 }}>
+          {rows.map((row) => {
+            const sealTier = tierOf(row.streak);
+            return (
+              <div
+                key={row.id}
+                className={`dfx-card dfh-hr${openId === row.id ? " ex" : ""}`}
+                style={{ ["--dfh-c" as string]: row.color }}
+              >
+                <div className="dfh-hrm">
+                  <button
+                    ref={(el) => {
+                      checkRefs.current[row.id] = el;
+                    }}
+                    className={`dfh-ck${row.doneToday ? " on" : ""}${
+                      poppedId === row.id ? " pop" : ""
+                    }`}
+                    onClick={() => onCheck(row)}
+                    aria-pressed={row.doneToday}
+                    aria-label={`Complete ${row.name} today`}
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d={CHECK_PATH} />
+                    </svg>
+                  </button>
+                  <button
+                    className="dfh-hm"
+                    onClick={() => onCheck(row)}
+                    tabIndex={-1}
+                    aria-hidden="true"
+                  >
+                    <b>{row.name}</b>
+                    <span className={row.streak > 0 ? "hot" : ""}>
+                      {sealTier ? (
+                        <SealBadge tier={sealTier} on idp="r" />
+                      ) : (
+                        <svg
+                          viewBox="0 0 24 24"
+                          className="dfh-flame"
+                          aria-hidden="true"
                         >
-                          {met && (
-                            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" aria-hidden="true">
-                              <path
-                                d="M5 12.5l4.5 4.5L19 7.5"
-                                fill="none"
-                                style={{ stroke: "var(--df-white)" }}
-                                strokeWidth="3"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              />
-                            </svg>
-                          )}
-                        </motion.button>
-                      </div>
-                    );
-                  })}
-                  <div className="ml-2 flex items-center gap-1 shrink-0">
-                    <Flame
-                      className="h-3 w-3"
-                      style={{ color: streak > 0 ? "var(--df-streak)" : "var(--df-text-muted)" }}
-                    />
-                    <span
-                      className="text-[11px] font-bold tabular-nums"
-                      style={{ color: streak > 0 ? "var(--df-text-primary)" : "var(--df-text-muted)" }}
-                    >
-                      {streak}d
+                          <path d={FLAME_PATH} />
+                        </svg>
+                      )}
+                      {row.streak
+                        ? `${row.streak} day streak`
+                        : "Start your streak"}
                     </span>
+                  </button>
+                  <button
+                    className="dfh-mo"
+                    onClick={() => toggleOpen(row.id)}
+                    aria-label="More options"
+                    aria-expanded={openId === row.id}
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d={MORE_PATH} strokeWidth={3.4} />
+                    </svg>
+                  </button>
+                </div>
+                <div className="dfh-xp">
+                  <div inert={openId !== row.id}>
+                    {todayIdx > 0 && (
+                      <>
+                        <p className="dfh-wn">Missed a day? Tap it to fill in.</p>
+                        <div className="dfh-wk">
+                          {week.slice(0, todayIdx).map((d) => {
+                            const met = row.days.has(d.key);
+                            return (
+                              <button
+                                key={d.key}
+                                className={met ? "on" : ""}
+                                disabled={met}
+                                onClick={() =>
+                                  onBackfill(row.id, d.key, met)
+                                }
+                                aria-pressed={met}
+                                aria-label={`${row.name}, ${d.letter} ${d.dateNum}${
+                                  met ? ", completed" : ""
+                                }`}
+                              >
+                                {d.letter}
+                                <i>{d.dateNum}</i>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </>
+                    )}
                     <button
-                      type="button"
-                      onClick={() => {
-                        hapticWarn();
-                        void deleteHabit(h.id);
-                        toast({ title: "Habit deleted", description: h.name });
-                      }}
-                      aria-label={`Delete ${h.name}`}
-                      className="df-press ml-1 grid size-7 place-items-center rounded-full"
-                      style={{ color: "var(--df-text-muted)" }}
+                      className={`dfh-del${armedId === row.id ? " arm" : ""}`}
+                      onClick={() => onDelete(row.id)}
                     >
-                      <Trash2 className="h-3 w-3" />
+                      {armedId === row.id
+                        ? "Tap again to delete"
+                        : "Delete habit"}
                     </button>
                   </div>
                 </div>
-              );
-            })}
-          </div>
+              </div>
+            );
+          })}
         </div>
 
-        {/* new habit row — FULL WIDTH, outside the scrollable grid so
-            the input + button are always reachable on a phone (inside
-            the 480px grid they sat past the horizontal scroll edge). */}
-        <form
-          className="mt-3 flex items-center gap-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void createHabit();
-          }}
-        >
-          <input
-            value={newHabit}
-            onChange={(e) => setNewHabit(e.target.value)}
-            placeholder="New habit…"
-            aria-label="New habit name"
-            className="flex-1 min-w-0 min-h-11 rounded-full px-4 bg-transparent outline-none text-base placeholder:text-[var(--df-text-muted)]"
-            style={{
-              color: "var(--df-text-primary)",
-              background: "var(--df-input-fill)",
-              border: "0.5px solid var(--df-input-border)",
-            }}
-          />
-          <button
-            type="submit"
-            disabled={!newHabit.trim()}
-            className="df-press df-btn-primary min-h-11 shrink-0 px-4 rounded-full text-[12px] font-semibold flex items-center gap-1.5 disabled:opacity-40"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Add habit
-          </button>
-        </form>
-
-        {habits.length === 0 && (
-          <div className="df-card mt-3 p-5 text-center">
-            <DoodleSprout className="mx-auto h-14 w-14 rotate-3" />
-            <p className="mt-2 text-[13px] font-semibold" style={{ color: "var(--df-text-primary)" }}>
-              Grow your first habit
-            </p>
-            <p className="mt-1 text-[11.5px]" style={{ color: "var(--df-text-secondary)" }}>
-              Add one above — <Marker>Morning walk</Marker>, “Read 10 pages”, anything you want to keep alive.
-            </p>
-          </div>
-        )}
-      </section>
-
-      {/* today's goal cards (server-backed) */}
-      <section className="mt-4 grid sm:grid-cols-3 gap-3" aria-label="Today's goal details">
-        {goals.map((g) => {
-          const pct = Math.min(100, Math.round((g.done / Math.max(g.target, 1)) * 100));
-          const met = g.done >= g.target - 0.25;
-          const valueLabel =
-            g.key === "water"
-              ? `${g.done.toFixed(g.done % 1 ? 1 : 0)} / ${g.target}`
-              : `${fmtDuration(g.done)} / ${fmtDuration(g.target)}`;
-          return (
-            <motion.div
-              key={g.key}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.25 }}
-              className="rounded-[20px] p-4"
-              style={{
-                background: `color-mix(in srgb, ${g.colorHex} 10%, var(--df-daily-grid-fill))`,
-                border: `0.5px solid ${
-                  met ? `color-mix(in srgb, ${g.colorHex} 55%, transparent)` : "var(--df-daily-grid-border)"
-                }`,
-              }}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="flex items-center gap-2 min-w-0">
-                  <span
-                    className="grid size-[18px] shrink-0 place-items-center rounded-full"
-                    style={{
-                      background: `color-mix(in srgb, ${g.colorHex} 30%, var(--df-card-fill))`,
-                      boxShadow: `0 0 0 2px color-mix(in srgb, ${g.colorHex} 32%, transparent)`,
-                    }}
-                    aria-hidden="true"
-                  >
-                    <span className="size-[7px] rounded-full" style={{ background: g.colorHex }} />
-                  </span>
-                  <span className="text-[12.5px] font-bold truncate" style={{ color: "var(--df-text-primary)" }}>
-                    {g.label}
-                  </span>
-                </span>
-                {met ? (
-                  <span
-                    className="text-[9.5px] font-bold px-1.5 py-[2px] rounded-full shrink-0"
-                    style={{
-                      color: "var(--df-summary-value)",
-                      background: `color-mix(in srgb, ${g.colorHex} 18%, transparent)`,
-                      border: `0.5px solid color-mix(in srgb, ${g.colorHex} 45%, transparent)`,
-                    }}
-                  >
-                    MET
-                  </span>
-                ) : (
-                  <span
-                    className="text-[9.5px] font-bold px-1.5 py-[2px] rounded-full shrink-0"
-                    style={{ color: "var(--df-text-muted)", border: "0.5px solid var(--df-chip-border)" }}
-                  >
-                    {pct}%
-                  </span>
-                )}
-              </div>
-              <div className="mt-2.5">
-                <div
-                  className="h-[6px] rounded-full overflow-hidden"
-                  style={{ background: "var(--df-segment-track)" }}
-                  role="progressbar"
-                  aria-valuenow={pct}
-                  aria-label={`${g.label} progress today`}
-                >
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${pct}%` }}
-                    transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-                    className="h-full rounded-full"
-                    style={{ background: g.colorHex }}
-                  />
-                </div>
-              </div>
-              <div className="mt-2 flex items-center justify-between">
-                <span className="text-[11px] font-semibold tabular-nums" style={{ color: "var(--df-text-secondary)" }}>
-                  {valueLabel}
-                </span>
-              </div>
-            </motion.div>
-          );
-        })}
-      </section>
-
-      {/* T1b — AI workout generator + primary Log CTA (Liquid Glass T1 #2) */}
-      <WorkoutCard profileRow={profileRow} recentWorkouts={workoutLogs.slice(-6).reverse()} />
-
-      <p className="mt-4 text-[11px] leading-relaxed" style={{ color: "var(--df-text-muted)" }}>
-        Streaks count consecutive days, with today forgiven until midnight — a missed day
-        resets gently, never punitively (Adaptive Reset, PRD §4.3).
-      </p>
-    </div>
-  );
-}
-
-// ---------- T1b: the AI workout generator card ----------
-
-function WorkoutCard({
-  profileRow,
-  recentWorkouts,
-}: {
-  profileRow: ReturnType<typeof useDayflowStore.getState>["profile"];
-  recentWorkouts: { type: string; duration_minutes: number | null; logged_at: string }[];
-}) {
-  const addWorkoutLog = useDayflowStore((s) => s.addWorkoutLog);
-  const { toast } = useToast();
-  const [plan, setPlan] = useState<WorkoutPlan | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [logging, setLogging] = useState(false);
-
-  const metabolism =
-    profileRow?.metabolism &&
-    typeof profileRow.metabolism === "object" &&
-    !Array.isArray(profileRow.metabolism)
-      ? (profileRow.metabolism as { preferredWorkoutWindow?: string; workoutFrequencyTargetDays?: number })
-      : {};
-
-  const generate = async () => {
-    setBusy(true);
-    setError(null);
-    setPlan(null);
-    try {
-      // Auth per Amendment #12: live session JWT rides the Bearer. A
-      // missing token first triggers ONE silent refresh before giving
-      // up (Qwen #2 / v0 #17) — expired-at-rest sessions recover.
-      const { createClient } = await import("@/utils/supabase/client");
-      const supabase = createClient();
-      const { data } = await supabase.auth.getSession();
-      let token = data.session?.access_token ?? null;
-      if (!token) {
-        const { data: refreshed } = await supabase.auth.refreshSession();
-        token = refreshed.session?.access_token ?? null;
-      }
-      if (!token) {
-        setError("Sign in again — your session expired.");
-        return;
-      }
-      const context = [
-        `Preferred window: ${metabolism.preferredWorkoutWindow ?? "any"}.`,
-        recentWorkouts.length > 0
-          ? `Recent sessions: ${recentWorkouts.map((w) => `${w.type} (${w.duration_minutes ?? 45}m)`).join("; ")}.`
-          : "No recent sessions — start moderate.",
-        "Return ONLY a JSON object: {\"title\": string, \"focus\"?: string, \"durationMinutes\"?: number, \"blocks\": [{\"name\": string, \"sets\"?: string, \"durationMinutes\"?: number, \"intensity\"?: string, \"cue\"?: string}]}",
-      ].join(" ");
-      const res = await fetch("/api/ai/coach", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          mode: "workout",
-          messages: [
-            {
-              role: "system",
-              content:
-                "You are Dayflow's strength & conditioning coach. Generate a focused, safe session plan as strict JSON — no prose, no markdown fences.",
-            },
-            {
-              role: "user",
-              content: `Generate today's workout plan. ${context}`,
-            },
-          ],
-        }),
-        // v0 audit #5: never leave the UI spinning on a stalled
-        // upstream — the route also enforces a server-side timeout.
-        signal: AbortSignal.timeout(60_000),
-      });
-      if (!res.ok) {
-        const errPayload = (await res.json().catch(() => null)) as {
-          error?: string;
-          code?: string;
-        } | null;
-        setError(
-          errPayload?.error ?? `Coach unavailable (HTTP ${res.status}). Try again in a moment.`
-        );
-        return;
-      }
-      const payload = (await res.json()) as {
-        text?: string;
-        error?: string;
-        source?: "ai" | "fallback";
-      };
-      if (payload.error || !payload.text) {
-        setError(payload.error ?? "Coach returned an empty plan.");
-        return;
-      }
-      // Zod-validate BEFORE render (PRD §4.5). F-5 (Phase 8 / S1):
-      // the JSON.parse is guarded FIRST — when the algorithmic floor
-      // answers plain text (Groq key unset / cascade exhausted), the
-      // dedicated "plan didn't validate" branch stays reachable
-      // instead of falling into the generic network-catch.
-      // FIX: Strip any think blocks from legacy/coach responses before parsing (follow-up #4)
-      const rawCleaned = stripReasoning(payload.text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, ""));
-      let json: unknown;
-      try {
-        json = JSON.parse(rawCleaned);
-      } catch {
-        setError("The plan didn't validate — ask again for a cleaner one.");
-        return;
-      }
-      const parsed = WorkoutPlanSchema.safeParse(json);
-      if (!parsed.success) {
-        // Qwen #6: say WHAT failed, so a retry has a chance.
-        const issues = parsed.error.issues
-          .slice(0, 2)
-          .map((i) => `${i.path.join(".") || "plan"}: ${i.message}`)
-          .join("; ");
-        setError(
-          `The plan didn't validate (${issues}). Ask again for a cleaner one.`
-        );
-        return;
-      }
-      setPlan(parsed.data);
-      toast({ title: "Workout ready", description: parsed.data.title });
-    } catch {
-      setError("The coach couldn't be reached. Try again in a moment.");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const logWorkout = async () => {
-    if (!plan) return;
-    setLogging(true);
-    try {
-      await addWorkoutLog({
-        type: plan.title,
-        duration_minutes: plan.durationMinutes ?? plan.blocks.reduce((s, b) => s + (b.durationMinutes ?? 10), 0),
-      });
-      triggerHaptic();
-      toast({ title: "Workout logged", description: plan.title });
-    } finally {
-      setLogging(false);
-    }
-  };
-
-  return (
-    <section
-      className="mt-4 rounded-[20px] p-4"
-      style={{
-        background: "var(--df-daily-grid-fill)",
-        border: "0.5px solid var(--df-daily-grid-border)",
-      }}
-      aria-label="AI workout generator"
-    >
-      <div className="flex items-center gap-2">
-        <Dumbbell className="h-4 w-4" style={{ color: "var(--df-accent)" }} />
-        <h2 className="text-[13px] font-bold" style={{ color: "var(--df-text-primary)" }}>
-          Body — AI workout
-        </h2>
-        <span className="text-[11.5px]" style={{ color: "var(--df-text-muted)" }}>
-          generated by your coach, validated before render
-        </span>
-      </div>
-
-      <div className="mt-3 flex flex-wrap items-center gap-2">
+        {/* new habit pill + expander */}
         <button
-          type="button"
-          onClick={generate}
-          disabled={busy}
-          className="df-press df-btn-secondary min-h-11 px-4 rounded-full text-[12.5px] font-semibold flex items-center gap-1.5 disabled:opacity-50"
+          className="dfh-addb"
+          onClick={toggleAdd}
+          aria-expanded={addOpen}
+          aria-controls="dfh-add-panel"
+          style={{ ["--dfx-i" as string]: 3 }}
         >
-          {busy ? <LogoLoop size="sm" /> : <Sparkles className="h-3.5 w-3.5" />}
-          {busy ? "thinking…" : plan ? "Regenerate workout" : "Generate Workout"}
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d={PLUS_PATH} />
+          </svg>
+          New habit
         </button>
+        <div
+          id="dfh-add-panel"
+          className={`dfh-ap${addOpen ? " on" : ""}`}
+          style={{ ["--dfx-i" as string]: 4 }}
+        >
+          <div inert={!addOpen}>
+            <div className="dfh-ai">
+              <input
+                ref={inputRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") addOne();
+                }}
+                maxLength={24}
+                placeholder="Name your habit"
+                aria-label="Habit name"
+              />
+              <button onClick={() => addOne()} disabled={!input.trim()}>
+                Add
+              </button>
+            </div>
+            <div className="dfh-sgs">
+              {SUGGESTIONS.filter(
+                (s) => !habits.some((h) => h.name === s)
+              ).map((s) => (
+                <button key={s} onClick={() => addOne(s)}>
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
 
-        {/* Primary Log CTA — Liquid Glass T1 surface #4 (PRD §6.2).
-            Clear-glass lens with the fitness tint (callstack parity:
-            effect + tintColor + interactive grow/shimmer). */}
-        {plan && (
-          <LiquidGlassView
-            variant="cta"
-            effect="clear"
-            interactive
-            tintColor={CATEGORY_COLORS.fitness}
-            className="inline-flex"
-          >
-            <button
-              type="button"
-              onClick={logWorkout}
-              disabled={logging}
-              className="df-press min-h-11 px-5 rounded-(--radius-pill) text-[12.5px] font-semibold flex items-center gap-1.5 disabled:opacity-50"
-              style={{ color: "var(--df-text-primary)" }}
-            >
-              <Dumbbell className="h-3.5 w-3.5" style={{ color: CATEGORY_COLORS.fitness }} />
-              {logging ? "Logging…" : "Log Workout"}
-            </button>
-          </LiquidGlassView>
-        )}
+        {/* the seal vault */}
+        <div className="dfx-lbl" style={{ ["--dfx-i" as string]: 5 }}>
+          <span>Seals</span>
+          <em>
+            {earnedCount}/{SEAL_TIERS.length}
+          </em>
+        </div>
+        <div className="dfh-sls" style={{ ["--dfx-i" as string]: 6 }}>
+          {SEAL_TIERS.map((t, i) => {
+            const on = bestStreak >= t.days;
+            const isNext = nextTier?.key === t.key;
+            return (
+              <button
+                key={t.key}
+                className={`dfx-card dfh-sb${isNext ? " nx" : ""}`}
+                style={{
+                  ["--dfh-a" as string]: t.a,
+                  ["--dfh-i" as string]: i,
+                }}
+                onClick={() => {
+                  // reference buzzes only for earned seals
+                  if (on) haptic(10);
+                  setSeal({ tier: t, fresh: false });
+                }}
+                aria-label={`${t.name} seal — ${
+                  on ? `earned, ${t.days} days` : `${t.days - bestStreak} to go`
+                }`}
+              >
+                <span className={`dfh-sw${on ? " on" : ""}`}>
+                  <SealBadge tier={t} on={on} idp="g" />
+                </span>
+                <strong>{t.name}</strong>
+                <small>{on ? `${t.days} days` : `${t.days - bestStreak} to go`}</small>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      {error && (
-        <p className="mt-3 text-[12px] rounded-[14px] px-3 py-2" role="alert" style={{ color: "var(--df-destructive-text)", background: "color-mix(in srgb, var(--df-destructive) 12%, transparent)" }}>
-          {error}
-        </p>
-      )}
-
-      {plan && (
-        <div className="mt-3 rounded-[16px] p-3.5" style={{ background: "var(--df-chip-fill)", border: "0.5px solid var(--df-chip-border)" }}>
-          <p className="text-[13px] font-bold" style={{ color: "var(--df-text-primary)" }}>
-            {plan.title}
-            {plan.durationMinutes ? <span className="font-medium" style={{ color: "var(--df-text-muted)" }}> · {fmtDuration(plan.durationMinutes)}</span> : null}
-          </p>
-          {plan.focus && (
-            <p className="mt-0.5 text-[11.5px]" style={{ color: "var(--df-text-secondary)" }}>
-              {plan.focus}
+      {/* the seal modal */}
+      {seal && (
+        <div
+          className={`dfh-sm${sealOn ? " on" : ""}`}
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${seal.tier.name} seal`}
+          onClick={closeSeal}
+        >
+          <div className="dfh-sc2" onClick={(e) => e.stopPropagation()}>
+            <div className="dfh-k">
+              {seal.fresh
+                ? "New seal earned!"
+                : bestStreak >= seal.tier.days
+                  ? "Seal earned"
+                  : "Locked seal"}
+            </div>
+            <div className="dfh-sbig" ref={sealBigRef}>
+              <div
+                className={`dfh-sw${
+                  seal.fresh || bestStreak >= seal.tier.days ? " on" : ""
+                }`}
+              >
+                <SealBadge
+                  tier={seal.tier}
+                  on={seal.fresh || bestStreak >= seal.tier.days}
+                  idp="m"
+                />
+              </div>
+            </div>
+            <h3>{seal.tier.name}</h3>
+            <p>
+              {bestStreak >= seal.tier.days || seal.fresh
+                ? `Kept a habit alive for ${seal.tier.days} days.`
+                : `Keep one habit going ${seal.tier.days} days in a row. ${
+                    seal.tier.days - bestStreak
+                  } to go.`}
             </p>
-          )}
-          <ul className="mt-2.5 flex flex-col gap-1.5">
-            {plan.blocks.map((b, i) => (
-              <li key={i} className="flex items-start gap-2 text-[12px]" style={{ color: "var(--df-text-secondary)" }}>
-                <span className="mt-[6px] w-[4.5px] h-[4.5px] rounded-full shrink-0" style={{ background: "var(--df-accent)" }} />
-                <span className="min-w-0">
-                  <span className="font-semibold" style={{ color: "var(--df-text-primary)" }}>{b.name}</span>
-                  {b.sets ? ` · ${b.sets}` : ""}
-                  {b.durationMinutes ? ` · ${b.durationMinutes}m` : ""}
-                  {b.intensity ? ` · ${b.intensity}` : ""}
-                  {b.cue && <span className="block text-[11px] mt-0.5" style={{ color: "var(--df-text-muted)" }}>{b.cue}</span>}
-                </span>
-              </li>
-            ))}
-          </ul>
+            <button ref={niceRef} className="dfh-nice" onClick={closeSeal}>
+              Nice
+            </button>
+          </div>
         </div>
       )}
-    </section>
+    </div>
   );
 }

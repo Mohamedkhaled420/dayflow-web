@@ -883,10 +883,10 @@ function DataSection({
           ))}
         </ul>
         <button
-          onClick={() => onNavigate("timeline")}
+          onClick={() => onNavigate("today")}
           className="mt-3 df-press df-btn-primary h-9 px-4 text-[12.5px] font-semibold"
         >
-          Back to timeline
+          Back to Today
         </button>
       </SectionCard>
     </>
