@@ -198,16 +198,6 @@ h4 {
   min-height: 0;
 }
 
-/* Full-screen mobile sheets must escape the app panel's content clip.
-   The panel owns the view scroll region, while the modal scrim owns the
-   viewport; keeping the panel visible during an open sheet prevents iOS
-   from slicing the sheet at the panel's flex-track boundary. */
-@media (max-width: 1023px) {
-  .df-app:has(.dff-sheet) .df-panel {
-    overflow: visible;
-  }
-}
-
 /* Landing-page-only hero CTA — the one place a gradient is
    allowed. Every in-app CTA stays SOLID (df-btn-primary /
    df-btn-secondary). */
@@ -1310,7 +1300,6 @@ select {
 /* phone: anchored bottom, full-bleed, show the grab handle */
 .dff-sheet.dff-phone {
   max-width: none;
-  max-height: min(720px, calc(100dvh - 88px));
   border-radius: 34px 34px 0 0;
   border-left: 0;
   border-right: 0;
@@ -1320,7 +1309,7 @@ select {
   display: block;
 }
 .dff-sheet.dff-phone .dff-head {
-  padding-top: 20px;
+  padding-top: 26px;
 }
 .dff-sheet.dff-phone .dff-title {
   font-size: 28px;

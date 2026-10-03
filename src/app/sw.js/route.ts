@@ -1,22 +1,70 @@
-/* ============================================================
- * Dayflow AI — minimal app-shell service worker (Phase 4)
- * ------------------------------------------------------------
- * Hand-rolled on purpose: no next-pwa / Serwist, no build step.
- * Strategies (per Phase 4 brief):
- *   /api/*            → NETWORK-FIRST  (fresh Supabase/Groq data;
- *                                        cache is an offline fallback
- *                                        only, and never for POSTs)
- *   /_next/static/*   → CACHE-FIRST    (content-hashed, immutable)
- *   icons/manifest    → CACHE-FIRST    (versioned with the app)
- *   navigations (HTML)→ NETWORK-FIRST  (fresh shell when online,
- *                                        cached shell when offline)
- * Everything else (POSTs, cross-origin, Supabase realtime WSS)
- * passes straight through to the network untouched.
- * ============================================================ */
+// ============================================================
+// /sw.js — the app-shell service worker, served as a ROUTE so
+// its bytes are stamped with the CURRENT build id.
+//
+// WHY A ROUTE (the Phase-4 original lived in public/sw.js):
+// a service worker only updates when its script BYTES change.
+// The hand-rolled file carried a constant VERSION string
+// ("dayflow-shell-v1") across every deploy since Phase 4, so
+// browsers kept running + caching under the SAME cache names
+// forever — one failed navigation fetch (flaky cell moment,
+// mid-deploy hit, offline wake) and the runtime cache served a
+// STALE HTML shell whose /_next/static chunk graph no longer
+// existed. The page then booted with MISSING Tailwind utilities
+// (position:fixed computed to static) and every sheet rendered
+// in-flow mid-scroll: floating above the dock, sliced at panel
+// edges — the "messed up borders" that no in-repo fix could
+// cure, because the device never ran the new code.
+//
+// Embedding the build id makes every deploy a NEW worker:
+//   install  → skipWaiting
+//   activate → purge every cache from OTHER build ids, claim
+// The registrar reloads the page on controllerchange, so an
+// already-open PWA session snaps to the new build instead of
+// running stale until iOS kills it.
+// ============================================================
 
-const VERSION = "dayflow-shell-v1";
-const SHELL_CACHE = `dayflow-shell-${VERSION}`;
-const RUNTIME_CACHE = `dayflow-runtime-${VERSION}`;
+import { readFileSync } from "node:fs";
+
+export const dynamic = "force-dynamic";
+
+/**
+ * A stamp that is STABLE within one deployment but DIFFERENT across
+ * deployments — that is the whole contract: the worker's bytes must
+ * change every release or browsers keep running (and caching under)
+ * the previous build forever.
+ *
+ * Resolution order:
+ *   1. DF_BUILD_STAMP      — explicit override (self-hosted / CI)
+ *   2. VERCEL_GIT_COMMIT_SHA — Vercel runtime env on git-connected
+ *                              deployments (per-commit, stable)
+ *   3. VERCEL_DEPLOYMENT_ID  — unique per Vercel deployment
+ *   4. .next/BUILD_ID        — on disk next to a `next start` server
+ *   5. "unknown"             — last resort; correct JS, no auto-update
+ */
+let stampCache: string | null = null;
+function buildStamp(): string {
+  if (stampCache) return stampCache;
+  let stamp =
+    process.env.DF_BUILD_STAMP ||
+    process.env.VERCEL_GIT_COMMIT_SHA ||
+    process.env.VERCEL_DEPLOYMENT_ID ||
+    "";
+  if (!stamp) {
+    try {
+      stamp = readFileSync(".next/BUILD_ID", "utf8").trim();
+    } catch {
+      stamp = "";
+    }
+  }
+  stampCache = stamp || "unknown";
+  return stampCache;
+}
+
+const WORKER_SOURCE = (buildId: string) => `/* Dayflow app-shell service worker — build ${buildId} */
+const VERSION = "${buildId}";
+const SHELL_CACHE = "dayflow-shell-" + VERSION;
+const RUNTIME_CACHE = "dayflow-runtime-" + VERSION;
 
 /* Immutable, same-origin app-shell assets (content-hashed by Next). */
 const SHELL_ASSETS = [
@@ -50,7 +98,8 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
-      // Drop caches from previous service-worker versions.
+      // Drop EVERY cache that belongs to another build — stale HTML
+      // and its chunk graph can never outlive a deploy.
       const keys = await caches.keys();
       await Promise.all(
         keys
@@ -61,6 +110,11 @@ self.addEventListener("activate", (event) => {
       await self.clients.claim();
     })()
   );
+});
+
+/* Manual-apply escape hatch for future UIs that prefer a toast. */
+self.addEventListener("message", (event) => {
+  if (event.data === "SKIP_WAITING") self.skipWaiting();
 });
 
 self.addEventListener("fetch", (event) => {
@@ -77,7 +131,7 @@ self.addEventListener("fetch", (event) => {
 
   // ---- 1. Static app shell: cache-first ------------------------
   // /_next/static/* is content-hashed (immutable). Icons and the
-  // manifest are versioned with the deploy that ships this sw.js.
+  // manifest are versioned with the deploy that ships this worker.
   if (
     url.pathname.startsWith("/_next/static/") ||
     url.pathname === "/manifest.json" ||
@@ -150,4 +204,18 @@ async function trimCache(cacheName, maxEntries) {
   for (const key of keys.slice(0, keys.length - maxEntries)) {
     await cache.delete(key);
   }
+}
+`;
+
+export async function GET(): Promise<Response> {
+  return new Response(WORKER_SOURCE(buildStamp()), {
+    status: 200,
+    headers: {
+      "Content-Type": "application/javascript; charset=utf-8",
+      // Never let an intermediary or the HTTP disk cache pin an old
+      // worker script — update checks must always see fresh bytes.
+      "Cache-Control": "no-store",
+      "Service-Worker-Allowed": "/",
+    },
+  });
 }
