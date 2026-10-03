@@ -22,6 +22,7 @@ import {
   type ReactNode,
 } from "react";
 import { cn } from "@/lib/utils";
+import { SheetPortal } from "@/components/ui/SheetPortal";
 
 /**
  * visualViewport keyboard tracking (PRD §7 / Phase 5 T2b).
@@ -220,7 +221,11 @@ export function Sheet({
   // sheet's 16px bottom padding never reserved the ~88px dock band
   // the main panel does. Toasts stay on top at z-[100].
   return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center">
+    // Portal to <body> — iOS WebKit clips fixed overlays mounted
+    // inside scroll containers (SheetPortal.tsx). All Sheet users
+    // (MorningTriadGate, ...) inherit the guarantee.
+    <SheetPortal>
+      <div className="fixed inset-0 z-[60] flex items-end justify-center">
       {/* Scrim — token scrim, frosted, GPU-promoted */}
       <div
         onClick={onClose}
@@ -295,6 +300,7 @@ export function Sheet({
           {children}
         </div>
       </div>
-    </div>
+      </div>
+    </SheetPortal>
   );
 }

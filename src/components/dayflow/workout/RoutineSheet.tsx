@@ -42,6 +42,7 @@ import { useIsPhone } from "@/hooks/use-media-query";
 import { hapticSuccess, triggerHaptic } from "@/lib/haptics";
 import { springSoft } from "@/lib/motion";
 import { useDockHideRequest } from "@/hooks/use-dock-visibility";
+import { SheetPortal } from "@/components/ui/SheetPortal";
 import { useKeyboardTracking } from "@/components/ui/Sheet";
 import { CATEGORY_COLORS } from "@/styles/palette";
 import { ExerciseThumb } from "@/components/dayflow/workout/ExerciseThumb";
@@ -100,9 +101,13 @@ export function RoutineSheet({ open, onClose, onStart }: Props) {
   // exactly the reported mobile bug.
   useDockHideRequest("overlay:routine-sheet", open);
   return (
-    <AnimatePresence>
-      {open && <RoutineBuilder key="routine-builder" onClose={onClose} onStart={onStart} isPhone={isPhone} />}
-    </AnimatePresence>
+    /* Portal to <body> — iOS WebKit scroll-container containment fix
+       (SheetPortal.tsx). Mounted inside the Daily view's scroller. */
+    <SheetPortal>
+      <AnimatePresence>
+        {open && <RoutineBuilder key="routine-builder" onClose={onClose} onStart={onStart} isPhone={isPhone} />}
+      </AnimatePresence>
+    </SheetPortal>
   );
 }
 

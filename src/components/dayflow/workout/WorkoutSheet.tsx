@@ -54,6 +54,7 @@ import { useIsPhone } from "@/hooks/use-media-query";
 import { hapticSuccess, triggerHaptic } from "@/lib/haptics";
 import { springSoft } from "@/lib/motion";
 import { useDockHideRequest } from "@/hooks/use-dock-visibility";
+import { SheetPortal } from "@/components/ui/SheetPortal";
 import { useKeyboardTracking } from "@/components/ui/Sheet";
 import { CATEGORY_COLORS } from "@/styles/palette";
 import {
@@ -123,18 +124,24 @@ export function WorkoutSheet({ open, onClose, dateKey, editing, prefill }: Props
   // with the nav dock underneath.
   useDockHideRequest("overlay:workout-sheet", open);
   return (
-    <AnimatePresence>
-      {open && (
-        <WorkoutForm
-          key={editing?.id ?? prefill?.key ?? "new"}
-          onClose={onClose}
-          dateKey={dateKey}
-          editing={editing ?? null}
-          prefill={prefill ?? null}
-          isPhone={isPhone}
-        />
-      )}
-    </AnimatePresence>
+    /* Portal to <body> — iOS WebKit scroll-container containment fix
+       (SheetPortal.tsx). The Daily view mounts this sheet INSIDE its
+       overflow-y-auto wrapper, which clipped the "fixed" scrim on
+       iPhone. */
+    <SheetPortal>
+      <AnimatePresence>
+        {open && (
+          <WorkoutForm
+            key={editing?.id ?? prefill?.key ?? "new"}
+            onClose={onClose}
+            dateKey={dateKey}
+            editing={editing ?? null}
+            prefill={prefill ?? null}
+            isPhone={isPhone}
+          />
+        )}
+      </AnimatePresence>
+    </SheetPortal>
   );
 }
 

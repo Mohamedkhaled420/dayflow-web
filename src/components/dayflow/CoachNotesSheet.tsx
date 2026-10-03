@@ -39,6 +39,7 @@ import {
 } from "lucide-react";
 import { triggerHaptic, hapticSelect } from "@/lib/haptics";
 import { useDockHideRequest } from "@/hooks/use-dock-visibility";
+import { SheetPortal } from "@/components/ui/SheetPortal";
 import type { CoachLogAction } from "@/lib/coach-protocol";
 import { coachActionLabel } from "@/lib/coach-protocol";
 
@@ -102,9 +103,12 @@ export function CoachNotesSheet({
   }, [open]);
 
   return (
-    <AnimatePresence>
-      {open && (
-        <>
+    /* Portal to <body> — iOS WebKit scroll-container containment fix
+       (SheetPortal.tsx). */
+    <SheetPortal>
+      <AnimatePresence>
+        {open && (
+          <>
           {/* scrim — click closes (viewport-anchored so an
               auto-scrolled overflow ancestor can never offset it) */}
           <motion.button
@@ -323,8 +327,9 @@ export function CoachNotesSheet({
               Notes stay on this device. Actions only log when you tap them.
             </div>
           </motion.section>
-        </>
-      )}
-    </AnimatePresence>
+          </>
+        )}
+      </AnimatePresence>
+    </SheetPortal>
   );
 }

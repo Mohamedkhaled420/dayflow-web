@@ -65,6 +65,7 @@ import { useIsPhone } from "@/hooks/use-media-query";
 import { hapticSuccess, hapticWarn, haptic } from "@/lib/haptics";
 import { useKeyboardTracking } from "@/components/ui/Sheet";
 import { useDockHideRequest } from "@/hooks/use-dock-visibility";
+import { SheetPortal } from "@/components/ui/SheetPortal";
 import { springSheet } from "@/lib/motion";
 import type { Category, TrackEvent } from "@/lib/types";
 
@@ -209,14 +210,20 @@ export function EventDialog({ open, onClose, event, dateKey }: Props) {
   };
 
   return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.16 }}
-          className="fixed inset-0 z-[60] flex justify-center p-0 sm:p-4 items-end sm:items-center"
+    /* Portal to <body>: iOS WebKit contains/clips fixed overlays
+       mounted inside scroll containers. EventDialog currently mounts
+       at the view root (outside the timeline scroller) so it worked
+       on device — the portal makes that guarantee structural
+       instead of positional. See SheetPortal.tsx. */
+    <SheetPortal>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.16 }}
+            className="fixed inset-0 z-[60] flex justify-center p-0 sm:p-4 items-end sm:items-center"
           style={{
             background: "var(--df-scrim)",
             backdropFilter: "blur(3px)",
@@ -300,9 +307,10 @@ export function EventDialog({ open, onClose, event, dateKey }: Props) {
               draggable={!reducedMotion && isPhone}
             />
           </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </SheetPortal>
   );
 }
 

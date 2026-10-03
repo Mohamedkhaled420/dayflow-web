@@ -30,6 +30,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ArrowUp, Camera, PencilLine, Sparkles, X } from "lucide-react";
+import { SheetPortal } from "@/components/ui/SheetPortal";
 import { useDayflowStore } from "@/store/useDayflowStore";
 import { localDateTime } from "@/lib/viewmodel";
 import { nutritionForDay } from "@/lib/compute";
@@ -156,23 +157,30 @@ export function MealCaptureSheet({ open, onClose, dateKey }: Props) {
   useDockHideRequest("overlay:meal-sheet", open);
   if (!isPhone) {
     return (
-      <AnimatePresence>
-        {open && (
-          <DesktopShell onClose={onClose}>
-            <MealCaptureForm onClose={onClose} dateKey={dateKey} />
-          </DesktopShell>
-        )}
-      </AnimatePresence>
+      /* Portal to <body>: iOS WebKit contains/clips fixed overlays
+         mounted inside a view's scroll container (the Daily view's
+         overflow-y-auto wrapper) — see SheetPortal.tsx. */
+      <SheetPortal>
+        <AnimatePresence>
+          {open && (
+            <DesktopShell onClose={onClose}>
+              <MealCaptureForm onClose={onClose} dateKey={dateKey} />
+            </DesktopShell>
+          )}
+        </AnimatePresence>
+      </SheetPortal>
     );
   }
   return (
-    <AnimatePresence>
-      {open && (
-        <SheetShell onClose={onClose}>
-          <MealCaptureForm onClose={onClose} dateKey={dateKey} />
-        </SheetShell>
-      )}
-    </AnimatePresence>
+    <SheetPortal>
+      <AnimatePresence>
+        {open && (
+          <SheetShell onClose={onClose}>
+            <MealCaptureForm onClose={onClose} dateKey={dateKey} />
+          </SheetShell>
+        )}
+      </AnimatePresence>
+    </SheetPortal>
   );
 }
 
