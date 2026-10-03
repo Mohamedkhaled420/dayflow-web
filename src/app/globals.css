@@ -1272,6 +1272,31 @@ select {
   font-size: 15px;
   line-height: 1.4;
 }
+/* Phase 12d — never slice fixed chrome: when the sheet is capped by
+   its max-height and the content overflows, ONLY the scroll body may
+   shrink. Without this, flex-shrink (default 1) squashes the header
+   and the action row too — buttons render sliced in half at the
+   sheet's clipped bottom edge (on-device QA: "Log meal" CTA and the
+   Photo/Manual chips cut mid-element). The body keeps flex:1 +
+   min-height:0 so it absorbs the whole deficit and scrolls.
+   Two structures to cover: sheets that mount chrome as DIRECT
+   children (EventDialog, RoutineSheet) and sheets that promote
+   theirs through a display:contents wrapper (MealCaptureSheet,
+   WorkoutSheet) — the child combinator alone misses the latter. */
+.dff-sheet > * {
+  flex-shrink: 0;
+}
+.dff-sheet > .dff-body {
+  flex-shrink: 1;
+}
+.dff-sheet .dff-head,
+.dff-sheet .dff-actions,
+.dff-sheet .dfm-view {
+  flex-shrink: 0;
+}
+.dff-sheet .dff-body {
+  flex-shrink: 1;
+}
 /* phone: anchored bottom, full-bleed, show the grab handle */
 .dff-sheet.dff-phone {
   max-width: none;

@@ -32,36 +32,124 @@ import { cn } from "@/lib/utils";
  * documentElement (no React state) — resize events are async, so
  * the set-state-in-effect rule never applies, and every open sheet
  * stays in sync through the single shared variable.
+ *
+ * ── Phase 12d: phantom-keyboard hardening ─────────────────────
+ * The naive `innerHeight − visualViewport.height` difference is NOT
+ * proof of a keyboard. On iOS standalone PWAs the interactive
+ * (drag-down) keyboard dismissal fires transient resize events
+ * mid-gesture and can miss the final one — freezing the variable at
+ * a phantom value (observed on device: 113.5px and ~620px lifts
+ * with no keyboard on screen, floating every sheet above the home
+ * indicator and slicing their capped content). Three defenses:
+ *
+ * 1. WRITE gates — a value is only published when ALL hold:
+ *    • a text-ish element (input/textarea/select/contenteditable)
+ *      actually holds focus — a keyboard cannot exist without one;
+ *    • the visual viewport is not zoomed (|scale − 1| ≤ 1%) —
+ *      pinch/auto-zoom shrinks visualViewport.height too;
+ *    • the delta is sane: < 120px is an iOS quirk (no real keyboard
+ *      is under ~150px on any device — the home-indicator inset
+ *      mismatch and the observed 113.5px stale frame live here),
+ *      > 60% of the visual viewport is a mid-animation frame (real
+ *      keyboards cap at ~50% on the largest phones, ~30% on tablets).
+ * 2. READ heals — besides visualViewport events, the value is
+ *    re-read (from the LIVE visualViewport, so a missed final
+ *    event self-corrects) on: window resize, orientationchange,
+ *    visibilitychange, focusin/focusout (delayed for dismissal
+ *    animations to settle) and every pointerup. Any interaction
+ *    after a frozen frame erases the phantom.
+ * 3. Writes are rAF-coalesced — bursts of resize events during
+ *    the keyboard animation cost one style write per frame.
  */
 /* Module-level mount counter for the reference-counted cleanup
    (see useKeyboardTracking). */
 let mountedCount = 0;
 
+/** A software keyboard can only be up while a text-ish element has focus. */
+function textFocusActive(): boolean {
+  const el = document.activeElement as HTMLElement | null;
+  if (!el) return false;
+  return (
+    /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || el.isContentEditable
+  );
+}
+
+/**
+ * Pure computation of the keyboard height from the live viewport
+ * state, with the phantom gates applied. Exported for tests.
+ */
+export function computeKeyboardHeight(
+  innerHeight: number,
+  vvHeight: number,
+  vvOffsetTop: number,
+  vvScale: number,
+  focusActive: boolean
+): number {
+  if (!focusActive) return 0;
+  if (Math.abs(vvScale - 1) > 0.01) return 0;
+  const delta = Math.round(innerHeight - vvHeight - vvOffsetTop);
+  // Floor: no real software keyboard is under ~150px on any device —
+  // deltas below 120px are iOS quirks (home-indicator inset mismatch,
+  // toolbar transitions, the observed 113.5px stale dismissal frame).
+  if (delta < 120) return 0;
+  if (delta > vvHeight * 0.6) return 0; // mid-animation / bogus frame
+  return delta;
+}
+
 export function useKeyboardTracking(): void {
   useEffect(() => {
     const viewport = window.visualViewport;
-    if (!viewport) return;
+    let raf = 0;
+
     const apply = () => {
-      const keyboardHeight = Math.max(
-        0,
-        Math.round(window.innerHeight - viewport.height - viewport.offsetTop)
+      const vv = window.visualViewport;
+      if (!vv) return;
+      const k = computeKeyboardHeight(
+        window.innerHeight,
+        vv.height,
+        vv.offsetTop,
+        vv.scale,
+        textFocusActive()
       );
-      document.documentElement.style.setProperty("--keyboard-height", `${keyboardHeight}px`);
+      document.documentElement.style.setProperty("--keyboard-height", `${k}px`);
     };
+
+    const schedule = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        apply();
+      });
+    };
+
+    // focusout fires before the dismissal animation finishes — re-read
+    // once it has settled so the final (full-height) state wins.
+    const onOutDelayed = () => window.setTimeout(schedule, 280);
+
+    viewport?.addEventListener("resize", schedule);
+    viewport?.addEventListener("scroll", schedule);
+    window.addEventListener("resize", schedule);
+    window.addEventListener("orientationchange", schedule);
+    document.addEventListener("visibilitychange", schedule);
+    document.addEventListener("focusin", schedule);
+    document.addEventListener("focusout", onOutDelayed, true);
+    // The self-heal of last resort: any tap re-reads the LIVE viewport
+    // and erases a phantom frozen by a missed final resize event.
+    window.addEventListener("pointerup", schedule, { passive: true, capture: true });
+
     apply();
-    viewport.addEventListener("resize", apply);
-    viewport.addEventListener("scroll", apply);
-    // Reference counting (standalone-PWA fix): the tracker is now
-    // mounted globally from the app shell AND per-sheet. The var
-    // must go to 0 only when the LAST listener detaches — otherwise
-    // a sheet closing while the keyboard stays open (e.g. back to
-    // the chat composer) zeroes the lift and buries the composer
-    // until the next visualViewport event that never comes.
     mountedCount += 1;
     return () => {
+      viewport?.removeEventListener("resize", schedule);
+      viewport?.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+      window.removeEventListener("orientationchange", schedule);
+      document.removeEventListener("visibilitychange", schedule);
+      document.removeEventListener("focusin", schedule);
+      document.removeEventListener("focusout", onOutDelayed, true);
+      window.removeEventListener("pointerup", schedule, true);
+      if (raf) cancelAnimationFrame(raf);
       mountedCount -= 1;
-      viewport.removeEventListener("resize", apply);
-      viewport.removeEventListener("scroll", apply);
       if (mountedCount === 0) {
         document.documentElement.style.setProperty("--keyboard-height", "0px");
       }
@@ -169,10 +257,12 @@ export function Sheet({
           /* Standalone (pinned) fix: cap the sheet so its grab handle
              can never slide under the notch/status bar. The lift
              (keyboard OR home-indicator inset) and a 44px top
-             clearance come off the full viewport, not 92dvh — with a
-             keyboard open the old cap let the handle render ~200px
-             above the physical screen. */
-          "relative z-10 max-h-[calc(100dvh-max(var(--safe-area-bottom,0px),var(--keyboard-height,0px))-44px)] w-full max-w-[560px] overflow-hidden",
+             clearance come off the scrim box (100%) — the very box
+             the sheet anchors to — not 100dvh, which iOS standalone
+             can disagree with (Phase 12d). Flex column: the handle
+             is flex-none, the content is the ONLY shrinking item
+             (flex-1 min-h-0) so chrome can never be sliced. */
+          "relative z-10 flex flex-col max-h-[calc(100%-max(var(--safe-area-bottom,0px),var(--keyboard-height,0px))-44px)] w-full max-w-[560px] overflow-hidden",
           "df-edge-fade",
           className
         )}
@@ -182,7 +272,7 @@ export function Sheet({
         <div
           data-df-sheet-grab-handle=""
           {...grabHandleProps}
-          className="flex min-h-[44px] w-full items-center justify-center"
+          className="flex min-h-[44px] w-full flex-none items-center justify-center"
           aria-label={grabHandleLabel}
           role="button"
           tabIndex={-1}
@@ -199,7 +289,7 @@ export function Sheet({
 
         <div
           data-df-sheet-content=""
-          className="df-scroll max-h-[calc(100dvh-max(var(--safe-area-bottom,0px),var(--keyboard-height,0px))-88px)] overflow-y-auto px-4 pb-[calc(var(--safe-area-bottom,0px)+16px)]"
+          className="df-scroll min-h-0 flex-1 overflow-y-auto px-4 pb-[calc(var(--safe-area-bottom,0px)+16px)]"
           style={{ color: "var(--df-text-primary)" }}
         >
           {children}

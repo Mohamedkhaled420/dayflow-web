@@ -988,11 +988,14 @@ function SheetShell({ onClose, children }: { onClose: () => void; children: Reac
         className="dff-sheet dff-phone dfm-sheet"
         style={{
           /* Keyboard lift: ride above the software keyboard, cap the
-             panel so it never runs off the top edge. The cap also
-             reserves the notch band (pinned standalone fix). */
+             panel so it never runs off the top edge. The cap resolves
+             against the fixed scrim (100%) — the very box the sheet
+             anchors to — so it can never disagree with 100dvh the way
+             iOS standalone sometimes does (Phase 12d), and it reserves
+             the notch band (pinned standalone fix). */
           marginBottom: "var(--keyboard-height, 0px)",
           maxHeight:
-            "calc(100dvh - var(--keyboard-height, 0px) - max(var(--safe-area-top, 0px), 8px))",
+            "calc(100% - var(--keyboard-height, 0px) - max(var(--safe-area-top, 0px), 8px))",
           transition: "margin-bottom 220ms cubic-bezier(0.32, 0.72, 0, 1)",
         }}
         onClick={(e) => e.stopPropagation()}

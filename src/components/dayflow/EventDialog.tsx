@@ -272,10 +272,12 @@ export function EventDialog({ open, onClose, event, dateKey }: Props) {
                        action row) rides above the software keyboard. */
                     marginBottom: "var(--keyboard-height, 0px)",
                     /* Standalone (pinned) fix: reserve the notch band at
-                       the TOP too — a tall form used to cap at 100dvh and
-                       put its drag handle + header under the status bar. */
+                       the TOP too — a tall form used to cap too high and
+                       put its drag handle + header under the status bar.
+                       Phase 12d: 100% of the fixed scrim, not 100dvh —
+                       the cap and the anchor can never disagree on iOS. */
                     maxHeight:
-                      "calc(100dvh - var(--keyboard-height, 0px) - max(var(--safe-area-top, 0px), 8px))",
+                      "calc(100% - var(--keyboard-height, 0px) - max(var(--safe-area-top, 0px), 8px))",
                     transition:
                       "margin-bottom 220ms cubic-bezier(0.32, 0.72, 0, 1)",
                   }

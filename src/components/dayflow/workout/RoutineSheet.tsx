@@ -427,10 +427,12 @@ function RoutineBuilder({
                the CTA buried underneath it while typing. maxHeight
                shrinks the panel so it never runs off the top edge.
                Standalone (pinned) fix: the cap also reserves the notch
-               band — with the keyboard up the top used to sit at y=0. */
+               band — with the keyboard up the top used to sit at y=0.
+               Phase 12d: 100% of the fixed scrim, not 100dvh — the cap
+               and the anchor can never disagree on iOS standalone. */
             marginBottom: "var(--keyboard-height, 0px)",
             maxHeight:
-              "calc(100dvh - var(--keyboard-height, 0px) - max(var(--safe-area-top, 0px), 8px))",
+              "calc(100% - var(--keyboard-height, 0px) - max(var(--safe-area-top, 0px), 8px))",
             transition: "margin-bottom 220ms cubic-bezier(0.32, 0.72, 0, 1)",
           }}
           onClick={(e) => e.stopPropagation()}
