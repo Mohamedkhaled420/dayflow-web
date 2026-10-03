@@ -7,7 +7,7 @@
 
 import { useMemo, useState } from "react";
 import { motion } from "motion/react";
-import { CheckCircle2, Copy, Plus, ScanLine, Sparkles, TriangleAlert, Utensils, X } from "lucide-react";
+import { CheckCircle2, Copy, Sparkles, TriangleAlert } from "lucide-react";
 import { useDayflowData } from "@/lib/viewmodel";
 import { LOGGABLE_CATEGORIES } from "@/lib/viewmodel";
 import { keyForOffset, keyToDate } from "@/lib/seed";
@@ -21,8 +21,9 @@ import {
   waterTotal,
   eventsForDay,
 } from "@/lib/compute";
-import { useDayflowStore, type MealLogRow } from "@/store/useDayflowStore";
+import { useDayflowStore } from "@/store/useDayflowStore";
 import { MealCaptureSheet } from "@/components/dayflow/MealCaptureSheet";
+import { NutritionCard } from "@/components/dayflow/NutritionCard";
 import { SleepSection } from "@/components/dayflow/SleepSection";
 import { OptimizationSection } from "@/components/dayflow/OptimizationSection";
 import { WorkoutSheet, type WorkoutEditTarget, type WorkoutPrefill } from "@/components/dayflow/workout/WorkoutSheet";
@@ -31,8 +32,8 @@ import { RoutineSheet } from "@/components/dayflow/workout/RoutineSheet";
 import { DoodleSun } from "@/components/dayflow/doodles";
 import { planToSession, type RoutinePlan } from "@/lib/routine";
 import { useToast } from "@/hooks/use-toast";
-import { CATEGORY_COLORS, MACRO_COLORS } from "@/styles/palette";
-import { DEFAULT_NUTRITION_TARGETS, type NutritionTargets } from "@/lib/food-db";
+import { CATEGORY_COLORS } from "@/styles/palette";
+import { targetsFromProfile, type NutritionTargets } from "@/lib/food-db";
 
 const GRID_START = 5 * 60; // 5 AM
 const GRID_END = 23 * 60 + 30; // 11:30 PM
@@ -52,7 +53,6 @@ export function DailyView() {
   const [workoutPrefill, setWorkoutPrefill] = useState<WorkoutPrefill | null>(null);
 
   const mealLogs = useDayflowStore((s) => s.mealLogs);
-  const deleteMealLog = useDayflowStore((s) => s.deleteMealLog);
   const profileRow = useDayflowStore((s) => s.profile);
 
   const dateKey = keyForOffset(dayOffset);
@@ -69,22 +69,7 @@ export function DailyView() {
 
   // Targets live in the profile metabolism section when set (Phase 9
   // settings follow-up); otherwise the food-db defaults apply.
-  const targets = useMemo<NutritionTargets>(() => {
-    const meta =
-      profileRow?.metabolism &&
-      typeof profileRow.metabolism === "object" &&
-      !Array.isArray(profileRow.metabolism)
-        ? (profileRow.metabolism as Record<string, unknown>)
-        : {};
-    const n = (v: unknown, d: number) =>
-      typeof v === "number" && Number.isFinite(v) && v > 0 ? Math.round(v) : d;
-    return {
-      calorieTarget: n(meta.calorieTarget, DEFAULT_NUTRITION_TARGETS.calorieTarget),
-      proteinTargetG: n(meta.proteinTargetG, DEFAULT_NUTRITION_TARGETS.proteinTargetG),
-      carbTargetG: n(meta.carbTargetG, DEFAULT_NUTRITION_TARGETS.carbTargetG),
-      fatTargetG: n(meta.fatTargetG, DEFAULT_NUTRITION_TARGETS.fatTargetG),
-    };
-  }, [profileRow]);
+  const targets = useMemo<NutritionTargets>(() => targetsFromProfile(profileRow?.metabolism), [profileRow]);
 
   // category rows → set of active 30-min slots
   const rows = useMemo(() => {
@@ -209,92 +194,13 @@ export function DailyView() {
       {/* sleep — last night over the flowing string waves */}
       <SleepSection dateKey={dateKey} />
 
-      {/* nutrition — Cal AI-style calories & macros (Phase 9) */}
-      <section
-        className="mt-5 rounded-[20px] p-4"
-        style={{
-          background: "var(--df-daily-grid-fill)",
-          border: "0.5px solid var(--df-daily-grid-border)",
-        }}
-        aria-label="Nutrition"
-      >
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <Utensils className="h-4 w-4" style={{ color: CATEGORY_COLORS.meals }} />
-            <h2 className="text-[13px] font-bold" style={{ color: "var(--df-text-primary)" }}>
-              Nutrition
-            </h2>
-            <span className="text-[11px]" style={{ color: "var(--df-text-muted)" }}>
-              {dayOffset === 0 ? "today" : dateLabel.split(", ")[0]}
-            </span>
-          </div>
-          <button
-            onClick={() => setMealSheetOpen(true)}
-            className="df-press df-btn-secondary h-8 px-3 text-[12px] font-semibold flex items-center gap-1.5"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Log meal
-          </button>
-        </div>
-
-        <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-5">
-          {/* calorie ring */}
-          <CalorieRing consumed={nutrition.calories} target={targets.calorieTarget} />
-
-          {/* macro bars */}
-          <div className="flex-1 min-w-0 grid gap-2.5">
-            <MacroBar
-              label="Protein"
-              color={MACRO_COLORS.protein}
-              value={nutrition.protein_g}
-              target={targets.proteinTargetG}
-              unit="g"
-            />
-            <MacroBar
-              label="Carbs"
-              color={MACRO_COLORS.carbs}
-              value={nutrition.carbs_g}
-              target={targets.carbTargetG}
-              unit="g"
-            />
-            <MacroBar
-              label="Fat"
-              color={MACRO_COLORS.fat}
-              value={nutrition.fat_g}
-              target={targets.fatTargetG}
-              unit="g"
-            />
-          </div>
-        </div>
-
-        {/* meals list */}
-        <div className="mt-4">
-          {nutrition.meals.length === 0 ? (
-            <button
-              onClick={() => setMealSheetOpen(true)}
-              className="df-press w-full rounded-[20px] py-4 flex flex-col items-center gap-1.5"
-              style={{
-                background: "var(--df-input-fill)",
-                border: `1.5px dashed color-mix(in srgb, ${CATEGORY_COLORS.meals} 40%, transparent)`,
-              }}
-            >
-              <ScanLine className="h-5 w-5" style={{ color: CATEGORY_COLORS.meals }} />
-              <span className="text-[12px] font-semibold" style={{ color: "var(--df-text-primary)" }}>
-                Snap a photo, describe it, or type it in
-              </span>
-              <span className="text-[11px]" style={{ color: "var(--df-text-muted)" }}>
-                AI estimates calories & macros — you confirm before it's logged
-              </span>
-            </button>
-          ) : (
-            <div className="flex flex-col gap-1">
-              {nutrition.meals.map((m) => (
-                <MealRow key={m.id} meal={m} onDelete={() => void deleteMealLog(m.id)} />
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
+      {/* nutrition — the reference's glass card: ring, macro bars,
+          swipe-to-delete meals (Phase 12c) */}
+      <NutritionCard
+        dateKey={dateKey}
+        whenLabel={dayOffset === 0 ? "today" : dateLabel.split(", ")[0]}
+        onLogMeal={() => setMealSheetOpen(true)}
+      />
 
       {/* training — gym logger sessions (Phase 10) */}
       <TrainingSection
@@ -531,144 +437,6 @@ export function DailyView() {
           setWorkoutSheetOpen(true);
         }}
       />
-    </div>
-  );
-}
-
-/** Compact calorie ring: consumed vs target, amber when over. */
-function CalorieRing({ consumed, target }: { consumed: number; target: number }) {
-  const pct = Math.min(1, target > 0 ? consumed / target : 0);
-  const over = consumed > target;
-  const size = 108;
-  const thickness = 10;
-  const r = (size - thickness) / 2;
-  const c = 2 * Math.PI * r;
-  return (
-    <div className="relative shrink-0 grid place-items-center self-center" role="img" aria-label={`${consumed} of ${target} kcal`}>
-      <svg width={size} height={size}>
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={r}
-          fill="none"
-          stroke="var(--df-donut-ring-bg)"
-          strokeWidth={thickness}
-        />
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={r}
-          fill="none"
-          stroke={over ? "var(--df-destructive-text)" : CATEGORY_COLORS.meals}
-          strokeWidth={thickness}
-          strokeLinecap="round"
-          strokeDasharray={`${(c * pct).toFixed(1)} ${c.toFixed(1)}`}
-          transform={`rotate(-90 ${size / 2} ${size / 2})`}
-          style={{ transition: "stroke-dasharray .35s ease" }}
-        />
-      </svg>
-      <div className="absolute inset-0 grid place-items-center text-center pointer-events-none">
-        <div>
-          <div className="text-[17px] font-bold leading-none tabular-nums" style={{ color: "var(--df-summary-value)" }}>
-            {/* Over budget, the useful number is HOW FAR over (1014),
-                not a clamped 0 — "0 over" reads as broken. */}
-            {over ? Math.round(consumed - target) : Math.max(0, target - consumed)}
-          </div>
-          <div className="text-[9.5px] font-semibold uppercase tracking-wide mt-1" style={{ color: over ? "var(--df-destructive-text)" : "var(--df-text-muted)" }}>
-            {over ? "over" : "kcal left"}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function MacroBar({
-  label,
-  color,
-  value,
-  target,
-  unit,
-}: {
-  label: string;
-  color: string;
-  value: number;
-  target: number;
-  unit: string;
-}) {
-  const pct = Math.min(100, target > 0 ? (value / target) * 100 : 0);
-  return (
-    <div className="flex items-center gap-2.5">
-      <span className="w-[52px] shrink-0 text-[11px] font-medium" style={{ color: "var(--df-text-secondary)" }}>
-        {label}
-      </span>
-      <div
-        className="flex-1 h-[7px] rounded-full overflow-hidden"
-        style={{ background: "var(--df-donut-ring-bg)" }}
-        role="progressbar"
-        aria-valuenow={value}
-        aria-valuemin={0}
-        aria-valuemax={target}
-        aria-label={`${label} ${value} of ${target}${unit}`}
-      >
-        <div
-          className="h-full rounded-full"
-          style={{
-            width: `${pct}%`,
-            background: color,
-            transition: "width .35s ease",
-          }}
-        />
-      </div>
-      <span className="w-[72px] shrink-0 text-right text-[11px] tabular-nums" style={{ color: "var(--df-text-muted)" }}>
-        {value}/{target}{unit}
-      </span>
-    </div>
-  );
-}
-
-function MealRow({ meal, onDelete }: { meal: MealLogRow; onDelete: () => void }) {
-  const time = new Date(meal.logged_at).toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-  });
-  return (
-    <div
-      className="group flex items-center gap-2.5 rounded-[12px] px-2 py-1.5"
-      style={{ background: "var(--df-input-fill)" }}
-    >
-      <span
-        className="shrink-0 h-7 w-7 rounded-[9px] grid place-items-center"
-        style={{
-          background: `color-mix(in srgb, ${CATEGORY_COLORS.meals} 15%, transparent)`,
-          color: CATEGORY_COLORS.meals,
-        }}
-      >
-        <Utensils className="h-3.5 w-3.5" />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-[12.5px] font-semibold truncate" style={{ color: "var(--df-text-primary)" }}>
-          {meal.name}
-        </span>
-        <span className="block text-[10.5px] tabular-nums" style={{ color: "var(--df-text-muted)" }}>
-          {time}
-          {meal.protein_g != null && ` · P ${meal.protein_g}g`}
-          {meal.carbs_g != null && ` C ${meal.carbs_g}g`}
-          {meal.fat_g != null && ` F ${meal.fat_g}g`}
-          {meal.source === "ai" && " · AI"}
-        </span>
-      </span>
-      <span className="shrink-0 text-[12.5px] font-bold tabular-nums" style={{ color: "var(--df-summary-value)" }}>
-        {meal.calories}
-      </span>
-      <button
-        onClick={onDelete}
-        aria-label={`Delete ${meal.name}`}
-        className="df-press shrink-0 h-7 w-7 rounded-full grid place-items-center opacity-60 hover:opacity-100"
-        style={{ color: "var(--df-destructive-text)" }}
-      >
-        <X className="h-3.5 w-3.5" />
-      </button>
     </div>
   );
 }

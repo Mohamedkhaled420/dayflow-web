@@ -450,6 +450,8 @@
   --df-f-go-2: #ff7ad9;
   --df-f-go-ink: #ffffff;
   --df-f-go-shine: rgba(255, 255, 255, 0.35);
+  /* Phase 12c nutrition card — aurora blob strength behind the glass */
+  --dfn-aurora-o: 0.22;
 }
 
 .dark {
@@ -707,4 +709,6 @@
   --df-f-go-2: #ff7ad9;
   --df-f-go-ink: #ffffff;
   --df-f-go-shine: rgba(255, 255, 255, 0.35);
+  /* Phase 12c nutrition card — aurora blob strength behind the glass */
+  --dfn-aurora-o: 0.28;
 }

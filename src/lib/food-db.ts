@@ -283,3 +283,24 @@ export const DEFAULT_NUTRITION_TARGETS: NutritionTargets = {
   carbTargetG: 220,
   fatTargetG: 70,
 };
+
+/**
+ * Targets from a profile row's `metabolism` JSON, falling back to
+ * the defaults for anything missing/invalid. Shared by the DailyView
+ * nutrition card and the meal sheet's "kcal left after this meal"
+ * line so the two can never disagree.
+ */
+export function targetsFromProfile(metabolism: unknown): NutritionTargets {
+  const meta =
+    metabolism && typeof metabolism === "object" && !Array.isArray(metabolism)
+      ? (metabolism as Record<string, unknown>)
+      : {};
+  const n = (v: unknown, d: number) =>
+    typeof v === "number" && Number.isFinite(v) && v > 0 ? Math.round(v) : d;
+  return {
+    calorieTarget: n(meta.calorieTarget, DEFAULT_NUTRITION_TARGETS.calorieTarget),
+    proteinTargetG: n(meta.proteinTargetG, DEFAULT_NUTRITION_TARGETS.proteinTargetG),
+    carbTargetG: n(meta.carbTargetG, DEFAULT_NUTRITION_TARGETS.carbTargetG),
+    fatTargetG: n(meta.fatTargetG, DEFAULT_NUTRITION_TARGETS.fatTargetG),
+  };
+}

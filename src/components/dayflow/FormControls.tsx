@@ -735,6 +735,111 @@ export function QuickDuration({
   );
 }
 
+// --------------------------------------------- segmented control ----
+
+/**
+ * The sliding-thumb segmented control (Phase 12c — the meal sheet's
+ * portion / meal-type rows): a pill track with N equal segments and
+ * a thumb that springs to the selected one. Arrow keys walk the
+ * group; taps (and horizontal pointer sweeps) pick.
+ */
+export function SegmentedControl<T extends string | number>({
+  options,
+  value,
+  onChange,
+  ariaLabel,
+}: {
+  options: { value: T; label: string }[];
+  value: T;
+  onChange: (v: T) => void;
+  ariaLabel: string;
+}) {
+  const qi = options.findIndex((o) => o.value === value);
+  const boxRef = useRef<HTMLDivElement>(null);
+  const dragging = useRef(false);
+  const x0 = useRef(0);
+  const i0 = useRef(0);
+  const moved = useRef(false);
+
+  const pick = (i: number) => {
+    const o = options[i];
+    if (!o || o.value === value) return;
+    haptic(6);
+    onChange(o.value);
+  };
+
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    const btn = (e.target as HTMLElement).closest("[data-i]");
+    if (!btn) return;
+    dragging.current = true;
+    moved.current = false;
+    x0.current = e.clientX;
+    i0.current = Number(btn.getAttribute("data-i"));
+    try {
+      boxRef.current?.setPointerCapture(e.pointerId);
+    } catch {
+      /* pointer already gone — pick still proceeds */
+    }
+    pick(i0.current);
+  };
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragging.current) return;
+    if (Math.abs(e.clientX - x0.current) > 8) moved.current = true;
+    if (!moved.current) return;
+    const w = (boxRef.current?.getBoundingClientRect().width ?? 0) / options.length;
+    pick(clamp(i0.current + Math.round((e.clientX - x0.current) / w), 0, options.length - 1));
+  };
+  const end = () => {
+    dragging.current = false;
+  };
+
+  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const d = ({ ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 } as Record<string, number>)[
+      e.key
+    ];
+    if (!d) return;
+    e.preventDefault();
+    const cur = options.findIndex((o) => o.value === value);
+    const i = clamp(cur < 0 ? (d > 0 ? 0 : options.length - 1) : cur + d, 0, options.length - 1);
+    pick(i);
+    (boxRef.current?.children[i + 1] as HTMLElement | undefined)?.focus();
+  };
+
+  return (
+    <div
+      ref={boxRef}
+      className="dfm-seg"
+      role="radiogroup"
+      aria-label={ariaLabel}
+      style={
+        {
+          "--dfm-n": options.length,
+          "--dfm-i": qi > -1 ? qi : 0,
+        } as React.CSSProperties
+      }
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={end}
+      onPointerCancel={end}
+      onKeyDown={onKeyDown}
+    >
+      <i className="dfm-th" aria-hidden="true" />
+      {options.map((o, i) => (
+        <button
+          key={String(o.value)}
+          type="button"
+          role="radio"
+          data-i={i}
+          aria-checked={i === qi}
+          tabIndex={i === qi || (qi < 0 && i === 0) ? 0 : -1}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 // --------------------------------------------------- wheel picker ----
 
 const HOURS = Array.from({ length: 12 }, (_, i) => i + 1);
