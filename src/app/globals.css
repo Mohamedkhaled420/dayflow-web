@@ -1300,6 +1300,7 @@ select {
 /* phone: anchored bottom, full-bleed, show the grab handle */
 .dff-sheet.dff-phone {
   max-width: none;
+  max-height: min(720px, calc(100dvh - 88px));
   border-radius: 34px 34px 0 0;
   border-left: 0;
   border-right: 0;
@@ -1309,7 +1310,7 @@ select {
   display: block;
 }
 .dff-sheet.dff-phone .dff-head {
-  padding-top: 26px;
+  padding-top: 20px;
 }
 .dff-sheet.dff-phone .dff-title {
   font-size: 28px;
