@@ -176,7 +176,10 @@ export function MorningTriadGate({
           {hydrated ? (
             <Check className="size-4 shrink-0" style={{ color: "var(--df-summary-value)" }} />
           ) : (
-            <Droplet className="size-3.5 shrink-0 opacity-40" style={{ color: CATEGORY_COLORS.water }} />
+            <Droplet
+              className="size-3.5 shrink-0"
+              style={{ color: "var(--df-water-ink)" }}
+            />
           )}
         </button>
 

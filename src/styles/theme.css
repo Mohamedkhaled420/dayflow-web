@@ -454,116 +454,115 @@
   --dfn-aurora-o: 0.22;
 
   /* ============================================================
-     Phase 13 — "Editorial Cream" value remap (reference
-     "Dayflow (1).html", 2026-10). Token NAMES stay frozen (same
-     discipline as Phases 8–12): only VALUES change, so every view
-     that reads --df-* picks the new family up atomically.
-     Direction: warm cream window (#FBF7F0) with static pink +
-     indigo radial glows, white glass cards with warm hairlines,
-     near-black ink (#1D1D1F) and Apple system accents. CTAs flip
-     to solid ink pills in light / paper pills in dark. Typography
-     moves to the system editorial stack (SF Pro / Inter).
+     Phase 14 — "Living Pastel Sky" value remap (reference
+     "Dayflow (4).html", 2026-10). Same frozen-token discipline:
+     only VALUES change. Direction: warm ivory window (#FFFBF3)
+     under a DYNAMIC time-of-day gradient (see --df-sky-* below),
+     translucent white-glass cards (.68), violet-neutral hairlines,
+     ink #2B2940 text everywhere (incl. on pastel fills), pastel
+     data accents mixed 60/40 toward ink for strokes. CTAs stay
+     solid ink pills in light / paper pills in dark.
      ============================================================ */
-  --background: #fbf7f0;
-  --foreground: #1d1d1f;
+  --background: #fbf8f3;
+  --foreground: #2b2940;
   --card: #ffffff;
-  --card-foreground: #1d1d1f;
+  --card-foreground: #2b2940;
   --popover: #ffffff;
-  --popover-foreground: #1d1d1f;
-  --primary: #1d1d1f;
-  --primary-foreground: #fbf7f0;
-  --secondary: rgba(120, 100, 90, 0.12);
-  --secondary-foreground: #1d1d1f;
-  --muted: rgba(120, 100, 90, 0.12);
-  --muted-foreground: #6e6e73;
-  --accent: rgba(120, 100, 90, 0.12);
-  --accent-foreground: #1d1d1f;
-  --border: rgba(60, 40, 30, 0.1);
-  --input: rgba(60, 40, 30, 0.14);
-  --ring: #0a84ff;
-  --sidebar: #fbf7f0;
-  --sidebar-foreground: #1d1d1f;
-  --sidebar-primary: #1d1d1f;
-  --sidebar-primary-foreground: #fbf7f0;
-  --sidebar-accent: rgba(255, 255, 255, 0.86);
-  --sidebar-accent-foreground: #1d1d1f;
-  --sidebar-border: rgba(60, 40, 30, 0.1);
-  --sidebar-ring: #0a84ff;
+  --popover-foreground: #2b2940;
+  --primary: #2b2940;
+  --primary-foreground: #fffbf3;
+  --secondary: rgba(80, 70, 140, 0.1);
+  --secondary-foreground: #2b2940;
+  --muted: rgba(80, 70, 140, 0.1);
+  --muted-foreground: #5f5c78;
+  --accent: rgba(80, 70, 140, 0.1);
+  --accent-foreground: #2b2940;
+  --border: rgba(70, 60, 130, 0.12);
+  --input: rgba(70, 60, 130, 0.16);
+  --ring: #2b2940;
+  --sidebar: #fffbf3;
+  --sidebar-foreground: #2b2940;
+  --sidebar-primary: #2b2940;
+  --sidebar-primary-foreground: #fffbf3;
+  --sidebar-accent: rgba(255, 255, 255, 0.68);
+  --sidebar-accent-foreground: #2b2940;
+  --sidebar-border: rgba(70, 60, 130, 0.12);
+  --sidebar-ring: #2b2940;
 
-  --df-window-bg: #fbf7f0;
-  --df-window-border: rgba(60, 40, 30, 0.08);
-  --df-panel-fill: #fbf7f0;
-  --df-panel-border: rgba(60, 40, 30, 0.08);
+  --df-window-bg: #fffbf3;
+  --df-window-border: rgba(70, 60, 130, 0.08);
+  --df-panel-fill: #fffbf3;
+  --df-panel-border: rgba(70, 60, 130, 0.08);
   --df-panel-shadow: rgba(60, 40, 30, 0.16);
   --df-panel-inner-glow: rgba(255, 255, 255, 0);
 
-  --df-sidebar-selected-fill: rgba(255, 255, 255, 0.92);
-  --df-sidebar-selected-border: rgba(60, 40, 30, 0.1);
-  --df-sidebar-selected-glow: rgba(60, 40, 30, 0.1);
-  --df-sidebar-label: #6e6e73;
-  --df-sidebar-label-active: #1d1d1f;
+  --df-sidebar-selected-fill: rgba(255, 255, 255, 0.78);
+  --df-sidebar-selected-border: rgba(70, 60, 130, 0.12);
+  --df-sidebar-selected-glow: rgba(70, 60, 130, 0.1);
+  --df-sidebar-label: #5f5c78;
+  --df-sidebar-label-active: #2b2940;
 
-  --df-text-primary: #1d1d1f;
-  --df-text-secondary: #44424a;
-  --df-text-tertiary: #6e6e73;
-  --df-text-muted: #6e6e73;
-  --df-accent: #0a84ff;
-  --df-accent-text: #0a66c2;
+  --df-text-primary: #2b2940;
+  --df-text-secondary: #4a4763;
+  --df-text-tertiary: #5f5c78;
+  --df-text-muted: #5f5c78;
+  --df-accent: #2b2940;
+  --df-accent-text: #2b2940;
 
-  --df-control-fill: rgba(255, 255, 255, 0.72);
-  --df-control-border: rgba(60, 40, 30, 0.1);
-  --df-control-glow: rgba(60, 40, 30, 0.08);
-  --df-control-text: #1d1d1f;
+  --df-control-fill: rgba(255, 255, 255, 0.78);
+  --df-control-border: rgba(70, 60, 130, 0.12);
+  --df-control-glow: rgba(70, 60, 130, 0.08);
+  --df-control-text: #2b2940;
 
-  --df-segment-track: rgba(120, 100, 90, 0.12);
-  --df-segment-track-border: rgba(60, 40, 30, 0.05);
-  --df-segment-inactive: #6e6e73;
+  --df-segment-track: rgba(80, 70, 140, 0.1);
+  --df-segment-track-border: rgba(70, 60, 130, 0.05);
+  --df-segment-inactive: #5f5c78;
 
-  --df-card-fill: rgba(255, 255, 255, 0.86);
-  --df-card-border: rgba(60, 40, 30, 0.1);
-  --df-card-glow: rgba(60, 40, 30, 0.08);
-  --df-card-time: #6e6e73;
+  --df-card-fill: rgba(255, 255, 255, 0.68);
+  --df-card-border: rgba(70, 60, 130, 0.12);
+  --df-card-glow: rgba(70, 60, 130, 0.08);
+  --df-card-time: #5f5c78;
 
-  --df-hour-label: #6e6e73;
-  --df-hour-label-future: #a8a29a;
-  --df-hour-line: rgba(60, 40, 30, 0.08);
+  --df-hour-label: #5f5c78;
+  --df-hour-label-future: #9a98aa;
+  --df-hour-line: rgba(70, 60, 130, 0.12);
 
-  --df-right-panel-fill: rgba(255, 255, 255, 0.86);
-  --df-right-panel-border: rgba(60, 40, 30, 0.1);
-  --df-right-panel-divider: rgba(60, 40, 30, 0.08);
+  --df-right-panel-fill: rgba(255, 255, 255, 0.68);
+  --df-right-panel-border: rgba(70, 60, 130, 0.12);
+  --df-right-panel-divider: rgba(70, 60, 130, 0.08);
 
-  --df-summary-card-fill: rgba(255, 255, 255, 0.86);
-  --df-summary-card-border: rgba(60, 40, 30, 0.1);
-  --df-summary-value: #1d1d1f;
+  --df-summary-card-fill: rgba(255, 255, 255, 0.68);
+  --df-summary-card-border: rgba(70, 60, 130, 0.12);
+  --df-summary-value: #2b2940;
 
-  --df-donut-ring-bg: rgba(120, 100, 90, 0.12);
-  --df-donut-center: #fbf7f0;
+  --df-donut-ring-bg: rgba(80, 70, 140, 0.1);
+  --df-donut-center: #fffbf3;
 
-  --df-secondary-btn-border: rgba(60, 40, 30, 0.12);
-  --df-secondary-btn-text: #1d1d1f;
+  --df-secondary-btn-border: rgba(70, 60, 130, 0.14);
+  --df-secondary-btn-text: #2b2940;
 
-  --df-primary-btn-fill: linear-gradient(180deg, #2e2e33 0%, #1d1d1f 100%);
-  --df-primary-btn-border: #1d1d1f;
-  --df-primary-btn-text: #fbf7f0;
+  --df-primary-btn-fill: #2b2940;
+  --df-primary-btn-border: #2b2940;
+  --df-primary-btn-text: #fffbf3;
 
-  --df-chip-fill: rgba(120, 100, 90, 0.12);
-  --df-chip-border: rgba(60, 40, 30, 0.07);
+  --df-chip-fill: rgba(80, 70, 140, 0.1);
+  --df-chip-border: rgba(70, 60, 130, 0.08);
 
-  --df-input-fill: rgba(255, 255, 255, 0.72);
-  --df-input-border: rgba(60, 40, 30, 0.12);
+  --df-input-fill: rgba(255, 255, 255, 0.78);
+  --df-input-border: rgba(70, 60, 130, 0.14);
 
-  --df-daily-grid-fill: rgba(255, 255, 255, 0.86);
-  --df-daily-grid-border: rgba(60, 40, 30, 0.1);
-  --df-daily-empty: rgba(60, 40, 30, 0.05);
-  --df-daily-stat-value: #44424a;
+  --df-daily-grid-fill: rgba(255, 255, 255, 0.68);
+  --df-daily-grid-border: rgba(70, 60, 130, 0.12);
+  --df-daily-empty: rgba(70, 60, 130, 0.05);
+  --df-daily-stat-value: #4a4763;
 
-  --df-chat-soft-fill: rgba(255, 149, 0, 0.12);
-  --df-chat-soft-border: rgba(217, 115, 13, 0.25);
-  --df-bubble-coach-fill: rgba(240, 81, 143, 0.08);
-  --df-bubble-coach-border: rgba(240, 81, 143, 0.16);
-  --df-chat-code: rgba(120, 100, 90, 0.1);
-  --df-empty-cell: rgba(60, 40, 30, 0.05);
-  --df-mobile-nav-fill: rgba(255, 255, 255, 0.72);
+  --df-chat-soft-fill: rgba(227, 162, 26, 0.14);
+  --df-chat-soft-border: rgba(193, 138, 43, 0.3);
+  --df-bubble-coach-fill: rgba(255, 207, 210, 0.16);
+  --df-bubble-coach-border: rgba(255, 207, 210, 0.32);
+  --df-chat-code: rgba(80, 70, 140, 0.1);
+  --df-empty-cell: rgba(70, 60, 130, 0.05);
+  --df-mobile-nav-fill: rgba(255, 255, 255, 0.66);
 
   --df-material-bg: rgba(255, 255, 255, 0.82);
   --df-material-edge: rgba(255, 255, 255, 0.7);
@@ -589,17 +588,17 @@
   --df-input-inset: inset 0 1px 2px rgba(29, 29, 31, 0.05);
   --df-input-glow-ring: color-mix(in srgb, #0a84ff 18%, transparent);
   --df-input-glow-border: color-mix(in srgb, #0a84ff 55%, transparent);
-  --df-footer-veil: rgba(251, 247, 240, 0.92);
+  --df-footer-veil: rgba(255, 251, 243, 0.92);
 
   --df-scrim: rgba(10, 10, 14, 0.45);
   --df-sheet-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6),
     0 24px 60px -28px rgba(60, 40, 30, 0.4);
   --df-water-ink: #0a66c2;
-  --df-destructive: #ff453a;
-  --df-destructive-text: #d70015;
-  --df-destructive-soft: rgba(255, 69, 58, 0.14);
-  --df-streak: #ff9500;
-  --df-streak-fill: rgba(255, 149, 0, 0.14);
+  --df-destructive: #ef6f7c;
+  --df-destructive-text: #c13a47;
+  --df-destructive-soft: rgba(239, 111, 124, 0.14);
+  --df-streak: #a1741f;
+  --df-streak-fill: rgba(227, 162, 26, 0.14);
 
   --df-radius-card: 26px;
   --df-radius-card-lg: 30px;
@@ -634,35 +633,37 @@
   --df-hero-badge-border: rgba(255, 255, 255, 0.2);
 
   --df-date-pill-fill: #ffffff;
-  --df-date-pill-border: rgba(60, 40, 30, 0.12);
-  --df-date-pill-active: #1d1d1f;
-  --df-date-pill-active-ink: #fbf7f0;
+  --df-date-pill-border: rgba(70, 60, 130, 0.12);
+  --df-date-pill-active: #2b2940;
+  --df-date-pill-active-ink: #fffbf3;
   --df-time-pill-fill: rgba(255, 255, 255, 0.72);
-  --df-time-pill-border: rgba(60, 40, 30, 0.08);
-  --df-rail-track: rgba(60, 40, 30, 0.08);
-  --df-rail-tick: rgba(60, 40, 30, 0.15);
-  --df-rail-tick-major: rgba(60, 40, 30, 0.28);
-  --df-rail-now: #f0518f;
+  --df-time-pill-border: rgba(70, 60, 130, 0.08);
+  --df-rail-track: rgba(70, 60, 130, 0.08);
+  --df-rail-tick: rgba(70, 60, 130, 0.15);
+  --df-rail-tick-major: rgba(70, 60, 130, 0.28);
+  --df-rail-now: #ef6f7c;
   --df-rail-handle-ring: #ffffff;
   --df-rail-handle-shadow: 0 2px 8px rgba(29, 29, 31, 0.22);
 
-  --df-doodle-ink: #1d1d1f;
+  --df-doodle-ink: #2b2940;
 
-  /* dff form kit — warm-cream retint (structure unchanged) */
-  --df-f-sheet: rgba(255, 255, 255, 0.78);
-  --df-f-ink: #1d1d1f;
-  --df-f-mute: #6e6e73;
-  --df-f-line: rgba(60, 40, 30, 0.1);
-  --df-f-field: rgba(255, 255, 255, 0.7);
-  --df-f-chip: rgba(120, 100, 90, 0.12);
-  --df-f-shadow: 0 30px 80px -20px rgba(60, 40, 30, 0.35);
-  --df-f-blob1: #ffd9e8;
-  --df-f-blob2: #d9e2ff;
-  --df-f-blob3: #c8f3e6;
+  /* dff form kit — pastel retint (structure unchanged) */
+  --df-f-sheet: rgba(255, 255, 255, 0.8);
+  --df-f-ink: #2b2940;
+  --df-f-mute: #5f5c78;
+  --df-f-line: rgba(70, 60, 130, 0.12);
+  --df-f-field: rgba(255, 255, 255, 0.78);
+  --df-f-chip: rgba(80, 70, 140, 0.1);
+  --df-f-shadow: 0 30px 80px -20px rgba(40, 50, 70, 0.35);
+  --df-f-blob1: #d8e4f0;
+  --df-f-blob2: #f6dcd0;
+  --df-f-blob3: #dcebd2;
   --df-f-wback: rgba(10, 10, 14, 0.32);
-  --df-f-panel: rgba(251, 247, 240, 0.92);
-  --df-f-actions-bg: rgba(251, 247, 240, 0.5);
+  --df-f-panel: rgba(255, 251, 243, 0.92);
+  --df-f-actions-bg: rgba(255, 251, 243, 0.5);
   --dfn-aurora-o: 0.2;
+  --df-f-go-2: #2b2940;
+  --df-f-go-ink: #fffbf3;
 
   /* --- Phase 13 NEW tokens (shell chrome) --- */
   /* The app font: editorial system stack (SF Pro / Inter). The
@@ -670,28 +671,42 @@
      authenticated shell only (.df-app in globals.css). */
   --df-font-app: -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter,
     system-ui, sans-serif;
-  /* The signature static window glow — pink top-right, indigo
-     bottom-left. Fixed (no animation) per the perf budget. */
-  --df-window-glow: radial-gradient(
-      70vmax 60vmax at 100% 0,
-      rgba(255, 138, 180, 0.24),
-      transparent 70%
-    ),
-    radial-gradient(
-      70vmax 60vmax at 0 100%,
-      rgba(165, 180, 252, 0.26),
-      transparent 70%
-    );
+  /* Phase 14 — the LIVING SKY: a dynamic time-of-day gradient
+     painted on the app surface (replaces the static window glow).
+     SkySync sets <html data-sky="morning|day|evening|night"> from
+     the user's clock (re-checked on every interval tick + app
+     resume); the bucket blocks below retune the four stops.
+     Buckets follow the reference (Dayflow (4).html):
+       morning  5–11   lemon → powder → rose → orchid
+       day     11–17   frosted-blue → aqua → aquamarine → celadon
+       evening 17–21   powder → rose → orchid → mauve
+       night    21–5   mauve → baby-blue-ice → frosted-blue → aqua
+     Dark mode mixes each stop 20% into the night window (the
+     reference's body::before opacity:.2). */
+  --df-sky-gradient: linear-gradient(
+    165deg,
+    var(--df-sky-g1) 0%,
+    var(--df-sky-g2) 38%,
+    var(--df-sky-g3) 70%,
+    var(--df-sky-g4) 100%
+  );
+  /* Phase 14: fixed dark ink for glyphs/text sitting ON pastel
+     DATA fills (habit checks, seals, chips, activity tiles) — the
+     reference hard-codes #2B2940 here in BOTH modes because the
+     pastel fill is itself the contrast surface; --df-text-primary
+     would flip to paper in dark and vanish. */
+  --df-on-pastel-ink: #2b2940;
+
   /* Glass pill nav (the reference dock) */
-  --df-nav-pill-fill: rgba(255, 255, 255, 0.72);
-  --df-nav-pill-border: rgba(60, 40, 30, 0.1);
+  --df-nav-pill-fill: rgba(255, 255, 255, 0.66);
+  --df-nav-pill-border: rgba(70, 60, 130, 0.1);
   --df-nav-pill-shadow: 0 16px 40px -14px rgba(0, 0, 0, 0.3),
     inset 0 0 0 1px var(--df-nav-pill-border),
     inset 0 1px 0 rgba(255, 255, 255, 0.45);
   /* Composite shadows + scene tints (Phase 13b — keeps globals.css
      free of raw color literals for the drift guard). */
-  --df-card-shadow: 0 16px 40px -22px rgba(60, 40, 30, 0.38);
-  --df-scene-shadow: 0 14px 36px -22px rgba(60, 40, 30, 0.4);
+  --df-card-shadow: 0 16px 40px -22px rgba(80, 60, 130, 0.32);
+  --df-scene-shadow: 0 14px 36px -22px rgba(80, 60, 130, 0.35);
   --df-menu-shadow: 0 20px 50px -16px rgba(0, 0, 0, 0.4);
   --df-cta-shadow: 0 12px 28px -12px rgba(0, 0, 0, 0.5);
   --df-thumb-shadow: 0 3px 14px rgba(0, 0, 0, 0.3);
@@ -701,7 +716,34 @@
   --df-sky-chip: rgba(255, 255, 255, 0.28);
   --df-zone-dot-ring: rgba(255, 255, 255, 0.35);
   --df-sheen-top: rgba(255, 255, 255, 0.4);
-  --df-orb-mid: #a5b4fc;
+  --df-orb-mid: #a3c4f3;
+}
+
+/* ---- Phase 14 sky buckets (hour-of-day palettes, reference
+     “Dayflow (4).html” frame scripts) ---- */
+:root[data-sky="morning"] {
+  --df-sky-g1: #fbf8cc; /* lemon chiffon */
+  --df-sky-g2: #fde4cf; /* powder petal */
+  --df-sky-g3: #ffcfd2; /* cotton rose */
+  --df-sky-g4: #f1c0e8; /* pink orchid */
+}
+:root[data-sky="day"] {
+  --df-sky-g1: #90dbf4; /* frosted blue */
+  --df-sky-g2: #8eecf5; /* electric aqua */
+  --df-sky-g3: #98f5e1; /* aquamarine */
+  --df-sky-g4: #b9fbc0; /* celadon */
+}
+:root[data-sky="evening"] {
+  --df-sky-g1: #fde4cf; /* powder petal */
+  --df-sky-g2: #ffcfd2; /* cotton rose */
+  --df-sky-g3: #f1c0e8; /* pink orchid */
+  --df-sky-g4: #cfbaf0; /* mauve */
+}
+:root[data-sky="night"] {
+  --df-sky-g1: #cfbaf0; /* mauve */
+  --df-sky-g2: #a3c4f3; /* baby blue ice */
+  --df-sky-g3: #90dbf4; /* frosted blue */
+  --df-sky-g4: #98f5e1; /* aquamarine */
 }
 
 .dark {
@@ -963,39 +1005,40 @@
   --dfn-aurora-o: 0.28;
 
   /* ============================================================
-     Phase 13 — "Editorial Cream" DARK values (near-black night):
-     #101012 window, smoke-glass cards, paper-ink CTAs, Apple
-     dark accents. Same frozen token names as the light block.
+     Phase 14 — "Living Pastel Sky" DARK values: #17151F night
+     window under the sky gradient at reference strength (each
+     stop mixed 20% into the night bg), plum-glass cards, paper
+     CTAs. Same frozen token names as the light block.
      ============================================================ */
-  --background: #101012;
-  --foreground: #f5f5f7;
-  --card: #1c1c1f;
-  --card-foreground: #f5f5f7;
-  --popover: #1c1c1f;
-  --popover-foreground: #f5f5f7;
-  --primary: #f5f5f7;
-  --primary-foreground: #111112;
+  --background: #17151f;
+  --foreground: #f6f3fc;
+  --card: #22252b;
+  --card-foreground: #f6f3fc;
+  --popover: #22252b;
+  --popover-foreground: #f6f3fc;
+  --primary: #f6f3fc;
+  --primary-foreground: #17151f;
   --secondary: rgba(255, 255, 255, 0.1);
-  --secondary-foreground: #f5f5f7;
+  --secondary-foreground: #f6f3fc;
   --muted: rgba(255, 255, 255, 0.1);
-  --muted-foreground: #a1a1a6;
+  --muted-foreground: #b3b0c8;
   --accent: rgba(255, 255, 255, 0.1);
-  --accent-foreground: #f5f5f7;
+  --accent-foreground: #f6f3fc;
   --border: rgba(255, 255, 255, 0.12);
   --input: rgba(255, 255, 255, 0.14);
-  --ring: #409cff;
-  --sidebar: #101012;
-  --sidebar-foreground: #f5f5f7;
-  --sidebar-primary: #f5f5f7;
-  --sidebar-primary-foreground: #111112;
+  --ring: #f6f3fc;
+  --sidebar: #17151f;
+  --sidebar-foreground: #f6f3fc;
+  --sidebar-primary: #f6f3fc;
+  --sidebar-primary-foreground: #17151f;
   --sidebar-accent: rgba(255, 255, 255, 0.1);
-  --sidebar-accent-foreground: #f5f5f7;
+  --sidebar-accent-foreground: #f6f3fc;
   --sidebar-border: rgba(255, 255, 255, 0.12);
-  --sidebar-ring: #409cff;
+  --sidebar-ring: #f6f3fc;
 
-  --df-window-bg: #101012;
+  --df-window-bg: #17151f;
   --df-window-border: rgba(255, 255, 255, 0.08);
-  --df-panel-fill: #101012;
+  --df-panel-fill: #17151f;
   --df-panel-border: rgba(255, 255, 255, 0.08);
   --df-panel-shadow: rgba(0, 0, 0, 0.5);
   --df-panel-inner-glow: rgba(255, 255, 255, 0);
@@ -1003,70 +1046,70 @@
   --df-sidebar-selected-fill: rgba(255, 255, 255, 0.12);
   --df-sidebar-selected-border: rgba(255, 255, 255, 0.16);
   --df-sidebar-selected-glow: rgba(0, 0, 0, 0);
-  --df-sidebar-label: #a1a1a6;
-  --df-sidebar-label-active: #f5f5f7;
+  --df-sidebar-label: #b3b0c8;
+  --df-sidebar-label-active: #f6f3fc;
 
-  --df-text-primary: #f5f5f7;
-  --df-text-secondary: #c7c7cc;
-  --df-text-tertiary: #a1a1a6;
-  --df-text-muted: #a1a1a6;
-  --df-accent: #409cff;
-  --df-accent-text: #6cb2ff;
+  --df-text-primary: #f6f3fc;
+  --df-text-secondary: #d6d3e6;
+  --df-text-tertiary: #b3b0c8;
+  --df-text-muted: #b3b0c8;
+  --df-accent: #f6f3fc;
+  --df-accent-text: #f6f3fc;
 
-  --df-control-fill: rgba(255, 255, 255, 0.07);
+  --df-control-fill: rgba(60, 54, 86, 0.55);
   --df-control-border: rgba(255, 255, 255, 0.12);
   --df-control-glow: rgba(0, 0, 0, 0.3);
-  --df-control-text: #f5f5f7;
+  --df-control-text: #f6f3fc;
 
   --df-segment-track: rgba(255, 255, 255, 0.1);
   --df-segment-track-border: rgba(255, 255, 255, 0.04);
-  --df-segment-inactive: #a1a1a6;
+  --df-segment-inactive: #b3b0c8;
 
-  --df-card-fill: rgba(44, 44, 48, 0.82);
+  --df-card-fill: rgba(46, 42, 66, 0.72);
   --df-card-border: rgba(255, 255, 255, 0.12);
   --df-card-glow: rgba(255, 255, 255, 0.06);
-  --df-card-time: #a1a1a6;
+  --df-card-time: #b3b0c8;
 
-  --df-hour-label: #a1a1a6;
-  --df-hour-label-future: #6a6a70;
-  --df-hour-line: rgba(255, 255, 255, 0.09);
+  --df-hour-label: #b3b0c8;
+  --df-hour-label-future: #7d7a92;
+  --df-hour-line: rgba(255, 255, 255, 0.1);
 
-  --df-right-panel-fill: rgba(44, 44, 48, 0.82);
+  --df-right-panel-fill: rgba(46, 42, 66, 0.72);
   --df-right-panel-border: rgba(255, 255, 255, 0.12);
   --df-right-panel-divider: rgba(255, 255, 255, 0.08);
 
-  --df-summary-card-fill: rgba(44, 44, 48, 0.82);
+  --df-summary-card-fill: rgba(46, 42, 66, 0.72);
   --df-summary-card-border: rgba(255, 255, 255, 0.12);
-  --df-summary-value: #f5f5f7;
+  --df-summary-value: #f6f3fc;
 
   --df-donut-ring-bg: rgba(255, 255, 255, 0.12);
-  --df-donut-center: #101012;
+  --df-donut-center: #17151f;
 
   --df-secondary-btn-border: rgba(255, 255, 255, 0.14);
-  --df-secondary-btn-text: #f5f5f7;
+  --df-secondary-btn-text: #f6f3fc;
 
-  --df-primary-btn-fill: linear-gradient(180deg, #f8f8fa 0%, #e8e8ec 100%);
-  --df-primary-btn-border: #e8e8ec;
-  --df-primary-btn-text: #111112;
+  --df-primary-btn-fill: #f6f3fc;
+  --df-primary-btn-border: #f6f3fc;
+  --df-primary-btn-text: #17151f;
 
   --df-chip-fill: rgba(255, 255, 255, 0.1);
-  --df-chip-border: rgba(255, 255, 255, 0.07);
+  --df-chip-border: rgba(255, 255, 255, 0.08);
 
-  --df-input-fill: rgba(255, 255, 255, 0.07);
+  --df-input-fill: rgba(60, 54, 86, 0.55);
   --df-input-border: rgba(255, 255, 255, 0.14);
 
-  --df-daily-grid-fill: rgba(44, 44, 48, 0.82);
+  --df-daily-grid-fill: rgba(46, 42, 66, 0.72);
   --df-daily-grid-border: rgba(255, 255, 255, 0.12);
   --df-daily-empty: rgba(255, 255, 255, 0.06);
-  --df-daily-stat-value: #c7c7cc;
+  --df-daily-stat-value: #d6d3e6;
 
-  --df-chat-soft-fill: rgba(255, 149, 0, 0.14);
-  --df-chat-soft-border: rgba(255, 149, 0, 0.3);
-  --df-bubble-coach-fill: rgba(240, 81, 143, 0.12);
-  --df-bubble-coach-border: rgba(240, 81, 143, 0.24);
+  --df-chat-soft-fill: rgba(227, 162, 26, 0.18);
+  --df-chat-soft-border: rgba(227, 162, 26, 0.32);
+  --df-bubble-coach-fill: rgba(255, 207, 210, 0.1);
+  --df-bubble-coach-border: rgba(255, 207, 210, 0.2);
   --df-chat-code: rgba(255, 255, 255, 0.08);
   --df-empty-cell: rgba(255, 255, 255, 0.06);
-  --df-mobile-nav-fill: rgba(40, 40, 46, 0.7);
+  --df-mobile-nav-fill: rgba(46, 42, 66, 0.7);
 
   --df-material-bg: rgba(40, 40, 46, 0.82);
   --df-material-edge: rgba(255, 255, 255, 0.1);
@@ -1098,11 +1141,11 @@
   --df-sheet-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08),
     0 24px 60px -28px rgba(0, 0, 0, 0.7);
   --df-water-ink: #409cff;
-  --df-destructive: #ff453a;
-  --df-destructive-text: #ff8182;
-  --df-destructive-soft: rgba(255, 69, 58, 0.18);
-  --df-streak: #ff9f0a;
-  --df-streak-fill: rgba(255, 159, 10, 0.18);
+  --df-destructive: #ef6f7c;
+  --df-destructive-text: #ff9aa3;
+  --df-destructive-soft: rgba(239, 111, 124, 0.2);
+  --df-streak: #e3a21a;
+  --df-streak-fill: rgba(227, 162, 26, 0.18);
 
   --df-primary-btn-glow: 0 4px 14px rgba(0, 0, 0, 0.45);
   --df-lift-shadow: 0 10px 26px rgba(0, 0, 0, 0.4);
@@ -1134,47 +1177,47 @@
 
   --df-date-pill-fill: rgba(255, 255, 255, 0.08);
   --df-date-pill-border: rgba(255, 255, 255, 0.12);
-  --df-date-pill-active: #f5f5f7;
-  --df-date-pill-active-ink: #111112;
+  --df-date-pill-active: #f6f3fc;
+  --df-date-pill-active-ink: #17151f;
   --df-time-pill-fill: rgba(255, 255, 255, 0.07);
   --df-time-pill-border: rgba(255, 255, 255, 0.1);
   --df-rail-track: rgba(255, 255, 255, 0.09);
   --df-rail-tick: rgba(255, 255, 255, 0.16);
   --df-rail-tick-major: rgba(255, 255, 255, 0.3);
-  --df-rail-now: #ff6b9d;
-  --df-rail-handle-ring: #f5f5f7;
+  --df-rail-now: #ef6f7c;
+  --df-rail-handle-ring: #f6f3fc;
   --df-rail-handle-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
 
-  --df-doodle-ink: #f5f5f7;
+  --df-doodle-ink: #f6f3fc;
 
-  /* dff form kit (dark, warm night) */
-  --df-f-sheet: rgba(28, 28, 32, 0.82);
-  --df-f-ink: #f5f5f7;
-  --df-f-mute: #a1a1a6;
+  /* dff form kit (dark, plum night — reference blobs) */
+  --df-f-sheet: rgba(30, 33, 38, 0.82);
+  --df-f-ink: #f6f3fc;
+  --df-f-mute: #b3b0c8;
   --df-f-line: rgba(255, 255, 255, 0.12);
-  --df-f-field: rgba(255, 255, 255, 0.07);
+  --df-f-field: rgba(60, 54, 86, 0.55);
   --df-f-chip: rgba(255, 255, 255, 0.09);
   --df-f-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.7);
-  --df-f-blob1: #3a2450;
-  --df-f-blob2: #2b3170;
-  --df-f-blob3: #14463a;
+  --df-f-blob1: #243556;
+  --df-f-blob2: #3a2a3a;
+  --df-f-blob3: #1f3a33;
   --df-f-wback: rgba(0, 0, 0, 0.4);
-  --df-f-panel: rgba(16, 16, 18, 0.92);
-  --df-f-actions-bg: rgba(16, 16, 18, 0.5);
+  --df-f-panel: rgba(23, 21, 31, 0.92);
+  --df-f-actions-bg: rgba(23, 21, 31, 0.5);
   --dfn-aurora-o: 0.26;
 
-  /* --- Phase 13 NEW tokens (dark) --- */
-  --df-window-glow: radial-gradient(
-      70vmax 60vmax at 100% 0,
-      rgba(255, 138, 180, 0.1),
-      transparent 70%
-    ),
-    radial-gradient(
-      70vmax 60vmax at 0 100%,
-      rgba(165, 180, 252, 0.12),
-      transparent 70%
-    );
-  --df-nav-pill-fill: rgba(40, 40, 46, 0.7);
+  /* --- Phase 14 NEW tokens (dark) ---
+     The living sky at reference dark strength: every stop mixed
+     20% into the night window (body::before opacity .2). */
+  --df-sky-gradient: linear-gradient(
+    165deg,
+    color-mix(in srgb, var(--df-sky-g1) 20%, var(--df-window-bg)) 0%,
+    color-mix(in srgb, var(--df-sky-g2) 20%, var(--df-window-bg)) 38%,
+    color-mix(in srgb, var(--df-sky-g3) 20%, var(--df-window-bg)) 70%,
+    color-mix(in srgb, var(--df-sky-g4) 20%, var(--df-window-bg)) 100%
+  );
+  --df-on-pastel-ink: #2b2940;
+  --df-nav-pill-fill: rgba(46, 42, 66, 0.7);
   --df-nav-pill-border: rgba(255, 255, 255, 0.12);
   --df-nav-pill-shadow: 0 16px 40px -14px rgba(0, 0, 0, 0.55),
     inset 0 0 0 1px var(--df-nav-pill-border),

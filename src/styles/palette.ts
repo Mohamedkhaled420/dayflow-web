@@ -17,33 +17,33 @@
 import type { GoalProgress } from "@/lib/types";
 
 /** Default colors for the six goal categories + leisure.
- *  Editorial Cream family (Phase 13, reference "Dayflow (1).html"):
- *  the reference CAT palette — saturated editorial hues that read
- *  as timeline EVENT fills on the cream window (#fbf7f0) and keep
- *  AA against white cards. */
+ *  Living Pastel Sky family (Phase 14, reference "Dayflow (4).html"):
+ *  the reference CAT palette — soft pastels that read as timeline
+ *  EVENT fills on the ivory window (#FFFBF3). Text/dot art on top
+ *  of these uses the 60/40 ink mix (see components) so nothing
+ *  sits white-on-pastel. */
 export const CATEGORY_COLORS = {
-  work: "#5B6CFF", // cobalt (reference: Work)
-  personal: "#14B8A6", // teal (reference: Personal)
-  fitness: "#FF6B57", // coral (reference: Fitness)
-  meals: "#FF9F0A", // amber (reference: Meals)
-  sleep: "#8E6BFF", // violet (reference: Sleep)
-  water: "#0A84FF", // system blue (reference: Water orb)
-  leisure: "#30C48D", // mint (reference: Leisure)
+  work: "#A3C4F3", // baby blue ice (reference: Work)
+  personal: "#98F5E1", // aquamarine (reference: Personal)
+  fitness: "#FFCFD2", // cotton rose (reference: Fitness)
+  meals: "#FDE4CF", // powder petal (reference: Meals)
+  sleep: "#CFBAF0", // mauve (reference: Sleep)
+  water: "#A3C4F3", // baby blue ice (reference: Water orb)
+  leisure: "#B9FBC0", // celadon (reference: Leisure)
 } as const satisfies Record<string, string>;
 
 /** Fallback color for events whose category was deleted. */
-export const UNTRACKED_COLOR = "#A1A1AA";
+export const UNTRACKED_COLOR = "#9A98AA";
 
 /** Phase 11 — quick-action category card fills (the reference
- *  chat home's "How can I help you today?" grid). The
- *  300-generation pastels: card SURFACES, not event fills, so
- *  they sit one step lighter than CATEGORY_COLORS. Fixed in both
- *  modes — ink stays charcoal (--df-quick-ink). */
+ *  chat home's "How can I help you today?" grid). Pastel card
+ *  SURFACES from the Phase 14 palette; ink stays charcoal
+ *  (--df-quick-ink). */
 export const QUICK_ACTION_COLORS = {
-  trip: "#FDE047", // yellow-300 (reference: tourism)
-  cooking: "#FDBA74", // orange-300 (reference: cooking)
-  sport: "#F9A8D4", // pink-300 (reference: sport)
-  art: "#86EFAC", // green-300 (reference: art)
+  trip: "#8EECF5", // electric aqua (reference: tourism)
+  cooking: "#FDE4CF", // powder petal (reference: cooking)
+  sport: "#FFCFD2", // cotton rose (reference: sport)
+  art: "#B9FBC0", // celadon (reference: art)
 } as const satisfies Record<string, string>;
 
 /** The 12 swatches offered in Settings → Categories. */
@@ -64,19 +64,19 @@ export const CATEGORY_SWATCHES = [
 
 /** Appearance picker preview gradients (Settings → Appearance). */
 export const THEME_SWATCHES = {
-  light: "linear-gradient(135deg, #FBF7F0, #FFD9E8)",
-  dark: "linear-gradient(135deg, #101012, #2B3170)",
-  system: "linear-gradient(135deg, #FBF7F0 50%, #101012 50%)",
+  light: "linear-gradient(135deg, #FFFBF3, #FFCFD2)",
+  dark: "linear-gradient(135deg, #17151F, #4B4580)",
+  system: "linear-gradient(135deg, #FFFBF3 50%, #17151F 50%)",
 } as const;
 
 /** Browser chrome theme-color metadata (app/layout.tsx viewport +
- *  ChromeThemeSync). Values mirror --df-window-bg 1:1 (#FBF7F0 light /
- *  #101012 dark in theme.css) so the address-bar band on phones blends
+ *  ChromeThemeSync). Values mirror --df-window-bg 1:1 (#FFFBF3 light /
+ *  #17151F dark in theme.css) so the address-bar band on phones blends
  *  EXACTLY into the app surface — any tint difference reads as a
  *  "browser band" and kills the native feel. */
 export const THEME_META_COLORS = {
-  light: "#FBF7F0",
-  dark: "#101012",
+  light: "#FFFBF3",
+  dark: "#17151F",
 } as const;
 
 /**
@@ -121,8 +121,8 @@ export const COMPANION_COSMETICS = {
  * surface.
  */
 export const PWA_SURFACE_COLORS = {
-  theme: "#FBF7F0",
-  background: "#FBF7F0",
+  theme: "#FFFBF3",
+  background: "#FFFBF3",
 } as const;
 
 /**
@@ -133,8 +133,8 @@ export const PWA_SURFACE_COLORS = {
  * both clear WCAG AA on the cream OG canvas.
  */
 export const OG_TEXT_COLORS = {
-  ink: "#1D1D1F",
-  inkMuted: "#6E6E73",
+  ink: "#2B2940",
+  inkMuted: "#5F5C78",
 } as const;
 
 /**
@@ -143,8 +143,8 @@ export const OG_TEXT_COLORS = {
  * CATEGORY_COLORS above (raw hex allowed only in this file).
  */
 export const CIRCADIAN_COLORS = {
-  peak: "#F0518F",
-  dip: "#FF9500",
+  peak: "#FFCFD2",
+  dip: "#FDE4CF",
 } as const;
 
 /**
@@ -154,10 +154,11 @@ export const CIRCADIAN_COLORS = {
  * pink, Habits green.
  */
 export const TAB_ACCENTS = {
-  today: "#0A84FF",
-  nutrition: "#FF9500",
-  training: "#F0518F",
-  habits: "#34C759",
+  today: "#A3C4F3",
+  nutrition: "#FDE4CF",
+  training: "#FFCFD2",
+  habits: "#B9FBC0",
+  coach: "#CFBAF0",
 } as const;
 
 /**
@@ -166,13 +167,13 @@ export const TAB_ACCENTS = {
  * the sky overlay copy. Ordered by hour offset from wake.
  */
 export const ZONE_COLORS = {
-  rest: "#8E6BFF",
-  warmup: "#FF9500",
-  peak: "#F0518F",
-  steady: "#0A84FF",
-  dip: "#8E8E93",
-  secondWind: "#8E6BFF",
-  windDown: "#34C759",
+  rest: "#CFBAF0",
+  warmup: "#FDE4CF",
+  peak: "#FFCFD2",
+  steady: "#A3C4F3",
+  dip: "#9A98AA",
+  secondWind: "#CFBAF0",
+  windDown: "#B9FBC0",
 } as const;
 
 /**
@@ -180,12 +181,12 @@ export const ZONE_COLORS = {
  * through these in order when created without an explicit color.
  */
 export const HABIT_COLORS = [
-  "#F0518F",
-  "#0A84FF",
-  "#FF9500",
-  "#AF52DE",
-  "#34C759",
-  "#32ADE6",
+  "#FFCFD2",
+  "#A3C4F3",
+  "#FDE4CF",
+  "#CFBAF0",
+  "#B9FBC0",
+  "#98F5E1",
 ] as const;
 
 /**
@@ -194,12 +195,12 @@ export const HABIT_COLORS = [
  * `a`/`b` are the gradient stops; glyphs live in the Habits view.
  */
 export const SEAL_TIERS = [
-  { key: "spark", name: "Spark", days: 3, a: "#FFC27A", b: "#FF7A45" },
-  { key: "kindle", name: "Kindle", days: 7, a: "#FF9BBD", b: "#F0518F" },
-  { key: "ember", name: "Ember", days: 14, a: "#FF7D5C", b: "#D93A2B" },
-  { key: "hearth", name: "Hearth", days: 30, a: "#CFA0FF", b: "#7F5AF0" },
-  { key: "beacon", name: "Beacon", days: 60, a: "#7FD4FF", b: "#2A7DE1" },
-  { key: "sun", name: "Sun", days: 100, a: "#FFE27A", b: "#FF9F0A" },
+  { key: "spark", name: "Spark", days: 3, a: "#FDE4CF", b: "#FDE4CF" },
+  { key: "kindle", name: "Kindle", days: 7, a: "#FFCFD2", b: "#FFCFD2" },
+  { key: "ember", name: "Ember", days: 14, a: "#FFCFD2", b: "#F1C0E8" },
+  { key: "hearth", name: "Hearth", days: 30, a: "#CFBAF0", b: "#CFBAF0" },
+  { key: "beacon", name: "Beacon", days: 60, a: "#90DBF4", b: "#90DBF4" },
+  { key: "sun", name: "Sun", days: 100, a: "#FBF8CC", b: "#FDE4CF" },
 ] as const;
 
 /**
@@ -208,14 +209,14 @@ export const SEAL_TIERS = [
  * highlight in the manual logger tints to the active activity.
  */
 export const WORKOUT_ACTIVITIES = [
-  { key: "Strength", color: "#F0518F", defaultMin: 45 },
-  { key: "Run", color: "#FF7A45", defaultMin: 30 },
-  { key: "Walk", color: "#34C759", defaultMin: 40 },
-  { key: "Cycle", color: "#0A84FF", defaultMin: 45 },
-  { key: "Swim", color: "#32ADE6", defaultMin: 30 },
-  { key: "Yoga", color: "#AF52DE", defaultMin: 40 },
-  { key: "HIIT", color: "#FF3B30", defaultMin: 20 },
-  { key: "Other", color: "#8E8E93", defaultMin: 30 },
+  { key: "Strength", color: "#FFCFD2", defaultMin: 45 },
+  { key: "Run", color: "#FDE4CF", defaultMin: 30 },
+  { key: "Walk", color: "#B9FBC0", defaultMin: 40 },
+  { key: "Cycle", color: "#A3C4F3", defaultMin: 45 },
+  { key: "Swim", color: "#98F5E1", defaultMin: 30 },
+  { key: "Yoga", color: "#CFBAF0", defaultMin: 40 },
+  { key: "HIIT", color: "#FFCFD2", defaultMin: 20 },
+  { key: "Other", color: "#9A98AA", defaultMin: 30 },
 ] as const;
 
 /**
@@ -224,9 +225,9 @@ export const WORKOUT_ACTIVITIES = [
  * carbs = sun amber, fat = violet (the --acc/--sun/--ft family).
  */
 export const MACRO_COLORS = {
-  protein: "#2383E2",
-  carbs: "#D9730D",
-  fat: "#8A63D2",
+  protein: "#A3C4F3",
+  carbs: "#FDE4CF",
+  fat: "#CFBAF0",
 } as const;
 
 /**
@@ -237,37 +238,37 @@ export const MACRO_COLORS = {
  * drag) sweeps through.
  */
 export const SKY_KEYFRAMES: [number, [number, number, number], [number, number, number]][] = [
-  [0, [11, 16, 48], [38, 42, 104]],
-  [5, [11, 16, 48], [38, 42, 104]],
-  [6.5, [106, 98, 201], [255, 176, 156]],
-  [8.5, [105, 180, 255], [255, 230, 191]],
-  [12, [74, 163, 255], [196, 230, 255]],
-  [16.5, [90, 167, 240], [255, 225, 180]],
-  [19, [90, 79, 176], [255, 143, 110]],
-  [21, [11, 16, 48], [38, 42, 104]],
-  [24, [11, 16, 48], [38, 42, 104]],
+  [0, [42, 39, 80], [75, 69, 128]],
+  [5, [42, 39, 80], [75, 69, 128]],
+  [6.5, [185, 166, 232], [255, 207, 210]],
+  [8.5, [163, 196, 243], [253, 228, 207]],
+  [12, [142, 201, 242], [230, 248, 255]],
+  [16.5, [163, 196, 243], [253, 228, 207]],
+  [19, [183, 154, 224], [255, 184, 168]],
+  [21, [42, 39, 80], [75, 69, 128]],
+  [24, [42, 39, 80], [75, 69, 128]],
 ];
 
 /** Hill pairs [dayColor, nightColor] — the three parallax ridges. */
 export const HILL_COLORS: [number, number, number][][] = [
   [
-    [143, 214, 162],
-    [29, 42, 99],
+    [185, 251, 192],
+    [58, 58, 110],
   ],
   [
-    [92, 186, 133],
-    [22, 31, 77],
+    [152, 245, 225],
+    [46, 45, 90],
   ],
   [
-    [58, 154, 114],
-    [15, 22, 56],
+    [144, 219, 244],
+    [35, 34, 72],
   ],
 ];
 
 /** Sun / moon / star / cloud tints (fixed art). */
 export const SCENE_ART = {
-  sunGlow: [255, 217, 107],
-  sunCore: [255, 211, 107],
+  sunGlow: [255, 233, 168],
+  sunCore: [251, 248, 204],
   moonHalo: [205, 214, 255],
   moonCore: [244, 241, 255],
   star: [255, 255, 255],

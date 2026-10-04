@@ -783,7 +783,7 @@ export function DiaCompanion() {
                   style={{
                     background: "var(--df-material-bg)",
                     border: "0.5px solid var(--df-chip-border)",
-                    color: CATEGORY_COLORS.fitness,
+                    color: "var(--df-on-pastel-ink)",
                     boxShadow: "0 4px 14px var(--df-panel-shadow)",
                   }}
                   initial={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 10, scale: 0.8 }}

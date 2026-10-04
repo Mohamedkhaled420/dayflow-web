@@ -146,17 +146,36 @@ export function TodayView({ blockNonce = 0 }: { blockNonce?: number }) {
   const updateSleepLog = useDayflowStore((s) => s.updateSleepLog);
   const sleepRows = useDayflowStore((s) => s.sleepLogs);
 
+  // The clock — ALWAYS the user's actual time of day: re-read on
+  // every minute tick AND the instant a suspended PWA/tab becomes
+  // visible again (iOS throttles background timers, so the
+  // visibilitychange fire is what makes the greeting match the
+  // moment the user actually opens the app).
   const [clock, setClock] = useState(() => new Date());
   useEffect(() => {
     const id = setInterval(() => setClock(new Date()), 60_000);
-    return () => clearInterval(id);
+    const onVis = () => {
+      if (!document.hidden) setClock(new Date());
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVis);
+    };
   }, []);
 
   const nowH = clock.getHours() + clock.getMinutes() / 60;
   const todayKey = localDateKey(clock.toISOString());
 
   // ---- the sky: travel through the day ----
-  const [t, setT] = useState(nowH);
+  // tOverride is the user's dragged position, or NULL = follow the
+  // live clock. Deriving (instead of syncing state in an effect)
+  // means the scene, the zone card and the “now” marker ALWAYS sit
+  // on the user's real time of day — at load, on every minute tick,
+  // and on every PWA resume — until the user deliberately drags
+  // away (“Back to now” returns to the live derivation).
+  const [tOverride, setTOverride] = useState<number | null>(null);
+  const t = tOverride ?? nowH;
   const [hintOff, setHintOff] = useState(false);
   const [dragging, setDragging] = useState(false);
   const drag = useRef<{ x0: number; t0: number } | null>(null);
@@ -205,7 +224,7 @@ export function TodayView({ blockNonce = 0 }: { blockNonce?: number }) {
   const onSceneMove = (e: React.PointerEvent) => {
     if (!drag.current) return;
     const w = (e.currentTarget as HTMLElement).clientWidth || 1;
-    setT(
+    setTOverride(
       Math.max(
         0,
         Math.min(24, drag.current.t0 + ((e.clientX - drag.current.x0) / w) * 14)
@@ -215,6 +234,11 @@ export function TodayView({ blockNonce = 0 }: { blockNonce?: number }) {
   const onSceneUp = () => {
     drag.current = null;
     setDragging(false);
+    // Dropped back on "now" → return to the live derivation so the
+    // scene keeps following the clock.
+    setTOverride((o) =>
+      o !== null && Math.abs(o - nowH) <= 0.1 ? null : o
+    );
   };
   const backToNow = () => {
     haptic(8);
@@ -225,8 +249,9 @@ export function TodayView({ blockNonce = 0 }: { blockNonce?: number }) {
     const run = (ts: number) => {
       const x = Math.min(1, (ts - t1) / D);
       const e = 1 - Math.pow(1 - x, 3);
-      setT(a + (nowH - a) * e);
+      setTOverride(a + (nowH - a) * e);
       if (x < 1) rafRef.current = requestAnimationFrame(run);
+      else setTOverride(null);
     };
     run(t1);
   };
@@ -450,6 +475,11 @@ export function TodayView({ blockNonce = 0 }: { blockNonce?: number }) {
     return items;
   }, [dayEvents, nowH]);
 
+  // The header ALWAYS reads in the user's actual time of day —
+  // “Good morning / afternoon / evening” is derived from the live
+  // clock (refreshed every minute + on app resume), never cached
+  // from a stale session. Reference: #dt = greeting · date, #gr =
+  // “Hi, {name}” (falls back to “Today” when no name is set).
   const greeting =
     nowH < 12 ? "Good morning" : nowH < 18 ? "Good afternoon" : "Good evening";
   const dateLabel = clock.toLocaleDateString("en-US", {
@@ -457,6 +487,7 @@ export function TodayView({ blockNonce = 0 }: { blockNonce?: number }) {
     month: "short",
     day: "numeric",
   });
+  const firstName = (data.profile.name || "").trim().split(/\s+/)[0];
 
   const currentBlock = dayEvents.find(
     (e) => nowH * 60 >= toMinutes(e.start) && nowH * 60 < toMinutes(e.end)
@@ -494,11 +525,19 @@ export function TodayView({ blockNonce = 0 }: { blockNonce?: number }) {
   return (
     <div className="dfx-scroll df-scroll" role="main" aria-label="Today">
       <div className="dfx-page dfx-enter">
-        {/* header */}
+        {/* header — the greeting ALWAYS matches the user's live
+            time of day (sub line), “Hi, {name}” as the display
+            title, and the Block quick action on the right (the
+            avatar lives in the shell header next to Settings) */}
         <div className="flex items-center justify-between gap-2.5">
           <div className="min-w-0">
-            <div className="dfx-sub truncate">{dateLabel}</div>
-            <h1 className="dfx-h1">{greeting}</h1>
+            <div
+              className="dfx-sub truncate"
+              style={{ fontSize: 14 }}
+            >
+              {greeting} · {dateLabel}
+            </div>
+            <h1 className="dfx-h1">{firstName ? `Hi, ${firstName}` : "Today"}</h1>
           </div>
           <button
             onClick={openNewBlock}
@@ -781,7 +820,11 @@ export function TodayView({ blockNonce = 0 }: { blockNonce?: number }) {
                       <CategoryIcon
                         name={cat?.icon ?? "circle"}
                         className="h-[22px] w-[22px]"
-                        style={{ color, stroke: color, fill: "none" }}
+                        style={{
+                          color: `color-mix(in srgb, ${color} 55%, var(--df-text-primary))`,
+                          stroke: `color-mix(in srgb, ${color} 55%, var(--df-text-primary))`,
+                          fill: "none",
+                        }}
                         strokeWidth={2}
                       />
                     </span>

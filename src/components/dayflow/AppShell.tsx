@@ -15,6 +15,7 @@ import { hapticSelect, haptic } from "@/lib/haptics";
 import { useDockHidden, watchDockKeyboard } from "@/hooks/use-dock-visibility";
 import { useKeyboardTracking } from "@/components/ui/Sheet";
 import { DiaCompanion } from "@/components/companion/DiaCompanion";
+import { SkySync } from "@/components/dayflow/SkySync";
 import { TAB_ACCENTS } from "@/styles/palette";
 
 // Phase 13 bundle diet: every tab view is code-split and streams in
@@ -71,6 +72,7 @@ export type TabId =
   | "nutrition"
   | "training"
   | "habits"
+  | "coach"
   | "journal"
   | "weekly"
   | "settings";
@@ -78,35 +80,61 @@ export type TabId =
 /** The Focus surface is the Today pane (PRD §4.2 / §4.9). */
 const FOCUS_TAB: TabId = "today";
 
-/** The four pill tabs — order IS the pill column order. */
-const PILL_TABS: { id: Extract<TabId, "today" | "nutrition" | "training" | "habits">; label: string }[] = [
+/** The five pill tabs (Phase 14 — Coach joins the pill per the
+ *  updated reference nav; Journal/Weekly/Settings stay one tap
+ *  away in the slim header). Order IS the pill column order. */
+const PILL_TABS: {
+  id: Extract<
+    TabId,
+    "today" | "nutrition" | "training" | "habits" | "coach"
+  >;
+  label: string;
+}[] = [
   { id: "today", label: "Today" },
   { id: "nutrition", label: "Nutrition" },
   { id: "training", label: "Training" },
   { id: "habits", label: "Habits" },
+  { id: "coach", label: "Coach" },
 ];
 
 const TAB_ICON: Record<string, ReactNode> = {
   today: (
     <svg viewBox="0 0 24 24" aria-hidden="true">
-      <circle cx="12" cy="12" r="8.5" />
-      <path d="M12 7.5V12l3 2" />
+      <path d="M3 17h18M7 20.5h10M12 4.5v2M5.3 8.4l1.4 1.4M18.7 8.4l-1.4 1.4" />
+      <path d="M6.5 17a5.5 5.5 0 0 1 11 0z" fill="currentColor" fillOpacity=".22" />
     </svg>
   ),
   nutrition: (
     <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M7 3v8M4 3v5a3 3 0 0 0 6 0V3M7 11v10M17 21V3c-2.5 1.5-3.5 5-3.5 8h3.5" />
+      <path d="M4 11h16a8 8 0 0 1-16 0z" fill="currentColor" fillOpacity=".22" />
+      <path d="M9 8c0-2.5 2-4 5-4 0 3-2 4-5 4z" />
     </svg>
   ),
   training: (
     <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11" />
+      <path d="M8.6 8.6a3.4 3.4 0 0 1 6.8 0" />
+      <circle cx="12" cy="15" r="6" fill="currentColor" fillOpacity=".22" />
+      <path d="M9.5 15h5" />
     </svg>
   ),
   habits: (
     <svg viewBox="0 0 24 24" aria-hidden="true">
-      <circle cx="12" cy="12" r="8.5" />
-      <path d="M8.5 12.2l2.4 2.4 4.6-5" />
+      <path d="M12 20.5V13" />
+      <path
+        d="M12 13c0-3-2-5-5.5-5 0 3 2 5 5.5 5zM12 11c0-3 2-5 5.5-5 0 3-2 5-5.5 5z"
+        fill="currentColor"
+        fillOpacity=".22"
+      />
+    </svg>
+  ),
+  coach: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M5 5.5h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-7l-4 3.5V16.5H5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2z"
+        fill="currentColor"
+        fillOpacity=".2"
+      />
+      <path d="M12 8.5l1 2.2 2.2 1-2.2 1-1 2.2-1-2.2-2.2-1 2.2-1z" />
     </svg>
   ),
 };
@@ -114,6 +142,20 @@ const TAB_ICON: Record<string, ReactNode> = {
 /** Cross-pane log intents — the plus FAB / quick-menu fire these;
  *  the owning pane opens its sheet when the nonce changes. */
 export type LogAction = "block" | "meal" | "workout";
+
+/** The avatar emoji from the profiles row's identity JSONB section
+ *  (same extraction as viewmodel's deriveProfile). */
+function profileEmoji(row: unknown): string {
+  const identity =
+    row && typeof row === "object" && !Array.isArray(row)
+      ? ((row as { identity?: unknown }).identity as
+          | { emoji?: unknown }
+          | undefined)
+      : undefined;
+  return typeof identity?.emoji === "string" && identity.emoji
+    ? identity.emoji
+    : "🌊";
+}
 
 export function AppShell() {
   const [tab, setTab] = useState<TabId>(FOCUS_TAB);
@@ -265,7 +307,7 @@ export function AppShell() {
 
   const accent =
     tab === "journal"
-      ? TAB_ACCENTS.today
+      ? TAB_ACCENTS.coach
       : tab === "weekly"
         ? TAB_ACCENTS.habits
         : tab === "settings"
@@ -295,8 +337,9 @@ export function AppShell() {
       className="df-app dfx-root w-full"
       style={{ ["--dfx-accent" as string]: accent }}
     >
-      {/* Shell header — brand + the overflow destinations (Journal,
-          Weekly, Settings) that live outside the four pill tabs. */}
+      {/* Shell header — brand + the overflow destinations (Weekly,
+          Settings) that live outside the five pill tabs; Journal /
+          Coach is now the 5th pill tab per the updated reference. */}
       <header className="dfx-header">
         <div className="flex min-w-0 items-center gap-2.5">
           <LogoMark size={26} />
@@ -312,14 +355,14 @@ export function AppShell() {
         </div>
         <div className="dfx-header-actions">
           <button
-            className={`dfx-hbtn${tab === "journal" ? " on" : ""}`}
-            onClick={() => go("journal")}
-            aria-label="Journal"
-            aria-current={tab === "journal" ? "page" : undefined}
+            className="dfx-av df-press"
+            onClick={() => {
+              haptic(6);
+              go("settings");
+            }}
+            aria-label="Profile and settings"
           >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
-            </svg>
+            {profileEmoji(profileRow)}
           </button>
           <button
             className={`dfx-hbtn${tab === "weekly" ? " on" : ""}`}
@@ -363,6 +406,9 @@ export function AppShell() {
           </div>
           <div className={`dfx-pane${tab === "habits" ? " on" : ""}`} aria-hidden={tab !== "habits"}>
             <HabitsView />
+          </div>
+          <div className={`dfx-pane${tab === "coach" ? " on" : ""}`} aria-hidden={tab !== "coach"}>
+            <ChatView />
           </div>
           {overflowPane && (
             <div className="dfx-pane on">{overflowPane}</div>
@@ -456,6 +502,9 @@ export function AppShell() {
 
       {/* Dia — the living 3D companion (lazy three.js chunk). */}
       <DiaCompanion />
+
+      {/* The living sky — data-sky hour bucket on <html> (Phase 14). */}
+      <SkySync />
 
       {/* Morning Triad gate (T1d) — gates the Focus tab. */}
       <MorningTriadGate

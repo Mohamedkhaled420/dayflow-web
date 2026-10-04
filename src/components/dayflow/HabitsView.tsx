@@ -518,7 +518,7 @@ export function HabitsView() {
               <h2>{message}</h2>
               <span
                 className="dfh-fl"
-                style={{ color: TAB_ACCENTS.nutrition }}
+                style={{ color: "var(--df-streak)" }}
               >
                 <svg viewBox="0 0 24 24" className="dfh-flame" aria-hidden="true">
                   <path d={FLAME_PATH} />
