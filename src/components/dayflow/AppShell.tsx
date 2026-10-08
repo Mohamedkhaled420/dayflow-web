@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import dynamic from "next/dynamic";
-import { useReducedMotion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { LogoMark } from "@/components/brand/LogoMark";
 import { LogoLoop } from "@/components/brand/LogoLoop";
 import { SplashScreen } from "@/components/brand/SplashScreen";
@@ -14,7 +14,7 @@ import {
 import { hapticSelect, haptic } from "@/lib/haptics";
 import { useDockHidden, watchDockKeyboard } from "@/hooks/use-dock-visibility";
 import { useKeyboardTracking } from "@/components/ui/Sheet";
-import { DiaCompanion } from "@/components/companion/DiaCompanion";
+import { DiaEngine } from "@/components/companion/DiaEngine";
 import { SkySync } from "@/components/dayflow/SkySync";
 import { TAB_ACCENTS } from "@/styles/palette";
 
@@ -321,8 +321,6 @@ export function AppShell() {
         return <ChatView />;
       case "weekly":
         return <WeeklyView />;
-      case "settings":
-        return <SettingsView onNavigate={go} />;
       default:
         return null;
     }
@@ -500,11 +498,31 @@ export function AppShell() {
         </button>
       </div>
 
-      {/* Dia — the living 3D companion (lazy three.js chunk). */}
-      <DiaCompanion />
+      {/* Dia's brain — the headless mood + XP engines keep running
+          app-wide; her 3D body lives in the AI chat now (DiaStage
+          inside the Coach hero). */}
+      <DiaEngine />
 
       {/* The living sky — data-sky hour bucket on <html> (Phase 14). */}
       <SkySync />
+
+      {/* Settings — the full-bleed sheet (reference #set): slides up
+          over the header AND the nav, animated by motion so the close
+          slides away too. The X returns to Today. */}
+      <AnimatePresence>
+        {tab === "settings" && (
+          <motion.div
+            className="dfset-ovl"
+            initial={{ y: "105%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "105%" }}
+            transition={{ duration: 0.6, ease: [0.32, 0.72, 0, 1] }}
+            aria-hidden={false}
+          >
+            <SettingsView onNavigate={go} />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Morning Triad gate (T1d) — gates the Focus tab. */}
       <MorningTriadGate

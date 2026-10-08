@@ -1,102 +1,114 @@
 "use client";
 
 // ============================================================
-// Dayflow AI — JournalView (Phase 5 T1a, PRD §4.4 — Phase 8
-// Dia chat shell rework)
+// Dayflow AI — Coach pane (reference "Dayflow (4).html" #cp)
 // ------------------------------------------------------------
-// The Journal surface now lives inside the Dia browser shell
-// (decision 3 revision): the chrome is FUNCTIONAL, not
-// decorative —
-//   traffic lights  → live sync status (isSyncing +
-//                     navigator.onLine + syncError)
-//   back / forward  → walk the journal entry history
-//   refresh         → re-run the last coach answer
-//   omnibar         → coach context + privacy (click to switch
-//                     journal ↔ training; 🔒 = owner-only RLS)
-//   sticky note     → Coach Notes panel (badge = saved count)
-// Entries are written through the Delta Sync store exactly as
-// before (journal_entries, owner-only RLS); the composer is now
-// RICH TEXT (decision 1) whose HTML is stored in content and
-// re-rendered only through sanitizeJournalHtml(). "Ask Coach"
-// calls /api/ai/coach — mode journal (CBT/Stoic, last-3-entries
-// context) or mode coaching with the training system prompt
-// when the omnibar is on coach://workout (Amendment #12 Bearer
-// auth; cascade + algorithmic floor live server-side).
-// Coach replies render as MARKDOWN through the escaping
-// allowlist renderer (no literal asterisks), and their
-// actionable tail (trailing NOTE/LOG protocol lines, stripped
-// by the route) lands in the Coach Notes panel — one tap writes
-// water/workout/sleep/journal through the real stores.
-// a11y: the flow is role="log" + aria-live="polite"; asking
-// sets aria-busy and a visually-hidden live region (A-5).
+// The AI chat, rebuilt on the updated mockup: a slim header
+// (privacy line + "Coach" + Chat/Journal segment), the chat
+// flow, and the capsule composer. DIA — the 3D white tiger —
+// lives HERE now and only here (user decision, Oct 2026): her
+// glass terrarium sits inside the gradient hero, thinking
+// while the coach streams, celebrating when rings close, and
+// evolving with the XP her engine accrues app-wide (see
+// companion/DiaEngine.tsx — the headless half mounted in the
+// AppShell).
+//
+// Two axes, kept distinct on purpose:
+//   view  Chat | Journal   — talk to the coach vs write entries
+//   mode  journal|workout  — WHICH coach answers (CBT/Stoic
+//                            reading your last 3 entries vs the
+//                            S&C coach reading your sessions)
+// The mode capsule in the hero + the prompt chips set it.
+//
+// Everything functional is unchanged from the Phase-8 build:
+// Delta Sync journal writes (owner-only RLS), /api/ai/coach
+// with Bearer auth + SSE streaming + algorithmic floor,
+// per-mode persisted turns, Coach Notes (the actionable tail
+// + one-tap logs), honest fallback labeling. Entries render
+// through sanitizeJournalHtml; replies through the allowlist
+// markdown renderer — never literal asterisks.
 // ============================================================
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "motion/react";
-import {
-  Frown,
-  Laugh,
-  Meh,
-  NotebookPen,
-  Smile,
-  Sparkles,
-  StickyNote,
-} from "lucide-react";
+import { RotateCw, StickyNote } from "lucide-react";
 import { useDayflowStore } from "@/store/useDayflowStore";
-import { useCompanionStore } from "@/store/companionStore";
 import { useDayflowData } from "@/lib/viewmodel";
+import { useCompanionStore } from "@/store/companionStore";
 import { useToast } from "@/hooks/use-toast";
 import { triggerHaptic, hapticSelect } from "@/lib/haptics";
-import { LogoLoop } from "@/components/brand/LogoLoop";
-import {
-  DiaChatShell,
-  type DiaCoachMode,
-  type DiaSyncState,
-} from "@/components/dayflow/DiaChatShell";
-import { JournalComposer } from "@/components/dayflow/JournalComposer";
-import { QuickActionGrid } from "@/components/dayflow/QuickActions";
-import { DoodleCluster, DoodleStar, Marker, StickerTilt } from "@/components/dayflow/doodles";
+import type { DiaCoachMode, DiaSyncState } from "@/components/dayflow/DiaChatShell";
+import { DiaStage } from "@/components/companion/DiaStage";
 import { journalHtmlToText, sanitizeJournalHtml } from "@/lib/journal-html";
 import { stripReasoning } from "@/lib/coach-text";
 import { renderCoachMarkdown } from "@/lib/coach-markdown";
-import {
-  coerceCoachAction,
-  type CoachLogAction,
-} from "@/lib/coach-protocol";
+import { coerceCoachAction, type CoachLogAction } from "@/lib/coach-protocol";
 import {
   CoachNotesSheet,
   type CoachNote,
 } from "@/components/dayflow/CoachNotesSheet";
 
-const MOODS = [
-  { score: 1, label: "Rough", Icon: Frown },
-  { score: 2, label: "Low", Icon: Frown },
-  { score: 3, label: "Okay", Icon: Meh },
-  { score: 4, label: "Good", Icon: Smile },
-  { score: 5, label: "Great", Icon: Laugh },
-] as const;
+/** The five mood faces — reference mouth paths + pastel tokens.
+ *  Score 1..5 → index 0..4 (Rough, Low, Okay, Good, Great). */
+const MOOD_FACES = {
+  mouths: [
+    "M8.5 16.2c1.2-1.6 2.3-2.2 3.5-2.2s2.3.6 3.5 2.2",
+    "M9 15.4c1.8-.8 4.2-.8 6 0",
+    "M9 15h6",
+    "M9 14.4c1.8 1.3 4.2 1.3 6 0",
+    "M8.2 13.6c1 3 2.6 4 3.8 4s2.8-1 3.8-4",
+  ],
+  colors: [
+    "var(--df-p-rose)",
+    "var(--df-p-powder)",
+    "var(--df-p-powder)",
+    "var(--df-p-celadon)",
+    "var(--df-p-celadon)",
+  ],
+  labels: ["Rough", "Low", "Okay", "Good", "Great"],
+} as const;
 
-/** Quick cards — preset prompts (decision 3: chips, not mock cards). */
+function FaceIcon({ score, size = 34 }: { score: number; size?: number }) {
+  const i = Math.min(4, Math.max(0, score - 1));
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.7}
+      strokeLinecap="round"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9 9.8h.01M15 9.8h.01" strokeWidth={2.4} />
+      <path d={MOOD_FACES.mouths[i]} />
+    </svg>
+  );
+}
+
+/** Quick prompts — stacked chip rows in the empty chat (reference .pq). */
 const PRESETS: { label: string; prompt: string; mode: DiaCoachMode }[] = [
   {
-    label: "Weekly patterns",
-    prompt: "What patterns do you see across my recent entries?",
-    mode: "journal",
-  },
-  {
-    label: "Reframe a rough day",
-    prompt: "Today felt heavy. Help me reframe it and pick one concrete next step.",
-    mode: "journal",
-  },
-  {
-    label: "Plan tomorrow",
+    label: "Plan my day around my energy",
     prompt: "Given my recent entries, where should my first focus block go tomorrow?",
     mode: "journal",
   },
   {
-    label: "Train today",
+    label: "Build me a 30 minute workout",
     prompt: "How should I train today, given my recent workouts?",
     mode: "workout",
+  },
+  {
+    label: "Help me reframe a rough day",
+    prompt: "Today felt heavy. Help me reframe it and pick one concrete next step.",
+    mode: "journal",
+  },
+  {
+    label: "What patterns do you see this week?",
+    prompt: "What patterns do you see across my recent entries?",
+    mode: "journal",
   },
 ];
 
@@ -107,8 +119,8 @@ const SYSTEM_PROMPTS: Record<DiaCoachMode, string> = {
     "You are Dayflow's strength & conditioning coach in conversation — practical, warm, brief. Ground every suggestion in the user's logged sessions; favor progression, recovery, and one concrete next step. Never give medical advice.",
 };
 
-/** Asked when the user taps Ask Coach with an empty composer —
- *  the coach is useful without new text (v0 audit #6). */
+/** Asked when the user sends an empty composer — the coach is
+ *  useful without new text (v0 audit #6). */
 const DEFAULT_QUESTIONS: Record<DiaCoachMode, string> = {
   journal: "What patterns do you see across my recent entries?",
   workout: "How should I train today, given my recent workouts?",
@@ -129,10 +141,10 @@ const GENERIC_UNREACHABLE =
  *  enforces a per-hop upstream timeout server-side. */
 const CLIENT_TIMEOUT_MS = 60_000;
 
-/** Coach chat persists on-device only (localStorage, capped) — the
- *  browser shell keeps its conversation across reloads without any
- *  new server table (v0 audit #9; privacy: same owner-device model
- *  as the Delta Sync IndexedDB cache). */
+/** Coach chat persists on-device only (localStorage, capped) —
+ *  the conversation survives reloads without any new server
+ *  table (v0 audit #9; privacy: same owner-device model as the
+ *  Delta Sync IndexedDB cache). */
 const TURNS_STORAGE_KEY = "dayflow.coach.turns.v1";
 const MAX_PERSISTED_TURNS = 60;
 
@@ -260,6 +272,7 @@ export function ChatView() {
   const data = useDayflowData();
   const { toast } = useToast();
 
+  const [view, setView] = useState<"chat" | "journal">("chat");
   const [draft, setDraft] = useState("");
   const [mood, setMood] = useState<number>(3);
   const [saving, setSaving] = useState(false);
@@ -275,17 +288,16 @@ export function ChatView() {
   const [mode, setMode] = useState<DiaCoachMode>("journal");
   /** Streaming coach text while it arrives (null = not streaming). */
   const [liveReply, setLiveReply] = useState<string | null>(null);
-  /** null = live at the newest entry; n = history pointer into
-   *  the newest-first entries array (browser-style navigation). */
-  const [historyCursor, setHistoryCursor] = useState<number | null>(null);
   const [online, setOnline] = useState(true);
   /** Coach Notes — the actionable tail of coach replies, surfaced
-   *  AWAY from the chat flow (panel + chrome badge). */
+   *  AWAY from the chat flow (panel + header badge). */
   const [notes, setNotes] = useState<CoachNote[]>([]);
   const [notesOpen, setNotesOpen] = useState(false);
   /** "noteId:idx" of the log action currently being written. */
   const [applyingAction, setApplyingAction] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const journalRef = useRef<HTMLTextAreaElement>(null);
+  const chatInputRef = useRef<HTMLTextAreaElement>(null);
   /** False until the localStorage restore has run — the save
    *  effect must NEVER fire before it (otherwise its empty-turns
    *  removeItem wipes storage before the restore can read it). */
@@ -406,7 +418,7 @@ export function ChatView() {
     [workoutLogs]
   );
 
-  // Traffic lights data source: network + delta-sync state.
+  // Sync dot: network + delta-sync state.
   useEffect(() => {
     const update = () => setOnline(navigator.onLine);
     update();
@@ -420,17 +432,15 @@ export function ChatView() {
 
   const sync: DiaSyncState = !online || syncError ? "error" : isSyncing ? "pending" : "ok";
 
-  // Auto-scroll: follow the flow at the live end; when browsing
-  // history, bring the pointed entry into view instead.
+  // Auto-scroll: the chat flow follows the live end while the
+  // coach streams or a turn lands; the journal view parks at the
+  // top (its newest entry is right under the composer card).
   useEffect(() => {
-    if (historyCursor !== null) {
-      const target = scrollRef.current?.querySelector(
-        `[data-entry-index="${historyCursor}"]`
-      );
-      target?.scrollIntoView({ behavior: "smooth", block: "center" });
+    if (view === "journal") {
+      scrollRef.current?.scrollTo({ top: 0, behavior: "auto" });
       return;
     }
-    if (mode === "journal") {
+    if (mode === "journal" && coachTurns.length === 0 && !asking) {
       scrollRef.current?.scrollTo({ top: 0, behavior: "auto" });
       return;
     }
@@ -438,9 +448,9 @@ export function ChatView() {
       top: scrollRef.current.scrollHeight,
       behavior: "smooth",
     });
-  }, [entries.length, coachTurns.length, liveReply, asking, historyCursor, mode]);
+  }, [entries.length, coachTurns.length, liveReply, asking, view, mode]);
 
-  const draftText = journalHtmlToText(draft).trim();
+  const draftText = draft.trim();
 
   // The visible conversation is per coach context (Qwen #3 / v0 #8):
   // switching journal ↔ training switches threads; refresh re-runs
@@ -456,14 +466,15 @@ export function ChatView() {
   const addCoachNote = (
     turnId: number,
     note: string | null,
-    actions: CoachLogAction[]
+    actions: CoachLogAction[],
+    ctxMode: DiaCoachMode
   ) => {
     if (note === null && actions.length === 0) return;
     setNotes((n) => [
       {
         id: turnId,
         text: note ?? "Suggested from your chat",
-        mode,
+        mode: ctxMode,
         createdAt: new Date().toISOString(),
         actions,
         appliedIdx: [],
@@ -540,18 +551,24 @@ export function ChatView() {
     try {
       await addJournalEntry({ content: draft, mood_score: mood });
       triggerHaptic(); // T2a: haptic on every journal save
-      setDraft(""); // composer resyncs via its external-reset path
-      toast({ title: "Journal saved", description: MOODS[mood - 1].label });
+      setDraft("");
+      toast({ title: "Journal saved", description: MOOD_FACES.labels[mood - 1] });
     } finally {
       setSaving(false);
     }
   };
 
-  const askCoach = async (question: string, repeat = false) => {
+  /** Ask the coach. `overrideMode` lets the prompt chips and the
+   *  journal's Ask Coach button pick WHICH coach answers in the
+   *  same tick they switch to the chat view (mode state itself
+   *  updates for the NEXT turn). */
+  const askCoach = async (question: string, repeat = false, overrideMode?: DiaCoachMode) => {
     if (asking) return;
+    const ctxMode = overrideMode ?? mode;
+    if (overrideMode && overrideMode !== mode) setMode(overrideMode);
     // An empty composer still means a question — the mode default
     // asks about existing entries/sessions (v0 audit #6).
-    const q = question.trim() || DEFAULT_QUESTIONS[mode];
+    const q = question.trim() || DEFAULT_QUESTIONS[ctxMode];
     setAsking(true);
     setCoachError(null);
     let optimisticId: number | null = null;
@@ -560,7 +577,7 @@ export function ChatView() {
       optimisticId = turnId;
       setCoachTurns((t) => [
         ...t,
-        { id: turnId, role: "user", content: q, mode },
+        { id: turnId, role: "user", content: q, mode: ctxMode },
       ]);
       // The draft is deliberately NOT cleared yet — it is only
       // cleared once a coach answer lands (v0 audit #2: a failed
@@ -594,7 +611,7 @@ export function ChatView() {
       // 4K tokens before any Groq call): last 3 entries for the
       // journal coach, last 3 sessions for the training coach.
       const context =
-        mode === "journal"
+        ctxMode === "journal"
           ? entries.slice(0, 3).reverse().map((e) => ({
               role: "user" as const,
               content: `[journal ${e.created_at.slice(0, 10)}${
@@ -607,18 +624,18 @@ export function ChatView() {
                 w.duration_minutes ? ` · ${w.duration_minutes}m` : ""
               }`,
             }));
-      // Omnibar mode maps to the route's conversational modes:
+      // View mode maps to the route's conversational modes:
       // journal → journal (reasoning), workout → coaching. The
       // structured workout JSON cascade is HabitsView's generator,
       // not this conversational surface.
-      const apiMode = mode === "journal" ? "journal" : "coaching";
+      const apiMode = ctxMode === "journal" ? "journal" : "coaching";
       const res = await fetch("/api/ai/coach", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           mode: apiMode,
           messages: [
-            { role: "system", content: SYSTEM_PROMPTS[mode] },
+            { role: "system", content: SYSTEM_PROMPTS[ctxMode] },
             ...context,
             { role: "user", content: q },
           ],
@@ -659,9 +676,9 @@ export function ChatView() {
         const turnId = Date.now() + 1;
         setCoachTurns((t) => [
           ...t,
-          { id: turnId, role: "coach", content: full, mode, source, note, actions },
+          { id: turnId, role: "coach", content: full, mode: ctxMode, source, note, actions },
         ]);
-        addCoachNote(turnId, note, actions);
+        addCoachNote(turnId, note, actions, ctxMode);
         if (!repeat) setDraft("");
         return;
       }
@@ -692,13 +709,13 @@ export function ChatView() {
           id: turnId,
           role: "coach",
           content: payload.text!,
-          mode,
+          mode: ctxMode,
           source: payload.source,
           note: payload.note ?? null,
           actions: cleanActions,
         },
       ]);
-      addCoachNote(turnId, payload.note ?? null, cleanActions);
+      addCoachNote(turnId, payload.note ?? null, cleanActions, ctxMode);
       if (!repeat) setDraft("");
     } catch (e) {
       if (
@@ -715,8 +732,8 @@ export function ChatView() {
     }
   };
 
-  /** Refresh control: re-run the last coach answer (decision 3) —
-   *  always within the CURRENT coach context. */
+  /** Refresh control: re-run the last coach answer — always
+   *  within the CURRENT coach context. */
   const rerunCoach = () => {
     const lastQuestion = [...visibleTurns].reverse().find((t) => t.role === "user");
     if (lastQuestion) void askCoach(lastQuestion.content, true);
@@ -724,161 +741,220 @@ export function ChatView() {
   const lastUserQuestion = [...visibleTurns].reverse().find((t) => t.role === "user");
   const refreshDisabled = asking || !lastUserQuestion;
 
-  /** Browser-style history navigation over the entries list. */
-  const goBack = () => {
-    setHistoryCursor((c) =>
-      Math.min((c ?? 0) + 1, Math.max(0, entries.length - 1))
-    );
-    hapticSelect();
-  };
-  const goForward = () => {
-    setHistoryCursor((c) => (c === null ? null : c === 0 ? null : c - 1));
-    hapticSelect();
-  };
-  const backDisabled = entries.length === 0 || (historyCursor ?? 0) >= entries.length - 1;
-  const forwardDisabled = historyCursor === null;
-
   const cycleMode = () => {
     hapticSelect();
     setMode((m) => (m === "journal" ? "workout" : "journal"));
   };
 
-  const applyPreset = (preset: (typeof PRESETS)[number]) => {
+  /** A prompt chip: sends immediately (reference .pq cadence) but
+   *  never destroys unsent writing — a non-empty draft asks first. */
+  const sendPreset = (preset: (typeof PRESETS)[number]) => {
     hapticSelect();
-    setMode(preset.mode);
-    // Qwen #5: never silently destroy writing in progress — the
-    // preset only fills an empty (or identical) draft, otherwise
-    // the user explicitly confirms the swap.
     if (draftText && draftText !== preset.prompt) {
       const replace = window.confirm(
         "Replace your current draft with this prompt?"
       );
       if (!replace) return;
     }
-    setDraft(preset.prompt);
+    setDraft("");
+    void askCoach(preset.prompt, false, preset.mode);
   };
 
-  const firstName = data.profile.name.split(" ")[0];
-  // Phase 11 — the chat hero's "Start writing" CTA focuses the
-  // composer via this signal (see JournalComposer.focusSignal).
-  const [focusSignal, setFocusSignal] = useState(0);
+  /** Journal card → Ask Coach on a saved entry: hop to the chat
+   *  view and ask the journal coach about that entry. */
+  const askAboutEntry = (content: string) => {
+    hapticSelect();
+    setView("chat");
+    void askCoach(journalHtmlToText(content), false, "journal");
+  };
+
+  const firstName = (data.profile.name || "there").split(" ")[0];
 
   return (
-    <div className="relative flex h-full min-h-0 flex-col lg:mx-auto lg:w-full lg:max-w-[880px]">
-      <DiaChatShell
-        sync={sync}
-        mode={mode}
-        onModeChange={cycleMode}
-        onBack={goBack}
-        backDisabled={backDisabled}
-        onForward={goForward}
-        forwardDisabled={forwardDisabled}
-        onRefresh={rerunCoach}
-        refreshDisabled={refreshDisabled}
-        onOpenNotes={() => setNotesOpen(true)}
-        notesCount={notes.length}
-        historyPosition={
-          historyCursor !== null && entries.length > 0
-            ? `${historyCursor + 1} / ${entries.length}`
-            : undefined
-        }
-        footer={
-        <div
-          className="px-4 pb-[max(0.5rem,calc(var(--keyboard-height,0px)-var(--safe-area-bottom,0px)-72px))] pt-1 sm:px-6"
-        >
-          {/* Keyboard lift (standalone-PWA fix): the composer sits at
-              panel-bottom − this padding. The panel already reserves
-              the dock band (88px + home-indicator inset) BELOW the
-              chat column, and the dock hides while the keyboard is
-              up — so the footer only needs the keyboard height MINUS
-              that reserved band. Old flat "+keyboard-height" padding
-              left a dead 122px gap above the keys; no tracking at all
-              buried the composer entirely. */}
-          {/* quick cards — preset prompt chips. 2026-09 iPhone QA
-              fix: the edge-fade mask made the last chip read as a
-              broken cut-off ("Plan tom…") instead of a scroll hint —
-              a plain clipped chip is the standard iOS affordance. */}
+    <div className="dfc-root">
+      {/* ---------- header (reference .cth) ---------- */}
+      <header className="dfc-head">
+        <div className="dfc-head-l">
+          <p className="dfc-priv">
+            <span className="dfc-sync-dot" data-sync={sync} aria-hidden="true" />
+            Private · replies use your{" "}
+            {mode === "journal" ? "last 3 entries" : "last 3 workouts"}
+          </p>
+          <h1 className="dfc-h1">Coach</h1>
+        </div>
+        <div className="dfc-head-r">
+          {notes.length > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                hapticSelect();
+                setNotesOpen(true);
+              }}
+              className="dfc-notes-btn df-press"
+              aria-label={`Open Coach Notes — ${notes.length} saved`}
+            >
+              <StickyNote className="h-4 w-4" aria-hidden="true" />
+              <b>{notes.length}</b>
+            </button>
+          )}
+          {view === "chat" && (
+            <button
+              type="button"
+              onClick={rerunCoach}
+              disabled={refreshDisabled}
+              aria-label="Ask the last question again"
+              className="dfc-refresh df-press"
+            >
+              <RotateCw className="h-4 w-4" aria-hidden="true" />
+            </button>
+          )}
+          <div className="dfc-seg" role="tablist" aria-label="Coach surface">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={view === "chat"}
+              onClick={() => {
+                hapticSelect();
+                setView("chat");
+              }}
+              className={view === "chat" ? "on" : ""}
+            >
+              Chat
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={view === "journal"}
+              onClick={() => {
+                hapticSelect();
+                setView("journal");
+              }}
+              className={view === "journal" ? "on" : ""}
+            >
+              Journal
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* ---------- the flow (reference .cv) ---------- */}
+      {view === "chat" ? (
+        <>
           <div
-            className="df-scroll -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1"
-            role="list"
-            aria-label="Quick prompts for the coach"
+            ref={scrollRef}
+            className="dfc-flow"
+            role="log"
+            aria-label="Coach conversation"
+            aria-live="polite"
+            aria-busy={asking}
           >
-            {PRESETS.map((preset) => (
-              <button
-                key={preset.label}
-                type="button"
-                role="listitem"
-                onClick={() => applyPreset(preset)}
-                aria-label={`Ask coach: ${preset.label}`}
-                className="df-press df-chip flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-[11.5px] font-medium"
-              >
-                <Sparkles
-                  className="h-3 w-3"
-                  style={{ color: "var(--df-accent)" }}
-                  aria-hidden="true"
-                />
-                {preset.label}
-              </button>
+            {/* the hero — Dia's home + the reference greeting card */}
+            {visibleTurns.length === 0 && (
+              <>
+                <section className="dfc-hero" aria-label="Ask your coach">
+                  <div className="dfc-hero-stage">
+                    <DiaStage />
+                  </div>
+                  <h2 className="dfc-hero-h">Hey, {firstName}</h2>
+                  <p className="dfc-hero-p">What&apos;s the plan for today?</p>
+                  <button
+                    type="button"
+                    onClick={cycleMode}
+                    className="dfc-mode df-press"
+                    aria-label={`Coach context: ${
+                      mode === "journal" ? "journal" : "training"
+                    } coach. Activate to switch.`}
+                  >
+                    {mode === "journal" ? "Journal coach" : "Training coach"}
+                  </button>
+                </section>
+                <div className="dfc-pq-col" role="list" aria-label="Quick prompts for the coach">
+                  {PRESETS.map((preset) => (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      role="listitem"
+                      onClick={() => sendPreset(preset)}
+                      className="dfc-pq df-press"
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12 3l1.6 4.6L18 9l-4.4 1.4L12 15l-1.6-4.6L6 9l4.4-1.4z" />
+                      </svg>
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {visibleTurns.map((t) => (
+              <Fragment key={t.id}>
+                <Bubble role={t.role === "user" ? "user" : "coach"} source={t.source}>
+                  {t.role === "coach" ? renderCoachMarkdown(stripReasoning(t.content)) : t.content}
+                </Bubble>
+                {/* the actionable tail landed in Coach Notes, not in
+                    the bubble — point at it without flooding the chat */}
+                {t.role === "coach" && (t.note || (t.actions?.length ?? 0) > 0) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      hapticSelect();
+                      setNotesOpen(true);
+                    }}
+                    aria-label="Open Coach Notes — this reply saved a takeaway there"
+                    className="dfc-note-chip df-press"
+                  >
+                    <StickyNote className="h-3 w-3" aria-hidden="true" />
+                    Saved to Coach Notes
+                  </button>
+                )}
+              </Fragment>
             ))}
+
+            {/* streaming answer — text paints as it arrives (v0 #1);
+                the animated dots only cover the wait before the
+                first delta lands */}
+            {asking && liveReply !== null && (
+              <Bubble role="coach" streaming>
+                {renderCoachMarkdown(stripReasoning(liveReply))}
+              </Bubble>
+            )}
+
+            {asking && liveReply === null && (
+              <div className="dfc-msg c dfc-ty" aria-label="Coach is thinking">
+                <i />
+                <i />
+                <i />
+              </div>
+            )}
+
+            {coachError && (
+              <p className="dfc-err" role="alert">
+                {coachError}
+              </p>
+            )}
           </div>
 
-          {/* rich-text composer (decision 1) — glows on typing */}
-          <JournalComposer
-            value={draft}
-            onChange={setDraft}
-            onSubmit={() => void saveEntry()}
-            focusSignal={focusSignal}
-          />
-
-          {/* action row — mood for the entry, then save / ask.
-              flex-wrap: on phones the mood picker + two buttons don't
-              fit one 390px line, so the save/ask group wraps to its own
-              right-aligned row instead of overflowing the screen. */}
-          <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1">
-            <div
-              className="flex items-center gap-0.5"
-              role="radiogroup"
-              aria-label="Mood for this entry"
-            >
-              {MOODS.map((m) => {
-                const active = mood === m.score;
-                return (
-                  <button
-                    key={m.score}
-                    type="button"
-                    role="radio"
-                    aria-checked={active}
-                    aria-label={m.label}
-                    onClick={() => setMood(m.score)}
-                    className="df-press grid size-9 place-items-center rounded-full sm:size-10"
-                    style={{
-                      background: active ? "var(--df-chat-soft-fill)" : "transparent",
-                      border: active
-                        ? "1.5px solid color-mix(in srgb, var(--df-accent) 55%, transparent)"
-                        : "1.5px solid transparent",
-                    }}
-                  >
-                    <m.Icon
-                      className="h-[18px] w-[18px]"
-                      style={{ color: active ? "var(--df-accent)" : "var(--df-text-muted)" }}
-                    />
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="ml-auto flex items-center gap-2">
+          {/* ---------- composer (reference .cmp / .cin) ---------- */}
+          <footer className="dfc-compose">
+            <div className="dfc-cin">
+              <textarea
+                ref={chatInputRef}
+                rows={1}
+                value={draft}
+                placeholder="Ask your coach…"
+                aria-label="Message your coach"
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    void askCoach(draftText);
+                  }
+                }}
+              />
               <button
                 type="button"
-                onClick={() => void saveEntry()}
-                disabled={!draftText || saving}
-                className="df-press df-btn-primary min-h-9 flex items-center gap-1 rounded-full px-3 text-[12px] font-semibold disabled:opacity-40 sm:min-h-11 sm:gap-1.5 sm:px-3.5 sm:text-[12.5px]"
-              >
-                <NotebookPen className="h-3.5 w-3.5" />
-                {saving ? "Saving…" : "Save entry"}
-              </button>
-              <button
-                type="button"
+                className="dfc-send df-press"
                 onClick={() => void askCoach(draftText)}
                 disabled={asking}
                 aria-busy={asking}
@@ -886,275 +962,138 @@ export function ChatView() {
                   asking
                     ? "Coach is thinking"
                     : draftText
-                      ? "Ask the coach about this"
-                      : mode === "journal"
-                        ? "Ask the coach about your recent entries"
-                        : "Ask the coach about your recent workouts"
+                      ? "Send to your coach"
+                      : `Ask the coach about your recent ${
+                          mode === "journal" ? "entries" : "workouts"
+                        }`
                 }
-                className="df-press df-btn-secondary min-h-9 flex items-center gap-1 rounded-full px-3 text-[12px] font-semibold disabled:opacity-40 sm:min-h-11 sm:gap-1.5 sm:px-3.5 sm:text-[12.5px]"
               >
                 {asking ? (
-                  <LogoLoop size="sm" />
+                  <span className="dfc-send-dots" aria-hidden="true">
+                    <i />
+                    <i />
+                    <i />
+                  </span>
                 ) : (
-                  <Sparkles className="h-3.5 w-3.5" style={{ color: "var(--df-accent)" }} />
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 19V5M5.5 11.5L12 5l6.5 6.5" />
+                  </svg>
                 )}
-                {asking ? "thinking…" : "Ask Coach"}
               </button>
             </div>
-          </div>
-          <p className="mt-1.5 text-center text-[10px]" style={{ color: "var(--df-text-muted)" }}>
-            Entries stay owner-only (RLS). Ask Coach sends your{" "}
-            {mode === "journal" ? "last 3 entries" : "last 3 workouts"} for context; chat history,
-            Coach Notes, and their one-tap logs stay on this device until you apply them.
-          </p>
-        </div>
-      }
-    >
-      {/* message flow — the shell's hero area */}
-      <div
-        ref={scrollRef}
-        className="df-scroll h-full min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-4 pb-2 pt-6 sm:px-6 flex"
-        style={{ scrollPaddingTop: "1.5rem" }}
-        role="log"
-        aria-label="Journal entries and coach replies"
-        aria-live="polite"
-        aria-busy={asking}
-      >
-        {/* privacy masthead — the omnibar carries mode, this carries intent */}
-        <p className="text-[11.5px]" style={{ color: "var(--df-text-muted)" }}>
-          Journal — private to your account, never shared with your team.
-        </p>
-
-        {/* Lively Pastel hero (Phase 11) — the reference chat home:
-            periwinkle greeting card ("Hey, {name}" + the white mode
-            capsule + the ONE charcoal pill CTA), then the "How can
-            I help you today?" pastel grid. Shows while no coach
-            reply is on screen — the journal cards render below it. */}
-        {visibleTurns.length === 0 && (
-          <>
-            <section
-              className="df-rise relative mt-2 shrink-0 overflow-hidden rounded-[20px] px-3 py-2.5 sm:mt-3 sm:rounded-[24px] sm:px-5 sm:py-4"
-              style={{
-                background: "var(--df-hero-panel)",
-                border: "0.5px solid var(--df-hero-panel-edge)",
-                boxShadow: "var(--df-hero-panel-shadow)",
-              }}
-              aria-label="Ask your coach"
-            >
-              <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
-                <div className="min-w-0">
-                  <h2
-                    className="text-[20px] font-extrabold leading-snug tracking-tight"
-                    style={{ color: "var(--df-text-primary)" }}
-                  >
-                    Hey, <Marker>{firstName}</Marker>
-                  </h2>
-                  <p
-                    className="mt-0.5 text-[12px] font-semibold leading-none"
-                    style={{ color: "var(--df-text-secondary)" }}
-                  >
-                    What is the plan for today?
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={cycleMode}
-                  className="df-press flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-[11px] font-bold"
-                  style={{
-                    background: "var(--df-hero-badge-fill)",
-                    border: "0.5px solid var(--df-hero-badge-border)",
-                    color: "var(--df-text-primary)",
-                  }}
-                  aria-label={`Coach context: ${mode}. Activate to switch to ${
-                    mode === "journal" ? "training" : "journal"
-                  } coaching.`}
-                >
-                  <Sparkles
-                    className="h-3.5 w-3.5"
-                    style={{ color: "var(--df-streak)" }}
-                    aria-hidden="true"
-                  />
-                  {mode === "journal" ? "Journal coach" : "Training coach"}
-                </button>
-              </div>
-              {/* doodle sticker leaning into the hero corner */}
-              <StickerTilt
-                degrees={-9}
-                className="pointer-events-none absolute bottom-1.5 right-2.5"
-              >
-                <DoodleCluster className="h-12 w-12" />
-              </StickerTilt>
-              <p
-                className="mt-2 hidden max-w-[30ch] text-[15.5px] font-extrabold leading-snug sm:block sm:mt-3"
-                style={{ color: "var(--df-text-primary)" }}
-              >
-                Design your <Marker>perfect daily routine</Marker> with your private coach.
-              </p>
-              <button
-                type="button"
-                onClick={() => {
-                  hapticSelect();
-                  setFocusSignal((n) => n + 1);
-                }}
-                className="df-press df-btn-primary mt-3.5 hidden h-10 items-center gap-1.5 px-5 text-[13px] font-bold sm:inline-flex"
-              >
-                <NotebookPen className="h-4 w-4" aria-hidden="true" />
-                Start writing
-              </button>
-            </section>
-
-            <p
-              className="px-0.5 text-[12.5px] font-extrabold leading-none"
-              style={{ color: "var(--df-text-primary)" }}
-            >
-              <DoodleStar className="mr-1.5 inline-block h-4 w-4 -translate-y-0.5 rotate-12 align-baseline" />
-              How can I help you today?
+            <p className="dfc-foot">
+              Chat history stays on this device; coach answers read your{" "}
+              {mode === "journal" ? "last 3 entries" : "last 3 workouts"} for context.
             </p>
-            <QuickActionGrid
-              onPick={(a) =>
-                applyPreset({ label: a.label, prompt: a.prompt, mode: a.mode })
-              }
+          </footer>
+        </>
+      ) : (
+        /* ---------- journal view (reference cJournal) ---------- */
+        <div
+          ref={scrollRef}
+          className="dfc-flow dfc-journal"
+          aria-label="Journal entries"
+        >
+          <section className="dfc-jc" aria-label="Write a journal entry">
+            <textarea
+              ref={journalRef}
+              rows={3}
+              value={draft}
+              placeholder="How did today go?"
+              aria-label="Journal entry"
+              onChange={(e) => setDraft(e.target.value)}
             />
-          </>
-        )}
-
-        {entries.length === 0 && visibleTurns.length === 0 && (
-          <p className="mt-3 text-center text-[11px]" style={{ color: "var(--df-text-muted)" }}>
-            Nothing written yet — pick a card above or start typing below.
-          </p>
-        )}
-
-        {visibleTurns.map((t) => (
-          <Fragment key={t.id}>
-            <Bubble role={t.role === "user" ? "user" : "coach"} source={t.source}>
-              {t.role === "coach" ? renderCoachMarkdown(stripReasoning(t.content)) : t.content}
-            </Bubble>
-            {/* the actionable tail landed in Coach Notes, not in
-                the bubble — point at it without flooding the chat */}
-            {t.role === "coach" && (t.note || (t.actions?.length ?? 0) > 0) && (
-              <button
-                type="button"
-                onClick={() => {
-                  hapticSelect();
-                  setNotesOpen(true);
-                }}
-                aria-label="Open Coach Notes — this reply saved a takeaway there"
-                className="df-press df-chip -mt-1.5 flex h-7 shrink-0 items-center gap-1.5 self-start rounded-full px-2.5 text-[10.5px] font-medium"
-              >
-                <StickyNote
-                  className="h-3 w-3"
-                  style={{ color: "var(--df-accent)" }}
-                  aria-hidden="true"
-                />
-                Saved to Coach Notes
-              </button>
-            )}
-          </Fragment>
-        ))}
-
-        {/* streaming answer — text paints as it arrives (v0 #1);
-            the animated dots only cover the wait before the first
-            delta lands */}
-        {asking && liveReply !== null && (
-          <Bubble role="coach" streaming>
-            {stripReasoning(liveReply)}
-          </Bubble>
-        )}
-
-        {asking && liveReply === null && (
-          <div className="df-generating h-[34px] max-w-[60%] rounded-full" aria-label="Coach is thinking">
-            <div className="flex h-full items-center gap-1.5 px-4">
-              {[0, 1, 2].map((i) => (
-                <motion.span
-                  key={i}
-                  className="h-1.5 w-1.5 rounded-full"
-                  style={{ background: "var(--df-text-muted)" }}
-                  animate={{ opacity: [0.35, 1, 0.35] }}
-                  transition={{ duration: 1.1, repeat: Infinity, delay: i * 0.18 }}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {coachError && (
-          <p
-            className="max-w-[80%] self-start px-3 py-2 text-[12px]"
-            role="alert"
-            style={{
-              color: "var(--df-destructive-text)",
-              background: "color-mix(in srgb, var(--df-destructive) 12%, transparent)",
-              borderRadius: "var(--df-bubble-radius)",
-            }}
-          >
-            {coachError}
-          </p>
-        )}
-
-        {entries.map((e, i) => {
-          const moodMeta = e.mood_score ? MOODS[Math.min(4, Math.max(0, e.mood_score - 1))] : null;
-          const highlighted = historyCursor === i;
-          return (
-            <article
-              key={e.id}
-              data-entry-index={i}
-              className="px-3.5 py-2.5"
-              style={{
-                background: "var(--df-card-fill)",
-                borderRadius: "var(--df-bubble-radius)",
-                border: highlighted
-                  ? "1.5px solid var(--df-accent)"
-                  : "0.5px solid var(--df-card-border)",
-                boxShadow: "inset 0 0 0 2px var(--df-card-glow)",
-              }}
+            <div
+              className="dfc-moods"
+              role="radiogroup"
+              aria-label="Mood for this entry"
             >
-              <div className="flex items-center gap-2">
-                {moodMeta ? (
-                  <span
-                    className="flex items-center gap-1 rounded-full px-1.5 py-[1px]"
-                    style={{
-                      background: "var(--df-chip-fill)",
-                      border: "0.5px solid var(--df-chip-border)",
+              {MOOD_FACES.labels.map((label, i) => {
+                const score = i + 1;
+                const active = mood === score;
+                return (
+                  <button
+                    key={label}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    aria-label={label}
+                    onClick={() => {
+                      hapticSelect();
+                      setMood(score);
                     }}
-                    aria-label={`Mood: ${moodMeta.label} (${e.mood_score} of 5)`}
+                    className={`dfc-mood${active ? " on" : ""}`}
+                    style={{ ["--dfc-c" as string]: MOOD_FACES.colors[i] }}
                   >
-                    <moodMeta.Icon className="h-3 w-3" style={{ color: "var(--df-accent)" }} />
-                    <span className="text-[10px] font-semibold" style={{ color: "var(--df-text-secondary)" }}>
-                      {moodMeta.label}
-                    </span>
+                    <FaceIcon score={score} size={30} />
+                    <span>{label}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              type="button"
+              onClick={() => void saveEntry()}
+              disabled={!draftText || saving}
+              aria-busy={saving}
+              className="dfc-save df-press"
+            >
+              {saving ? "Saving…" : "Save entry"}
+            </button>
+          </section>
+
+          {entries.length > 0 && (
+            <div className="dfx-lbl">
+              <span>Earlier</span>
+            </div>
+          )}
+          {entries.map((e) => (
+            <article key={e.id} className="dfc-je">
+              <div className="dfc-jeh">
+                {e.mood_score ? (
+                  <span
+                    className="dfc-je-face"
+                    style={{ color: MOOD_FACES.colors[Math.min(4, Math.max(0, e.mood_score - 1))] }}
+                    aria-label={`Mood: ${MOOD_FACES.labels[Math.min(4, Math.max(0, e.mood_score - 1))]} (${e.mood_score} of 5)`}
+                  >
+                    <FaceIcon score={e.mood_score} size={24} />
                   </span>
                 ) : null}
-                <time
-                  className="text-[10px] tabular-nums"
-                  style={{ color: "var(--df-text-muted)" }}
-                  dateTime={e.created_at}
-                >
+                <small>
                   {new Date(e.created_at).toLocaleString("en-US", {
                     month: "short",
                     day: "numeric",
                     hour: "numeric",
                     minute: "2-digit",
                   })}
-                </time>
+                </small>
                 {e.pending_sync && (
-                  <span className="text-[9px] font-bold uppercase" style={{ color: "var(--df-text-muted)" }}>
-                    pending
-                  </span>
+                  <span className="dfc-je-pending">pending</span>
                 )}
               </div>
               {/* Stored HTML — rendered ONLY through the allowlist
-                  sanitizer; legacy plain-text entries arrive
-                  pre-escaped and take the same path. */}
+                  sanitizer; plain-text entries take the same path. */}
               <div
-                className="df-prose mt-1.5 text-[13px]"
-                style={{ color: "var(--df-text-primary)" }}
+                className="df-prose dfc-je-text"
                 dangerouslySetInnerHTML={{ __html: sanitizeJournalHtml(e.content) }}
               />
+              <button
+                type="button"
+                className="dfc-ask df-press"
+                onClick={() => askAboutEntry(e.content)}
+              >
+                Ask Coach
+              </button>
             </article>
-          );
-        })}
-      </div>
-      </DiaChatShell>
+          ))}
+
+          {entries.length === 0 && (
+            <p className="dfc-empty">
+              Nothing written yet — today&apos;s card above is a fresh page.
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Coach Notes — the dedicated surface for the coach's
           actionable tail (notes + one-tap logs), OUTSIDE the chat
@@ -1183,69 +1122,32 @@ function Bubble({
   role: "user" | "coach";
   source?: "ai" | "fallback";
   streaming?: boolean;
+  /** Coach bodies arrive PRE-RENDERED as allowlist markdown HTML
+   *  (the caller renders); user bodies are plain text. */
   children: string;
 }) {
   const isUser = role === "user";
   return (
     <motion.div
-      initial={{ opacity: 0, y: 8, scale: 0.99 }}
+      initial={{ opacity: 0, y: 10, scale: 0.99 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-      className={`max-w-[78%] px-3.5 py-2.5 sm:max-w-[62%] ${
-        isUser ? "self-end" : "self-start"
-      }`}
-      style={
-        isUser
-          ? {
-              /* Lively Pastel: user rides the SUNNY yellow bubble
-                 (yellow-200 over the cream chat surface). */
-              background: "var(--df-chat-soft-fill)",
-              border: "0.5px solid var(--df-chat-soft-border)",
-              borderRadius: "var(--df-bubble-radius)",
-            }
-          : {
-              /* The coach answers in BLUSH PINK — the pink/yellow
-                 bubble pairing from the reference. */
-              background: "var(--df-bubble-coach-fill)",
-              border: "0.5px solid var(--df-bubble-coach-border)",
-              borderRadius: "var(--df-bubble-radius)",
-            }
-      }
+      transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+      className={`dfc-msg ${isUser ? "u" : "c"}`}
     >
       {isUser ? (
-        <p
-          className="text-[13px] leading-[1.5] whitespace-pre-wrap"
-          style={{ color: "var(--df-text-primary)" }}
-        >
-          {children}
-        </p>
+        <p className="dfc-msg-text">{children}</p>
       ) : (
-        // Coach replies arrive as markdown (bold, lists, code…) —
-        // rendered through the escaping allowlist renderer so the
-        // user sees formatting, never literal asterisks ("stars").
-        <div
-          className="df-prose text-[13px]"
-          style={{ color: "var(--df-text-primary)" }}
-        >
-          <div dangerouslySetInnerHTML={{ __html: renderCoachMarkdown(children) }} />
+        <div className="df-prose dfc-msg-text">
+          <div dangerouslySetInnerHTML={{ __html: children }} />
           {streaming && (
-            <span
-              aria-hidden="true"
-              className="ml-0.5 inline-block h-[13px] w-[2px] align-[-2px]"
-              style={{ background: "var(--df-accent)" }}
-            />
+            <span className="dfc-caret" aria-hidden="true" />
           )}
         </div>
       )}
       {/* honest labeling (v0 #16): the algorithmic floor is quick
-          local guidance, not a Groq answer — say so, quietly */}
+          local guidance, not a live model answer — say so, quietly */}
       {!isUser && source === "fallback" && (
-        <p
-          className="mt-1.5 text-[9.5px] font-semibold uppercase tracking-wide"
-          style={{ color: "var(--df-text-muted)" }}
-        >
-          Quick guidance · coach offline
-        </p>
+        <p className="dfc-fallback">Quick guidance · coach offline</p>
       )}
     </motion.div>
   );

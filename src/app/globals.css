@@ -6648,3 +6648,1087 @@ select {
     transition: none !important;
   }
 }
+
+/* ============================================================
+   Phase 15 — Coach pane (.dfc-*) + Settings sheet (.dfset-*)
+   Reference "Dayflow (4).html" (#cp + #set), Oct 2026.
+   ============================================================ */
+
+.dfc-root {
+  --dfc-ink: var(--df-text-primary);
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 448px;
+  margin: 0 auto;
+  height: 100%;
+  min-height: 0;
+}
+
+/* ---------- header (reference .cth) ---------- */
+.dfc-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 10px;
+  padding: calc(10px + var(--safe-area-top, 0px)) 18px 10px;
+  flex: none;
+}
+.dfc-head-l {
+  min-width: 0;
+}
+.dfc-priv {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 2px;
+  font-size: 12px;
+  color: var(--df-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dfc-sync-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--df-streak);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--df-streak) 22%, transparent);
+}
+.dfc-sync-dot[data-sync="pending"] {
+  background: color-mix(in srgb, var(--df-hour-label-future) 60%, var(--df-text-primary));
+}
+.dfc-sync-dot[data-sync="error"] {
+  background: var(--df-destructive);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--df-destructive) 22%, transparent);
+}
+.dfc-h1 {
+  margin: 0;
+  font-size: 30px;
+  letter-spacing: -0.035em;
+  line-height: 1.1;
+  color: var(--df-text-primary);
+}
+.dfc-head-r {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+.dfc-notes-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 99px;
+  color: var(--df-text-secondary);
+  background: var(--df-card-fill);
+  box-shadow: inset 0 0 0 1px var(--df-card-border);
+  font-size: 12px;
+  font-weight: 700;
+}
+.dfc-notes-btn b {
+  color: var(--df-text-primary);
+}
+.dfc-refresh {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: var(--df-text-secondary);
+  background: var(--df-card-fill);
+  box-shadow: inset 0 0 0 1px var(--df-card-border);
+  transition: transform 0.3s var(--dfx-ease-spring);
+}
+.dfc-refresh:not(:disabled):active {
+  transform: rotate(180deg) scale(0.9);
+}
+.dfc-refresh:disabled {
+  opacity: 0.35;
+}
+
+/* the Chat | Journal segment (reference .sgm) */
+.dfc-seg {
+  display: flex;
+  padding: 3px;
+  border-radius: 99px;
+  background: var(--df-segment-track);
+  box-shadow: inset 0 0 0 1px var(--df-segment-track-border);
+  flex: none;
+}
+.dfc-seg button {
+  height: 32px;
+  padding: 0 13px;
+  border-radius: 99px;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--df-segment-inactive);
+  transition: all 0.3s var(--dfx-ease-spring);
+  white-space: nowrap;
+}
+.dfc-seg button.on {
+  background: var(--df-control-fill);
+  color: var(--df-text-primary);
+  box-shadow: 0 2px 8px var(--df-panel-shadow), inset 0 0 0 1px var(--df-card-border);
+}
+
+/* ---------- the flow (reference .cv) ---------- */
+.dfc-flow {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ---------- the hero — Dia's home (reference .chero) ---------- */
+.dfc-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 22px 20px 20px;
+  border-radius: 30px;
+  flex: none;
+  color: var(--df-on-pastel-ink);
+  background: var(--dfc-hero-grad);
+  box-shadow: var(--dfc-hero-shadow);
+}
+.dfc-hero-stage {
+  width: 132px;
+  height: 132px;
+  margin-bottom: 12px;
+  flex: none;
+}
+.dfc-hero-h {
+  margin: 0;
+  font-size: 26px;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+.dfc-hero-p {
+  margin: 4px 0 0;
+  font-size: 15px;
+  opacity: 0.82;
+  font-weight: 500;
+}
+.dfc-mode {
+  margin-top: 12px;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 99px;
+  font-size: 12px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--df-on-pastel-ink);
+  background: var(--dfc-hero-capsule-bg);
+  box-shadow: inset 0 0 0 1px var(--dfc-hero-capsule-ring);
+  transition: transform 0.3s var(--dfx-ease-spring);
+}
+.dfc-mode:active {
+  transform: scale(0.94);
+}
+
+/* ---------- prompt chips (reference .pq) ---------- */
+.dfc-pq-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.dfc-pq {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 54px;
+  padding: 10px 16px;
+  border-radius: 20px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 14.5px;
+  color: var(--df-text-primary);
+  background: var(--df-card-fill);
+  box-shadow: inset 0 0 0 1px var(--df-card-border),
+    0 10px 26px -18px var(--df-panel-shadow);
+  -webkit-backdrop-filter: blur(20px) saturate(1.5);
+  backdrop-filter: blur(20px) saturate(1.5);
+  transition: transform 0.3s var(--dfx-ease-spring);
+}
+.dfc-pq:active {
+  transform: scale(0.97);
+}
+.dfc-pq svg {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  fill: none;
+  stroke: color-mix(in srgb, var(--df-p-mauve) 55%, var(--df-text-primary));
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ---------- messages (reference .msg) ---------- */
+.dfc-msg {
+  max-width: 86%;
+  padding: 11px 15px;
+  border-radius: 22px;
+  font-size: 15px;
+  line-height: 1.45;
+  flex: none;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+.dfc-msg.u {
+  align-self: flex-end;
+  background: var(--df-text-primary);
+  color: var(--df-window-bg);
+  border-bottom-right-radius: 8px;
+}
+.dfc-msg.c {
+  align-self: flex-start;
+  background: var(--df-card-fill);
+  box-shadow: inset 0 0 0 1px var(--df-card-border);
+  border-bottom-left-radius: 8px;
+  -webkit-backdrop-filter: blur(20px) saturate(1.5);
+  backdrop-filter: blur(20px) saturate(1.5);
+  white-space: normal;
+}
+.dfc-msg-text {
+  font-size: 14.5px;
+}
+.dfc-msg.u .dfc-msg-text {
+  color: inherit;
+}
+.dfc-caret {
+  display: inline-block;
+  width: 2px;
+  height: 14px;
+  margin-left: 2px;
+  vertical-align: -2px;
+  background: var(--df-text-secondary);
+  animation: dfc-blink 1s steps(2) infinite;
+}
+@keyframes dfc-blink {
+  50% {
+    opacity: 0;
+  }
+}
+.dfc-fallback {
+  margin: 6px 0 0;
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--df-text-muted);
+}
+.dfc-ty {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  padding: 16px 18px;
+}
+.dfc-ty i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--df-text-muted);
+  animation: dfc-bounce 1s ease-in-out infinite;
+}
+.dfc-ty i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.dfc-ty i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+@keyframes dfc-bounce {
+  50% {
+    transform: translateY(-4px);
+    opacity: 0.4;
+  }
+}
+.dfc-err {
+  max-width: 86%;
+  align-self: flex-start;
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 18px;
+  border-bottom-left-radius: 8px;
+  font-size: 13px;
+  color: var(--df-destructive-text);
+  background: color-mix(in srgb, var(--df-destructive) 12%, transparent);
+}
+.dfc-note-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  margin-top: -2px;
+  height: 30px;
+  padding: 0 11px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--df-text-secondary);
+  background: var(--df-card-fill);
+  box-shadow: inset 0 0 0 1px var(--df-card-border);
+}
+
+/* journal view's flow is the LAST element (no composer under it)
+   — it carries the dock reservation itself. */
+.dfc-flow.dfc-journal {
+  padding-bottom: calc(96px + var(--safe-area-bottom, 0px));
+}
+
+/* ---------- composer (reference .cmp / .cin / .snd) ---------- */
+.dfc-compose {
+  flex: none;
+  /* The dock band reservation (66px pill + 14px offset + safe
+     area — same 96px every .dfx-page reserves) so the capsule
+     never hides behind the floating glass nav. */
+  padding: 8px 18px calc(96px + var(--safe-area-bottom, 0px));
+}
+.dfc-cin {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 5px 5px 5px 18px;
+  border-radius: 28px;
+  background: var(--df-card-fill);
+  box-shadow: inset 0 0 0 1px var(--df-card-border),
+    0 10px 30px -16px var(--df-panel-shadow);
+  -webkit-backdrop-filter: blur(24px) saturate(1.7);
+  backdrop-filter: blur(24px) saturate(1.7);
+}
+.dfc-cin textarea {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  outline: 0;
+  resize: none;
+  font-size: 15.5px;
+  line-height: 1.4;
+  font-family: inherit;
+  color: var(--df-text-primary);
+  padding: 11px 0;
+  max-height: 120px;
+}
+.dfc-cin textarea::placeholder {
+  color: var(--df-text-muted);
+}
+.dfc-send {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  flex: none;
+  display: grid;
+  place-items: center;
+  background: var(--df-p-mauve);
+  color: var(--df-on-pastel-ink);
+  box-shadow: inset 0 1px 0 var(--df-hairline-light);
+  transition: opacity 0.25s, transform 0.3s var(--dfx-ease-spring);
+}
+.dfc-send:disabled {
+  opacity: 0.35;
+}
+.dfc-send:not(:disabled):active {
+  transform: scale(0.88);
+}
+.dfc-send svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.dfc-send-dots {
+  display: flex;
+  gap: 3.5px;
+}
+.dfc-send-dots i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: dfc-bounce 1s ease-in-out infinite;
+}
+.dfc-send-dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.dfc-send-dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+.dfc-foot {
+  margin: 6px 2px 0;
+  font-size: 10px;
+  line-height: 1.4;
+  text-align: center;
+  color: var(--df-text-muted);
+}
+
+/* ---------- journal view (reference cJournal) ---------- */
+.dfc-jc {
+  padding: 16px;
+  border-radius: 28px;
+  background: var(--df-card-fill);
+  box-shadow: inset 0 0 0 1px var(--df-card-border),
+    0 14px 36px -22px var(--df-panel-shadow);
+  -webkit-backdrop-filter: blur(24px) saturate(1.7);
+  backdrop-filter: blur(24px) saturate(1.7);
+  flex: none;
+}
+.dfc-jc textarea {
+  width: 100%;
+  border: 0;
+  background: var(--df-segment-track);
+  border-radius: 18px;
+  padding: 14px;
+  outline: 0;
+  resize: vertical;
+  min-height: 88px;
+  font-size: 15.5px;
+  line-height: 1.45;
+  font-family: inherit;
+  color: var(--df-text-primary);
+  transition: box-shadow 0.25s;
+}
+.dfc-jc textarea:focus {
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--df-p-mauve) 65%, var(--df-text-primary));
+}
+.dfc-jc textarea::placeholder {
+  color: var(--df-text-muted);
+}
+.dfc-moods {
+  display: flex;
+  justify-content: space-between;
+  margin: 10px 0 4px;
+}
+.dfc-mood {
+  width: 56px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 0;
+  border-radius: 16px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--df-text-muted);
+  transition: color 0.25s, transform 0.35s var(--dfx-ease-spring);
+}
+.dfc-mood.on {
+  color: color-mix(in srgb, var(--dfc-c, var(--df-p-mauve)) 55%, var(--df-text-primary));
+  transform: scale(1.12);
+}
+.dfc-mood:active {
+  transform: scale(0.9);
+}
+.dfc-mood span {
+  color: inherit;
+}
+.dfc-save {
+  height: 50px;
+  width: 100%;
+  margin-top: 8px;
+  border-radius: 99px;
+  background: var(--df-text-primary);
+  color: var(--df-window-bg);
+  font-weight: 600;
+  font-size: 15.5px;
+  transition: transform 0.3s var(--dfx-ease-spring), opacity 0.25s;
+}
+.dfc-save:active {
+  transform: scale(0.97);
+}
+.dfc-save:disabled {
+  opacity: 0.4;
+}
+.dfc-je {
+  padding: 14px 16px;
+  border-radius: 24px;
+  background: var(--df-card-fill);
+  box-shadow: inset 0 0 0 1px var(--df-card-border);
+  flex: none;
+}
+.dfc-jeh {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dfc-jeh small {
+  color: var(--df-text-muted);
+  font-size: 12px;
+}
+.dfc-je-face {
+  display: grid;
+  place-items: center;
+}
+.dfc-je-pending {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--df-text-muted);
+}
+.dfc-je-text {
+  margin: 8px 0 4px;
+  font-size: 14.5px;
+  line-height: 1.45;
+  color: var(--df-text-primary);
+}
+.dfc-ask {
+  min-height: 40px;
+  padding: 0 4px;
+  font-weight: 700;
+  font-size: 13.5px;
+  color: color-mix(in srgb, var(--df-p-mauve) 55%, var(--df-text-primary));
+}
+.dfc-empty {
+  margin: 6px 0;
+  text-align: center;
+  font-size: 12px;
+  color: var(--df-text-muted);
+}
+
+/* dark mode — dim the hero toward the night window like every
+   other pastel surface (text stays the fixed on-pastel ink) */
+.dark .dfc-hero {
+  color: var(--dfc-hero-ink, var(--df-text-primary));
+}
+
+/* compact phones */
+@media (max-width: 379px) {
+  .dfc-h1 {
+    font-size: 26px;
+  }
+  .dfc-seg button {
+    padding: 0 11px;
+    font-size: 12.5px;
+  }
+  .dfc-notes-btn {
+    display: none;
+  }
+  .dfc-hero-stage {
+    width: 112px;
+    height: 112px;
+  }
+}
+
+/* reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .dfc-msg,
+  .dfc-pq,
+  .dfc-send,
+  .dfc-mode,
+  .dfc-mood,
+  .dfc-refresh {
+    animation: none !important;
+    transition: none !important;
+  }
+  .dfc-ty i,
+  .dfc-send-dots i,
+  .dfc-caret {
+    animation: none !important;
+  }
+}
+
+/* ============================================================
+   Phase 15 — Settings sheet (.dfset-*)  [reference #set]
+   Full-bleed overlay that slides over the whole app.
+   ============================================================ */
+
+.dfset-ovl {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  overflow: hidden;
+  background-color: var(--df-window-bg);
+  background-image: var(--dfset-ovl-grad);
+  background-repeat: no-repeat;
+  will-change: transform;
+}
+/* the .dark token set (--dfset-ovl-grad) dims the same radials
+   automatically — no override needed here. */
+
+.dfset-scroll {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: calc(16px + var(--safe-area-top, 0px)) 18px calc(44px + var(--safe-area-bottom, 0px));
+}
+.dfset {
+  max-width: 448px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+/* staggered entrance (reference .sx > * --i) */
+.dfset > * {
+  animation: dfset-in 0.6s var(--dfx-ease-out) backwards;
+}
+.dfset > *:nth-child(1) { animation-delay: 0ms; }
+.dfset > *:nth-child(2) { animation-delay: 45ms; }
+.dfset > *:nth-child(3) { animation-delay: 90ms; }
+.dfset > *:nth-child(4) { animation-delay: 135ms; }
+.dfset > *:nth-child(5) { animation-delay: 180ms; }
+.dfset > *:nth-child(6) { animation-delay: 225ms; }
+.dfset > *:nth-child(7) { animation-delay: 270ms; }
+.dfset > *:nth-child(8) { animation-delay: 315ms; }
+.dfset > *:nth-child(9) { animation-delay: 360ms; }
+.dfset > *:nth-child(n + 10) { animation-delay: 400ms; }
+@keyframes dfset-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.98);
+    filter: blur(6px);
+  }
+}
+
+/* ---------- header ---------- */
+.dfset-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.dfset-head h1 {
+  margin: 0;
+  font-size: 34px;
+  letter-spacing: -0.035em;
+  line-height: 1.1;
+  color: var(--df-text-primary);
+}
+.dfset-x {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--df-card-fill);
+  box-shadow: inset 0 0 0 1px var(--df-card-border);
+  color: var(--df-text-muted);
+  transition: transform 0.3s var(--dfx-ease-spring);
+}
+.dfset-x:active {
+  transform: scale(0.9);
+}
+.dfset-x svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+
+/* ---------- cards + rows ---------- */
+.dfset-card {
+  border-radius: 30px;
+  background: var(--df-card-fill);
+  box-shadow: inset 0 0 0 1px var(--df-card-border),
+    0 16px 40px -22px var(--df-panel-shadow);
+  -webkit-backdrop-filter: blur(24px) saturate(1.6);
+  backdrop-filter: blur(24px) saturate(1.6);
+}
+.dfset-pf {
+  padding: 18px;
+}
+.dfset-st {
+  padding: 6px 16px;
+}
+.dfset-lbl {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 4px 4px -4px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--df-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.dfset-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 58px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--df-card-border);
+  width: 100%;
+  text-align: left;
+  color: var(--df-text-primary);
+  background: none;
+}
+.dfset-st > .dfset-row:last-child,
+.dfset-accw .dfset-xp .dfset-row:last-child,
+.dfset-accw:last-child .dfset-row:first-child + .dfset-xp + .dfset-row {
+  border-bottom: 0;
+}
+.dfset-card > .dfset-accw:last-child > .dfset-row {
+  border-bottom: 0;
+}
+.dfset-row > div:not(.dfset-stp):not(.dfset-sw):not(.dfset-seg):not(.dfset-ic) {
+  flex: 1;
+  min-width: 0;
+}
+.dfset-row b {
+  display: block;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--df-text-primary);
+}
+.dfset-row small {
+  display: block;
+  font-size: 13px;
+  color: var(--df-text-muted);
+  margin-top: 1px;
+  line-height: 1.35;
+}
+.dfset-ic {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  box-shadow: inset 0 1px 0 var(--df-hairline-light);
+}
+.dfset-ic svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: var(--df-on-pastel-ink);
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.dark .dfset-ic svg {
+  stroke: var(--df-text-primary);
+}
+.dfset-chev {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: var(--df-text-muted);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 0.4s var(--dfx-ease-spring);
+  flex: none;
+}
+.dfset-chev.open {
+  transform: rotate(90deg);
+}
+
+/* ---------- accordion (reference .accw / .xp) ---------- */
+.dfset-accw .dfset-xp {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.5s var(--dfx-ease-out);
+}
+.dfset-accw.ex .dfset-xp {
+  grid-template-rows: 1fr;
+}
+.dfset-xp > div {
+  overflow: hidden;
+}
+.dfset-accw .dfset-xp > div {
+  padding-left: 44px;
+}
+.dfset-instw {
+  padding: 4px 0 14px;
+}
+
+/* ---------- profile ---------- */
+.dfset-pr1 {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+.dfset-bigav {
+  position: relative;
+  width: 92px;
+  height: 92px;
+  border-radius: 28px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--dfset-sc, var(--df-p-blue)) 14%, var(--df-card-fill));
+  box-shadow:
+    inset 0 0 0 3px color-mix(in srgb, var(--dfset-sc, var(--df-p-blue)) 60%, transparent),
+    0 14px 30px -14px var(--dfset-sc, var(--df-p-blue));
+  transform: rotate(-4deg);
+  transition: transform 0.4s var(--dfx-ease-spring);
+  font-size: 44px;
+  line-height: 1;
+}
+.dfset-bigav:active {
+  transform: rotate(-4deg) scale(0.92);
+}
+.dfset-avstamp {
+  animation: dfset-stamp 0.65s cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+@keyframes dfset-stamp {
+  0% {
+    transform: rotate(-10deg) scale(1.55);
+    opacity: 0.25;
+  }
+  55% {
+    transform: rotate(4deg) scale(0.92);
+  }
+  100% {
+    transform: none;
+  }
+}
+.dfset-fld {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.dfset-fld input {
+  width: 100%;
+  height: 46px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--df-segment-track);
+  color: var(--df-text-primary);
+  font-size: 16px;
+  font-family: inherit;
+  outline: 0;
+  transition: box-shadow 0.25s;
+}
+.dfset-fld input:focus {
+  box-shadow: inset 0 0 0 2px var(--df-focus-rose);
+}
+.dfset-sn {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding-left: 4px;
+  color: color-mix(in srgb, var(--dfset-sc, var(--df-p-blue)) 40%, var(--df-text-primary));
+}
+
+/* rhythm picker — horizontal scroll of personality cards */
+.dfset-pl2 {
+  margin-top: 16px;
+}
+.dfset-pl2 b {
+  display: block;
+  font-size: 15px;
+  color: var(--df-text-primary);
+}
+.dfset-pl2 span {
+  font-size: 13px;
+  color: var(--df-text-muted);
+}
+.dfset-per {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  margin-top: 10px;
+  padding-bottom: 4px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.dfset-per::-webkit-scrollbar {
+  display: none;
+}
+.dfset-per button {
+  flex: none;
+  width: 116px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  padding: 12px 12px 10px;
+  border-radius: 20px;
+  text-align: left;
+  background: var(--df-segment-track);
+  transition: transform 0.35s var(--dfx-ease-spring), box-shadow 0.25s, background 0.25s;
+}
+.dfset-per button > span {
+  font-size: 21px;
+  line-height: 1;
+}
+.dfset-per button b {
+  font-size: 13.5px;
+  color: var(--df-text-primary);
+}
+.dfset-per button small {
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--df-text-muted);
+}
+.dfset-per button.on {
+  background: color-mix(in srgb, var(--dfset-sc, var(--df-p-blue)) 18%, var(--df-card-fill));
+  box-shadow: inset 0 0 0 2px var(--dfset-sc, var(--df-p-blue));
+  transform: scale(1.03);
+}
+.dfset-per button:active {
+  transform: scale(0.95);
+}
+
+/* seal grid (reference .sg2) */
+.dfset-sgrid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+  margin-top: 14px;
+}
+.dfset-sgrid button {
+  aspect-ratio: 1;
+  min-height: 44px;
+  border-radius: 16px;
+  font-size: 22px;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--dfset-sc, var(--df-p-blue)) 11%, transparent);
+  transition: transform 0.3s var(--dfx-ease-spring), box-shadow 0.2s, background 0.2s;
+}
+.dfset-sgrid button:active {
+  transform: scale(0.85);
+}
+.dfset-sgrid button.on {
+  box-shadow: 0 0 0 2.5px var(--dfset-sc, var(--df-p-blue));
+  background: color-mix(in srgb, var(--dfset-sc, var(--df-p-blue)) 22%, transparent);
+  transform: scale(1.07);
+}
+
+/* ---------- steppers / segments / switches ---------- */
+.dfset-stp {
+  display: flex;
+  align-items: center;
+  background: var(--df-segment-track);
+  border-radius: 99px;
+  flex: none;
+}
+.dfset-stp button {
+  width: 44px;
+  height: 40px;
+  font-size: 22px;
+  color: var(--df-text-primary);
+  line-height: 1;
+}
+.dfset-stp button:active {
+  opacity: 0.5;
+}
+.dfset-stp b {
+  min-width: 50px;
+  text-align: center;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  color: var(--df-text-primary);
+}
+.dfset-seg {
+  display: flex;
+  padding: 3px;
+  border-radius: 99px;
+  background: var(--df-segment-track);
+  flex: none;
+}
+.dfset-seg button {
+  height: 36px;
+  padding: 0 13px;
+  border-radius: 99px;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--df-segment-inactive);
+  transition: all 0.3s var(--dfx-ease-spring);
+  white-space: nowrap;
+}
+.dfset-seg button.on {
+  background: var(--df-control-fill);
+  color: var(--df-text-primary);
+  box-shadow: 0 2px 8px var(--df-panel-shadow), inset 0 0 0 1px var(--df-card-border);
+}
+.dfset-sw {
+  width: 51px;
+  height: 31px;
+  border-radius: 99px;
+  background: var(--df-segment-track);
+  position: relative;
+  flex: none;
+  transition: background 0.3s;
+}
+.dfset-sw i {
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 27px;
+  height: 27px;
+  border-radius: 50%;
+  background: var(--df-white);
+  box-shadow: var(--df-knob-shadow);
+  transition: transform 0.4s var(--dfx-ease-spring);
+}
+.dfset-sw.on {
+  background: color-mix(in srgb, var(--df-p-celadon) 75%, var(--df-text-primary));
+}
+.dfset-sw.on i {
+  transform: translateX(20px);
+}
+
+/* the sky preview slider row */
+.dfset-skyr {
+  flex: 1;
+  min-width: 60px;
+  max-width: 118px;
+  margin: 0 6px;
+}
+.dfset-cp {
+  height: 44px;
+  padding: 0 16px;
+  border-radius: 14px;
+  background: var(--df-segment-track);
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--df-text-primary);
+  flex: none;
+  transition: transform 0.25s var(--dfx-ease-spring);
+}
+.dfset-cp:active {
+  transform: scale(0.94);
+}
+
+/* danger + footer */
+.dfset-dng {
+  color: var(--df-danger-soft);
+}
+.dfset-foot {
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--df-text-muted);
+  margin: 6px 8px 0;
+}
+
+/* reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .dfset > *,
+  .dfset-bigav,
+  .dfset-avstamp,
+  .dfset-per button,
+  .dfset-sgrid button,
+  .dfset-chev,
+  .dfset-sw i,
+  .dfset-accw .dfset-xp {
+    animation: none !important;
+    transition: none !important;
+  }
+}

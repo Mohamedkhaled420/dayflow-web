@@ -697,6 +697,48 @@
      would flip to paper in dark and vanish. */
   --df-on-pastel-ink: #2b2940;
 
+  /* Phase 15: the user's pastel palette, named — one token per
+     swatch so component code never carries a raw hex (drift
+     guard). Fixed across light + dark like every pastel DATA
+     accent; components mix toward ink when used as strokes. */
+  --df-p-lemon: #fbf8cc;
+  --df-p-powder: #fde4cf;
+  --df-p-rose: #ffcfd2;
+  --df-p-orchid: #f1c0e8;
+  --df-p-mauve: #cfbaf0;
+  --df-p-blue: #a3c4f3;
+  --df-p-frost: #90dbf4;
+  --df-p-aqua: #8eecf5;
+  --df-p-marine: #98f5e1;
+  --df-p-celadon: #b9fbc0;
+  --df-p-slate: #9a98aa;
+
+  /* Phase 15 composites — Coach pane + Settings sheet (globals.css
+     carries no raw literals; the drift guard stays green). */
+  --dfc-hero-grad: linear-gradient(
+    135deg,
+    color-mix(in srgb, #cfbaf0 88%, var(--df-window-bg)),
+    color-mix(in srgb, #a3c4f3 78%, var(--df-window-bg))
+  );
+  --dfc-hero-shadow: 0 22px 40px -20px rgba(107, 92, 240, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  --dfc-hero-capsule-bg: color-mix(in srgb, #ffffff 42%, transparent);
+  --dfc-hero-capsule-ring: color-mix(in srgb, #2b2940 14%, transparent);
+  --df-hairline-light: rgba(255, 255, 255, 0.4);
+  --df-knob-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  --df-focus-rose: color-mix(in srgb, #ffcfd2 70%, var(--df-text-primary));
+  --df-danger-soft: color-mix(in srgb, #ffcfd2 45%, var(--df-text-primary));
+  --dfset-ovl-grad: radial-gradient(
+      70vmax 60vmax at 100% 0,
+      color-mix(in srgb, #e48ca0 16%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      70vmax 60vmax at 0 100%,
+      color-mix(in srgb, #78a0c8 18%, transparent),
+      transparent 70%
+    );
+
   /* Glass pill nav (the reference dock) */
   --df-nav-pill-fill: rgba(255, 255, 255, 0.66);
   --df-nav-pill-border: rgba(70, 60, 130, 0.1);
@@ -1217,6 +1259,41 @@
     color-mix(in srgb, var(--df-sky-g4) 20%, var(--df-window-bg)) 100%
   );
   --df-on-pastel-ink: #2b2940;
+  /* Phase 15 pastel DATA accents — identical in dark (fixed). */
+  --df-p-lemon: #fbf8cc;
+  --df-p-powder: #fde4cf;
+  --df-p-rose: #ffcfd2;
+  --df-p-orchid: #f1c0e8;
+  --df-p-mauve: #cfbaf0;
+  --df-p-blue: #a3c4f3;
+  --df-p-frost: #90dbf4;
+  --df-p-aqua: #8eecf5;
+  --df-p-marine: #98f5e1;
+  --df-p-celadon: #b9fbc0;
+  --df-p-slate: #9a98aa;
+  /* Phase 15 composites (dark) — the hero dims toward the night
+     window with paper ink; the sheet's radials fade out. */
+  --dfc-hero-grad: linear-gradient(
+    135deg,
+    color-mix(in srgb, #cfbaf0 42%, var(--df-window-bg)),
+    color-mix(in srgb, #a3c4f3 38%, var(--df-window-bg))
+  );
+  --dfc-hero-shadow: 0 22px 40px -20px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  --dfc-hero-ink: #f6f3fc;
+  --dfc-hero-capsule-bg: color-mix(in srgb, #ffffff 10%, transparent);
+  --dfc-hero-capsule-ring: rgba(255, 255, 255, 0.14);
+  --df-hairline-light: rgba(255, 255, 255, 0.14);
+  --dfset-ovl-grad: radial-gradient(
+      70vmax 60vmax at 100% 0,
+      color-mix(in srgb, #e48ca0 7%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      70vmax 60vmax at 0 100%,
+      color-mix(in srgb, #78a0c8 8%, transparent),
+      transparent 70%
+    );
   --df-nav-pill-fill: rgba(46, 42, 66, 0.7);
   --df-nav-pill-border: rgba(255, 255, 255, 0.12);
   --df-nav-pill-shadow: 0 16px 40px -14px rgba(0, 0, 0, 0.55),

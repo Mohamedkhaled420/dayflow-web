@@ -1,616 +1,416 @@
 "use client";
 
-// SettingsView — profile, category, and goal customization.
-// Everything the native app configures through macOS panes,
-// tailored to the life tracker: who you are, what you track,
-// and what "on target" means.
+// ============================================================
+// Dayflow AI — Settings sheet (reference "Dayflow (4).html" #set)
+// ------------------------------------------------------------
+// The full-bleed sheet that slides up over the whole app: the
+// profile card (big seal avatar + name + "Your rhythm" picker +
+// the seal grid), the goals card (hold-to-repeat steppers, glass
+// size, the morning check), the app card (appearance, the living
+// sky with its live preview slider, haptics), the connect card
+// (Team Mode, install, Apple Shortcuts) and the data card
+// (export, sign out, reset). One scroll, no tabs — the reference
+// trade of depth for calm.
+//
+// Every control writes REAL state: profile identity/metabolism/
+// chronobiology/occupation JSONB sections through the Delta Sync
+// store, next-themes for appearance, and the localStorage flags
+// SkySync + the haptics engine read. Nothing is a demo stub.
+// ============================================================
 
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
-import {
-  Check,
-  Copy,
-  Database,
-  Download,
-  Lock,
-  LogOut,
-  Monitor,
-  Moon,
-  Sun,
-  Target,
-  Trash2,
-  UserRound,
-  Users,
-} from "lucide-react";
 import { useDayflowData } from "@/lib/viewmodel";
 import { useDayflowStore } from "@/store/useDayflowStore";
-import { dayToMarkdown } from "@/lib/compute";
-import { keyForOffset } from "@/lib/seed";
 import { useToast } from "@/hooks/use-toast";
+import { haptic, hapticSelect } from "@/lib/haptics";
 import type { TabId } from "@/components/dayflow/AppShell";
-import { THEME_SWATCHES } from "@/styles/palette";
 import { InstallAppCard } from "@/components/dayflow/InstallAppCard";
-import { LogoLoop } from "@/components/brand/LogoLoop";
-import { LogoMark } from "@/components/brand/LogoMark";
-import { DoodleHeart } from "@/components/dayflow/doodles";
 import { ShortcutsSetupCard } from "@/components/dayflow/ShortcutsSetupCard";
+import {
+  SKY_CHANGE_EVENT,
+  SKY_OFF_KEY,
+  SKY_PREVIEW_KEY,
+} from "@/components/dayflow/SkySync";
+import { HAPTICS_OFF_KEY } from "@/lib/haptics";
+import type { Json } from "@/types/supabase";
 
-type Section = "profile" | "goals" | "appearance" | "data";
+/* ---------------- the seal system (reference SIG) ---------------- */
 
-const SECTIONS: { id: Section; label: string }[] = [
-  { id: "profile", label: "Profile" },
-  { id: "goals", label: "Goals" },
-  { id: "appearance", label: "Appearance" },
-  { id: "data", label: "Data" },
+/** avatar emoji → [seal name, pastel tint token] */
+const SEAL_SIG: Record<string, [string, string]> = {
+  "🌊": ["Tide Rider", "var(--df-p-blue)"],
+  "💪": ["Iron Will", "var(--df-p-rose)"],
+  "🔥": ["Ember", "var(--df-p-powder)"],
+  "🏃": ["Fleet Foot", "var(--df-p-celadon)"],
+  "🧘": ["Still Mind", "var(--df-p-mauve)"],
+  "🥗": ["Green Gauge", "var(--df-p-marine)"],
+  "🛏️": ["Dream Keeper", "var(--df-p-aqua)"],
+  "💧": ["Dew Drop", "var(--df-p-frost)"],
+  "🧠": ["Deep Thinker", "var(--df-p-orchid)"],
+  "🚴": ["Pedal Sage", "var(--df-p-lemon)"],
+  "⚡": ["Live Wire", "var(--df-p-powder)"],
+  "🌱": ["Sprout", "var(--df-p-celadon)"],
+  "☕": ["Slow Brew", "var(--df-p-rose)"],
+  "🌙": ["Night Owl", "var(--df-p-mauve)"],
+  "💻": ["Flow State", "var(--df-p-blue)"],
+  "🪐": ["Wanderer", "var(--df-p-orchid)"],
+};
+
+const AVATARS = Object.keys(SEAL_SIG);
+
+/** "Your rhythm" (reference PER) — role label + wake target. */
+const RHYTHMS: {
+  label: string;
+  emoji: string;
+  desc: string;
+  wake: number;
+  color: string;
+}[] = [
+  { label: "Early riser", emoji: "☀️", desc: "Up with the sun, done by noon", wake: 360, color: "var(--df-p-powder)" },
+  { label: "Steady", emoji: "⚖️", desc: "Same shape every day", wake: 450, color: "var(--df-p-celadon)" },
+  { label: "Balancer", emoji: "🌗", desc: "Mornings for work, evenings for life", wake: 480, color: "var(--df-p-blue)" },
+  { label: "Late start", emoji: "🌆", desc: "Finds focus after lunch", wake: 540, color: "var(--df-p-mauve)" },
+  { label: "Night owl", emoji: "🌙", desc: "Alive when the stars are", wake: 630, color: "var(--df-p-orchid)" },
 ];
 
-const AVATARS = [
-  "🌊",
-  "💪",
-  "🔥",
-  "🏃",
-  "🧘",
-  "🥗",
-  "🛏️",
-  "💧",
-  "🧠",
-  "🚴",
-  "⚡",
-  "🌱",
-  "☕",
-  "🌙",
-  "💻",
-  "🪐",
-];
-
-export function SettingsView({ onNavigate }: { onNavigate: (t: TabId) => void }) {
-  const [section, setSection] = useState<Section>("profile");
-  const { theme, setTheme } = useTheme();
-  const { toast } = useToast();
-
-  return (
-    <div className="df-scroll h-full overflow-y-auto px-4 sm:px-6 py-5">
-      <h1 className="text-[21px] font-bold tracking-tight" style={{ color: "var(--df-text-primary)" }}>
-        Settings
-      </h1>
-
-      {/* section tabs */}
-      <div
-        className="mt-4 inline-flex rounded-[7px] p-[3px] flex-wrap gap-0.5"
-        style={{
-          background: "var(--df-segment-track)",
-          border: "0.5px solid var(--df-segment-track-border)",
-        }}
-        role="tablist"
-        aria-label="Settings sections"
-      >
-        {SECTIONS.map((s) => (
-          <button
-            key={s.id}
-            role="tab"
-            aria-selected={section === s.id}
-            onClick={() => setSection(s.id)}
-            className="df-press px-3.5 h-[26px] rounded-[5px] text-[12px] font-semibold"
-            style={
-              section === s.id
-                ? {
-                    background: "var(--df-control-fill)",
-                    border: "0.5px solid var(--df-control-border)",
-                    boxShadow: "inset 0 0 0 2px var(--df-control-glow)",
-                    color: "var(--df-text-primary)",
-                  }
-                : { color: "var(--df-segment-inactive)" }
-            }
-          >
-            {s.label}
-          </button>
-        ))}
-      </div>
-
-      {section === "profile" && <ProfileSection />}
-      {section === "goals" && <GoalsSection />}
-      {section === "appearance" && <AppearanceSection theme={theme} setTheme={setTheme} />}
-      {section === "data" && (
-        <DataSection onNavigate={onNavigate} onToast={toast} />
-      )}
-    </div>
-  );
-}
-
-/* ---------------- shared card ---------------- */
-
-function SectionCard({
-  title,
-  icon,
-  children,
-  className,
-}: {
-  title: string;
-  icon: React.ReactNode;
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <section
-      className={`rounded-[20px] p-4 mt-4 ${className ?? ""}`}
-      style={{
-        background: "var(--df-daily-grid-fill)",
-        border: "0.5px solid var(--df-daily-grid-border)",
-      }}
-      aria-label={title}
-    >
-      <h2 className="text-[13px] font-bold flex items-center gap-2" style={{ color: "var(--df-text-primary)" }}>
-        <span style={{ color: "var(--df-accent)" }}>{icon}</span>
-        {title}
-      </h2>
-      <div className="mt-2">{children}</div>
-    </section>
-  );
-}
-
-function FieldLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <label
-      className="text-[10.5px] font-bold uppercase tracking-[0.06em] block"
-      style={{ color: "var(--df-text-secondary)" }}
-    >
-      {children}
-    </label>
-  );
-}
-
-function TextInput({
-  value,
-  onChange,
-  placeholder,
-  ariaLabel,
-  maxLength = 60,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-  ariaLabel: string;
-  maxLength?: number;
-}) {
-  return (
-    <div
-      className="mt-1.5 rounded-full px-4 h-10 flex items-center"
-      style={{
-        background: "var(--df-input-fill)",
-        border: "0.5px solid var(--df-input-border)",
-      }}
-    >
-      <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        aria-label={ariaLabel}
-        maxLength={maxLength}
-        className="w-full bg-transparent outline-none text-[13px] placeholder:text-[var(--df-text-muted)]"
-        style={{ color: "var(--df-text-primary)" }}
-      />
-    </div>
-  );
-}
-
-/* ---------------- profile ---------------- */
-
-/** Merge a patch into a profile JSONB section (kept on the server). */
-function mergeSection(value: unknown, patch: Record<string, unknown>): import("@/types/supabase").Json {
-  const base =
-    value && typeof value === "object" && !Array.isArray(value)
-      ? (value as Record<string, unknown>)
-      : {};
-  return { ...base, ...patch } as unknown as import("@/types/supabase").Json;
-}
-
-function ProfileSection() {
-  const data = useDayflowData();
-  const profileRow = useDayflowStore((s) => s.profile);
-  const updateProfileSections = useDayflowStore((s) => s.updateProfileSections);
-
-  // Every legacy profile field now persists into the profiles row's
-  // JSONB sections through the Delta Sync store (T0).
-  const updateProfile = (patch: { name?: string; emoji?: string; role?: string; waterGlassMl?: number }) => {
-    const identity: Record<string, unknown> = {};
-    if (patch.name !== undefined) identity.displayName = patch.name;
-    if (patch.emoji !== undefined) identity.emoji = patch.emoji;
-    if (patch.role !== undefined) identity.role = patch.role;
-    const metabolism: Record<string, unknown> = {};
-    if (patch.waterGlassMl !== undefined) metabolism.waterGlassMl = patch.waterGlassMl;
-    void updateProfileSections({
-      ...(Object.keys(identity).length > 0
-        ? { identity: mergeSection(profileRow?.identity, identity) }
-        : {}),
-      ...(Object.keys(metabolism).length > 0
-        ? { metabolism: mergeSection(profileRow?.metabolism, metabolism) }
-        : {}),
-    });
-  };
-
-  return (
-    <>
-      <SectionCard title="Your profile" icon={<UserRound className="h-4 w-4" />}>
-      <p className="text-[12.5px] leading-relaxed" style={{ color: "var(--df-text-secondary)" }}>
-        The profile personalizes greetings, chat, and exports. Everything stays on your device.
-      </p>
-
-      <div className="mt-3 grid sm:grid-cols-[150px_1fr] gap-4">
-        {/* avatar */}
-        <div>
-          <FieldLabel>Avatar</FieldLabel>
-          <div
-            className="mt-1.5 grid grid-cols-4 gap-1.5 rounded-[16px] p-2"
-            style={{
-              background: "var(--df-chip-fill)",
-              border: "0.5px solid var(--df-chip-border)",
-            }}
-          >
-            {AVATARS.map((a) => (
-              <button
-                key={a}
-                onClick={() => updateProfile({ emoji: a })}
-                aria-label={`Set avatar ${a}`}
-                aria-pressed={data.profile.emoji === a}
-                className="df-press h-9 rounded-full grid place-items-center text-[19px]"
-                style={{
-                  background:
-                    data.profile.emoji === a ? "var(--df-control-fill)" : "transparent",
-                  border:
-                    data.profile.emoji === a
-                      ? "1.5px solid var(--df-control-border)"
-                      : "0.5px solid transparent",
-                }}
-              >
-                {a}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* name / role / glass size */}
-        <div className="flex flex-col gap-3.5">
-          <div>
-            <FieldLabel>Name</FieldLabel>
-            <TextInput
-              value={data.profile.name}
-              onChange={(name) => updateProfile({ name })}
-              placeholder="Your name"
-              ariaLabel="Your name"
-            />
-          </div>
-          <div>
-            <FieldLabel>Role / tagline</FieldLabel>
-            <TextInput
-              value={data.profile.role}
-              onChange={(role) => updateProfile({ role })}
-              placeholder="e.g. Runner, builder, student"
-              ariaLabel="Role or tagline"
-              maxLength={80}
-            />
-          </div>
-          <div>
-            <FieldLabel>Glass size (hydration)</FieldLabel>
-            <div className="mt-1.5 flex gap-1.5 flex-wrap">
-              {[200, 250, 300, 350].map((ml) => (
-                <button
-                  key={ml}
-                  onClick={() => updateProfile({ waterGlassMl: ml })}
-                  aria-pressed={data.profile.waterGlassMl === ml}
-                  className="df-press h-9 px-3.5 rounded-full text-[12px] font-semibold"
-                  style={{
-                    background:
-                      data.profile.waterGlassMl === ml
-                        ? "var(--df-control-fill)"
-                        : "var(--df-chip-fill)",
-                    border:
-                      data.profile.waterGlassMl === ml
-                        ? "1.5px solid var(--df-control-border)"
-                        : "0.5px solid var(--df-chip-border)",
-                    color: "var(--df-text-primary)",
-                  }}
-                >
-                  {ml} ml
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-      </SectionCard>
-
-      {/* Team Mode lives here, not in the dock — the bottom bar is
-          capped at exactly five tabs (PRD §9.2). */}
-      <TeamModeCard />
-      <InstallAppCard />
-      <ShortcutsSetupCard />
-    </>
-  );
-}
-
-function TeamModeCard() {
-  return (
-    <section
-      className="rounded-[20px] p-4 mt-4"
-      style={{
-        background: "var(--df-daily-grid-fill)",
-        border: "0.5px solid var(--df-daily-grid-border)",
-      }}
-      aria-label="Team Mode"
-    >
-      <h2
-        className="text-[13px] font-bold flex items-center gap-2"
-        style={{ color: "var(--df-text-primary)" }}
-      >
-        <span style={{ color: "var(--df-accent)" }}>
-          <Users className="h-4 w-4" />
-        </span>
-        Team Mode
-      </h2>
-      <p
-        className="mt-2 text-[12.5px] leading-relaxed"
-        style={{ color: "var(--df-text-secondary)" }}
-      >
-        Invite up to five people, share habit wins and streaks in real time, and
-        keep your journal private. Everything else in Dayflow stays yours.
-      </p>
-      <Link
-        href="/team"
-        className="df-press df-btn-primary mt-3 inline-flex items-center h-9 px-4 text-[12.5px] font-semibold"
-      >
-        Open Team Mode
-      </Link>
-    </section>
-  );
-}
-
-/* ---------------- goals ---------------- */
-
+/** Goals (reference GOALS) — hold-to-repeat steppers. */
 const GOAL_FIELDS: {
   key: string;
   label: string;
+  help: string;
   min: number;
   max: number;
   step: number;
   unit: "hours" | "minutes" | "count";
-  help: string;
+  /** JSONB section + key the value persists into. */
+  section: "occupational_context" | "metabolism" | "chronobiology";
+  field: string;
+  /** hours fields persist ×60. */
+  factor?: number;
 }[] = [
-  { key: "workMinutes", label: "Work time", min: 0, max: 12, step: 0.5, unit: "hours", help: "Focused job time per day" },
-  { key: "personalMinutes", label: "Personal work", min: 0, max: 8, step: 0.5, unit: "hours", help: "Side projects & learning per day" },
-  { key: "fitnessMinutes", label: "Fitness", min: 0, max: 180, step: 15, unit: "minutes", help: "Active minutes per day" },
-  { key: "fitnessSessionsPerWeek", label: "Workouts", min: 0, max: 7, step: 1, unit: "count", help: "Sessions per week" },
-  { key: "sleepMinutes", label: "Sleep", min: 4, max: 12, step: 0.5, unit: "hours", help: "Hours per night" },
-  { key: "waterGlasses", label: "Water", min: 2, max: 16, step: 1, unit: "count", help: "Glasses per day" },
-  { key: "mealsPerDay", label: "Meals", min: 1, max: 6, step: 1, unit: "count", help: "Logged meals per day" },
+  { key: "workMinutes", label: "Work time", help: "Focused job time per day", min: 0, max: 12, step: 0.5, unit: "hours", section: "occupational_context", field: "dailyCareerTargetMinutes", factor: 60 },
+  { key: "personalMinutes", label: "Personal work", help: "Side projects & learning per day", min: 0, max: 8, step: 0.5, unit: "hours", section: "occupational_context", field: "dailyPersonalCraftMinutes", factor: 60 },
+  { key: "fitnessMinutes", label: "Fitness", help: "Active minutes per day", min: 0, max: 180, step: 15, unit: "minutes", section: "metabolism", field: "fitnessMinutes" },
+  { key: "fitnessSessionsPerWeek", label: "Workouts", help: "Sessions per week", min: 0, max: 7, step: 1, unit: "count", section: "metabolism", field: "workoutFrequencyTargetDays" },
+  { key: "sleepMinutes", label: "Sleep", help: "Hours per night", min: 4, max: 12, step: 0.5, unit: "hours", section: "chronobiology", field: "targetSleepDurationMinutes", factor: 60 },
+  { key: "waterGlasses", label: "Water", help: "Glasses per day", min: 2, max: 16, step: 1, unit: "count", section: "metabolism", field: "dailyWaterBaseMl", factor: 250 },
+  { key: "mealsPerDay", label: "Meals", help: "Logged meals per day", min: 1, max: 6, step: 1, unit: "count", section: "metabolism", field: "mealsPerDay" },
 ];
 
-function GoalsSection() {
+/** The library fallbacks (viewmodel deriveGoals) — what "Reset
+ *  settings" restores by clearing the section keys. */
+const GOAL_DEFAULTS: Record<string, number> = {
+  workMinutes: 420,
+  personalMinutes: 90,
+  fitnessMinutes: 45,
+  fitnessSessionsPerWeek: 4,
+  sleepMinutes: 480,
+  waterGlasses: 8,
+  mealsPerDay: 3,
+};
+
+/* ---------------- shared helpers ---------------- */
+
+/** Merge a patch into a profile JSONB section (kept on the server). */
+function mergeSection(value: unknown, patch: Record<string, unknown>): Json {
+  const base =
+    value && typeof value === "object" && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : {};
+  return { ...base, ...patch } as unknown as Json;
+}
+
+function asSection(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+/** 7.5 → "7:30 AM" (reference t12). */
+function t12(h: number): string {
+  const hh = Math.floor(h) % 24;
+  const mm = Math.round((h - Math.floor(h)) * 60);
+  const ampm = hh < 12 ? "AM" : "PM";
+  const h12 = hh % 12 || 12;
+  return `${h12}:${String(mm).padStart(2, "0")} ${ampm}`;
+}
+
+/* ---------------- tiny UI primitives (reference kit) ---------------- */
+
+function Label({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="dfset-lbl">
+      <span>{children}</span>
+    </div>
+  );
+}
+
+/** The iOS switch (reference .sw3). */
+function Switch({
+  on,
+  onChange,
+  label,
+}: {
+  on: boolean;
+  onChange: (next: boolean) => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      aria-label={label}
+      className={`dfset-sw${on ? " on" : ""}`}
+      onClick={() => {
+        hapticSelect();
+        onChange(!on);
+      }}
+    >
+      <i />
+    </button>
+  );
+}
+
+/** A row icon chip (reference .ic2) — tinted pastel square. */
+const ROW_ICONS: Record<string, React.ReactNode> = {
+  goal: (
+    <svg viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="8.5" />
+      <circle cx="12" cy="12" r="4.5" />
+      <circle cx="12" cy="12" r="1" />
+    </svg>
+  ),
+  rise: (
+    <svg viewBox="0 0 24 24">
+      <path d="M3 17l6-6 4 4 7-7" />
+      <path d="M14 8h6v6" />
+    </svg>
+  ),
+  sun: (
+    <svg viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+    </svg>
+  ),
+  moon: (
+    <svg viewBox="0 0 24 24">
+      <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
+    </svg>
+  ),
+  hap: (
+    <svg viewBox="0 0 24 24">
+      <path d="M4 12h3l2-6 3 12 2.5-8 2 4h3.5" />
+    </svg>
+  ),
+  team: (
+    <svg viewBox="0 0 24 24">
+      <circle cx="9" cy="8.5" r="3.5" />
+      <path d="M2.8 19.5c.7-3.3 3.2-5 6.2-5s5.5 1.7 6.2 5" />
+      <circle cx="17.2" cy="9.5" r="2.6" />
+      <path d="M15.4 14.6c3-.3 5.3 1.3 5.8 4.4" />
+    </svg>
+  ),
+  inst: (
+    <svg viewBox="0 0 24 24">
+      <rect x="6" y="2.5" width="12" height="19" rx="3" />
+      <path d="M11 18.5h2" />
+    </svg>
+  ),
+  bolt: (
+    <svg viewBox="0 0 24 24">
+      <path d="M13 2L4.5 13.5H11L9.5 22 19 10h-6.5z" />
+    </svg>
+  ),
+  data: (
+    <svg viewBox="0 0 24 24">
+      <ellipse cx="12" cy="5.5" rx="8" ry="3" />
+      <path d="M4 5.5V18.5c0 1.7 3.6 3 8 3s8-1.3 8-3V5.5" />
+      <path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3" />
+    </svg>
+  ),
+};
+
+function RowIcon({ name, tint }: { name: keyof typeof ROW_ICONS; tint: string }) {
+  return (
+    <span className="dfset-ic" style={{ background: tint }} aria-hidden="true">
+      {ROW_ICONS[name]}
+    </span>
+  );
+}
+
+/** The chevron (reference CH). */
+function Chevron({ open }: { open?: boolean }) {
+  return (
+    <svg
+      className={`dfset-chev${open ? " open" : ""}`}
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path d="M9 5l7 7-7 7" />
+    </svg>
+  );
+}
+
+/* ============================================================
+   The sheet
+   ============================================================ */
+
+export function SettingsView({ onNavigate }: { onNavigate: (t: TabId) => void }) {
+  const { toast } = useToast();
   const data = useDayflowData();
   const profileRow = useDayflowStore((s) => s.profile);
   const updateProfileSections = useDayflowStore((s) => s.updateProfileSections);
 
-  const toField = (key: string, unit: string) => {
-    if (unit === "hours") return (data.goals as unknown as Record<string, number>)[key] / 60;
-    return (data.goals as unknown as Record<string, number>)[key];
-  };
-  const setField = (key: string, unit: string, v: number) => {
-    const val = unit === "hours" ? Math.round(v * 60) : Math.round(v);
-    // Every target persists into its PRD §3 profile section (T0):
-    // career/craft -> occupational_context, sleep -> chronobiology,
-    // the rest -> metabolism. Water edits ride dailyWaterBaseMl.
-    const occupation: Record<string, unknown> = {};
-    const metabolism: Record<string, unknown> = {};
-    const chronobiology: Record<string, unknown> = {};
-    if (key === "workMinutes") occupation.dailyCareerTargetMinutes = val;
-    else if (key === "personalMinutes") occupation.dailyPersonalCraftMinutes = val;
-    else if (key === "fitnessMinutes") metabolism.fitnessMinutes = val;
-    else if (key === "fitnessSessionsPerWeek") metabolism.workoutFrequencyTargetDays = val;
-    else if (key === "sleepMinutes") chronobiology.targetSleepDurationMinutes = val;
-    else if (key === "waterGlasses") metabolism.dailyWaterBaseMl = val * 250;
-    else if (key === "mealsPerDay") metabolism.mealsPerDay = val;
+  // ---- local sheet state ----
+  const [goalsOpen, setGoalsOpen] = useState(false);
+  const [instOpen, setInstOpen] = useState(false);
+  const [scOpen, setScOpen] = useState(false);
+  const [resetArmed, setResetArmed] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+  const [skyOff, setSkyOff] = useState(false);
+  const [skyHour, setSkyHour] = useState<number | null>(null);
+  const [hapOff, setHapOff] = useState(false);
+  const [stampNonce, setStampNonce] = useState(0);
+  const router = useRouter();
+
+  // Read the localStorage flags once on mount (SSR-safe) — deferred
+  // to a microtask so the effect body performs no synchronous
+  // setState (hydration's first paint stays deterministic).
+  useEffect(() => {
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      try {
+        setSkyOff(window.localStorage.getItem(SKY_OFF_KEY) === "1");
+        setHapOff(window.localStorage.getItem(HAPTICS_OFF_KEY) === "1");
+        const raw = window.localStorage.getItem(SKY_PREVIEW_KEY);
+        if (raw !== null) {
+          const h = Number(raw);
+          if (Number.isFinite(h)) setSkyHour(h);
+        }
+      } catch {
+        /* private mode — switches just won't persist */
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Escape closes the sheet (reference keydown handler).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onNavigate("today");
+    };
+    addEventListener("keydown", onKey);
+    return () => removeEventListener("keydown", onKey);
+  }, [onNavigate]);
+
+  // ---- profile helpers (Delta Sync JSONB sections) ----
+  const identity = asSection(profileRow?.identity);
+  const metabolism = asSection(profileRow?.metabolism);
+  const chronobiology = asSection(profileRow?.chronobiology);
+  const occupation = asSection(profileRow?.occupational_context);
+
+  const emoji = (typeof identity.emoji === "string" && identity.emoji) || "🌊";
+  const name = typeof identity.displayName === "string" ? identity.displayName : data.profile.name;
+  const role = typeof identity.role === "string" ? identity.role : data.profile.role;
+  const glassMl = typeof metabolism.waterGlassMl === "number" ? metabolism.waterGlassMl : 250;
+  const wakeMin =
+    typeof chronobiology.targetWakeMinutes === "number"
+      ? chronobiology.targetWakeMinutes
+      : null;
+  const anchorOn = occupation.enforceMorningAnchor === true;
+  const seal = SEAL_SIG[emoji] ?? SEAL_SIG["🌊"];
+
+  const patchSections = (patch: {
+    identity?: Record<string, unknown>;
+    metabolism?: Record<string, unknown>;
+    chronobiology?: Record<string, unknown>;
+    occupational_context?: Record<string, unknown>;
+  }) => {
     void updateProfileSections({
-      ...(Object.keys(occupation).length > 0
-        ? { occupational_context: mergeSection(profileRow?.occupational_context, occupation) }
+      ...(patch.identity
+        ? { identity: mergeSection(profileRow?.identity, patch.identity) }
         : {}),
-      ...(Object.keys(metabolism).length > 0
-        ? { metabolism: mergeSection(profileRow?.metabolism, metabolism) }
+      ...(patch.metabolism
+        ? { metabolism: mergeSection(profileRow?.metabolism, patch.metabolism) }
         : {}),
-      ...(Object.keys(chronobiology).length > 0
-        ? { chronobiology: mergeSection(profileRow?.chronobiology, chronobiology) }
+      ...(patch.chronobiology
+        ? { chronobiology: mergeSection(profileRow?.chronobiology, patch.chronobiology) }
+        : {}),
+      ...(patch.occupational_context
+        ? {
+            occupational_context: mergeSection(
+              profileRow?.occupational_context,
+              patch.occupational_context
+            ),
+          }
         : {}),
     });
   };
 
-  const occupation =
-    profileRow?.occupational_context &&
-    typeof profileRow.occupational_context === "object" &&
-    !Array.isArray(profileRow.occupational_context)
-      ? (profileRow.occupational_context as { status?: string; enforceMorningAnchor?: boolean })
-      : {};
-  const anchorOn = occupation.enforceMorningAnchor === true;
+  /** Set one goal target (stepper taps + hold-repeat). */
+  const setGoal = (f: (typeof GOAL_FIELDS)[number], next: number) => {
+    const clamped = Math.min(f.max, Math.max(f.min, next));
+    const stored = f.factor ? Math.round(clamped * f.factor) : Math.round(clamped);
+    patchSections({ [f.section]: { [f.field]: stored } } as Parameters<typeof patchSections>[0]);
+  };
 
-  return (
-    <SectionCard title="Daily goals" icon={<Target className="h-4 w-4" />}>
-      <p className="text-[12.5px] leading-relaxed" style={{ color: "var(--df-text-secondary)" }}>
-        These targets drive the goal rings, the Habits grid, streaks, and the daily recap. Small
-        sustainable numbers beat ambitious ones you ignore.
-      </p>
-      <div className="mt-3 flex flex-col gap-4 max-w-[520px]">
-        {GOAL_FIELDS.map((f) => {
-          const raw = toField(f.key, f.unit);
-          const display =
-            f.unit === "hours"
-              ? `${raw.toFixed(1)}h`
-              : f.unit === "minutes"
-                ? `${Math.round(raw)}m`
-                : `${Math.round(raw)}`;
-          return (
-            <div key={f.key}>
-              <div className="flex items-center justify-between">
-                <span className="text-[12px] font-semibold" style={{ color: "var(--df-text-primary)" }}>
-                  {f.label}
-                </span>
-                <span
-                  className="text-[12px] font-bold tabular-nums"
-                  style={{ color: "var(--df-summary-value)" }}
-                >
-                  {display}
-                </span>
-              </div>
-              <p className="text-[10.5px]" style={{ color: "var(--df-text-muted)" }}>
-                {f.help}
-              </p>
-              <input
-                type="range"
-                min={f.min}
-                max={f.max}
-                step={f.step}
-                value={raw}
-                onChange={(e) => setField(f.key, f.unit, Number(e.target.value))}
-                aria-label={`${f.label} goal`}
-                className="w-full mt-1.5 accent-[var(--df-accent)]"
-                style={{ accentColor: "var(--df-accent)" }}
-              />
-            </div>
-          );
-        })}
-      </div>
+  const goalValue = (f: (typeof GOAL_FIELDS)[number]): number => {
+    const raw = (data.goals as unknown as Record<string, number>)[f.key];
+    return f.factor ? raw / f.factor : raw;
+  };
 
-      {/* Morning anchor (PRD §4.9 / T1d) — arms the Focus-tab gate. */}
-      <div
-        className="mt-4 max-w-[520px] rounded-[16px] px-3.5 py-3"
-        style={{
-          background: "var(--df-chip-fill)",
-          border: "0.5px solid var(--df-chip-border)",
-        }}
-      >
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <div className="text-[12.5px] font-semibold" style={{ color: "var(--df-text-primary)" }}>
-              Morning Triad lock
-            </div>
-            <div className="text-[11px] mt-0.5" style={{ color: "var(--df-text-muted)" }}>
-              Gate the Focus tab behind a 250&nbsp;ml hydration check-in + morning-light
-              confirmation (PRD §4.9)
-            </div>
-          </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={anchorOn}
-            aria-label="Morning Triad lock"
-            onClick={() =>
-              void updateProfileSections({
-                occupational_context: mergeSection(profileRow?.occupational_context, {
-                  enforceMorningAnchor: !anchorOn,
-                }),
-              })
-            }
-            className="df-press shrink-0 rounded-full transition-colors"
-            style={{
-              width: 44,
-              height: 26,
-              padding: 2,
-              background: anchorOn ? "var(--df-accent)" : "var(--df-segment-track)",
-              border: "0.5px solid " + (anchorOn ? "color-mix(in srgb, var(--df-accent) 60%, transparent)" : "var(--df-chip-border)"),
-            }}
-          >
-            <span
-              className="block h-[21px] w-[21px] rounded-full transition-transform"
-              style={{
-                background: "var(--df-white)",
-                transform: anchorOn ? "translateX(18px)" : "translateX(0)",
-                boxShadow: "0 1px 2px var(--df-panel-shadow)",
-              }}
-            />
-          </button>
-        </div>
-      </div>
-    </SectionCard>
-  );
-}
+  const goalDisplay = (f: (typeof GOAL_FIELDS)[number]): string => {
+    const v = goalValue(f);
+    if (f.unit === "hours") return `${v % 1 === 0 ? v.toFixed(0) : v.toFixed(1)}h`;
+    if (f.unit === "minutes") return `${Math.round(v)}m`;
+    return `${Math.round(v)}`;
+  };
 
-/* ---------------- appearance ---------------- */
+  // ---- sky + haptics switches ----
+  const applySkyChange = () =>
+    window.dispatchEvent(new CustomEvent(SKY_CHANGE_EVENT));
 
-function AppearanceSection({
-  theme,
-  setTheme,
-}: {
-  theme: string | undefined;
-  setTheme: (t: string) => void;
-}) {
-  return (
-    <SectionCard title="Appearance" icon={<Sun className="h-4 w-4" />}>
-      <p className="text-[12.5px] leading-relaxed" style={{ color: "var(--df-text-secondary)" }}>
-        Dayflow ships the same warm light palette and deep dusk dark palette on every platform.
-        Pick how the app looks, or follow your system.
-      </p>
-      <div className="mt-3 grid grid-cols-3 gap-2 max-w-[380px]">
-        {(
-          [
-            { id: "light", label: "Light", icon: Sun, swatch: THEME_SWATCHES.light },
-            { id: "dark", label: "Dark", icon: Moon, swatch: THEME_SWATCHES.dark },
-            { id: "system", label: "System", icon: Monitor, swatch: THEME_SWATCHES.system },
-          ] as const
-        ).map((opt) => (
-          <button
-            key={opt.id}
-            onClick={() => setTheme(opt.id)}
-            className="df-press rounded-[16px] p-2.5 flex flex-col items-center gap-2"
-            aria-pressed={theme === opt.id}
-            style={{
-              background: "var(--df-chip-fill)",
-              border:
-                theme === opt.id
-                  ? "1.5px solid var(--df-accent)"
-                  : "0.5px solid var(--df-chip-border)",
-            }}
-          >
-            <span className="h-12 w-full rounded-[10px]" style={{ background: opt.swatch }} />
-            <span
-              className="flex items-center gap-1 text-[11.5px] font-semibold"
-              style={{ color: "var(--df-text-primary)" }}
-            >
-              <opt.icon className="h-3.5 w-3.5" />
-              {opt.label}
-              {theme === opt.id && <Check className="h-3 w-3" style={{ color: "var(--df-accent)" }} />}
-            </span>
-          </button>
-        ))}
-      </div>
-    </SectionCard>
-  );
-}
+  const toggleSky = (next: boolean) => {
+    setSkyOff(next);
+    try {
+      if (next) window.localStorage.setItem(SKY_OFF_KEY, "1");
+      else window.localStorage.removeItem(SKY_OFF_KEY);
+    } catch {
+      /* private mode */
+    }
+    applySkyChange();
+  };
 
-/* ---------------- data ---------------- */
+  const previewSky = (h: number | null) => {
+    setSkyHour(h);
+    try {
+      if (h === null) window.localStorage.removeItem(SKY_PREVIEW_KEY);
+      else window.localStorage.setItem(SKY_PREVIEW_KEY, String(h));
+    } catch {
+      /* private mode */
+    }
+    applySkyChange();
+  };
 
-function DataSection({
-  onNavigate,
-  onToast,
-}: {
-  onNavigate: (t: TabId) => void;
-  onToast: (t: { title: string; description?: string }) => void;
-}) {
-  const data = useDayflowData();
-  const habits = useDayflowStore((s) => s.habits);
-  const habitLogs = useDayflowStore((s) => s.habitLogs);
-  const hydrationLogs = useDayflowStore((s) => s.hydrationLogs);
-  const workoutLogs = useDayflowStore((s) => s.workoutLogs);
-  const sleepLogs = useDayflowStore((s) => s.sleepLogs);
-  const journalEntries = useDayflowStore((s) => s.journalEntries);
-  const lastSyncedAt = useDayflowStore((s) => s.lastSyncedAt);
-  const syncError = useDayflowStore((s) => s.syncError);
-  const isSyncing = useDayflowStore((s) => s.isSyncing);
-  const [confirmReset, setConfirmReset] = useState(false);
-  const [signingOut, setSigningOut] = useState(false);
-  const router = useRouter();
+  const toggleHaptics = (off: boolean) => {
+    setHapOff(off);
+    try {
+      if (off) window.localStorage.setItem(HAPTICS_OFF_KEY, "1");
+      else window.localStorage.removeItem(HAPTICS_OFF_KEY);
+      if (!off) haptic(10);
+    } catch {
+      /* private mode */
+    }
+  };
 
-  // F-3 (Phase 8 / S1): the sign-out path. Local snapshot is wiped
-  // BEFORE the session ends — on a shared device nothing readable
-  // remains; the server keeps every row and re-syncs on the next
-  // sign-in (recoverable by design).
+  // ---- sign out (F-3: wipe local BEFORE the session ends) ----
   const signOut = async () => {
     if (signingOut) return;
     setSigningOut(true);
@@ -626,269 +426,524 @@ function DataSection({
     }
   };
 
-  // Full JSON backup of everything the Delta Sync store holds —
-  // the exact rows that live in Supabase under your account.
+  // ---- export (full JSON backup of the synced store) ----
   const exportJson = () =>
     JSON.stringify(
       {
         exportedAt: new Date().toISOString(),
         profile: useDayflowStore.getState().profile,
-        habits,
-        habitLogs,
-        hydrationLogs,
-        workoutLogs,
-        sleepLogs,
-        journalEntries,
+        habits: useDayflowStore.getState().habits,
+        habitLogs: useDayflowStore.getState().habitLogs,
+        hydrationLogs: useDayflowStore.getState().hydrationLogs,
+        workoutLogs: useDayflowStore.getState().workoutLogs,
+        sleepLogs: useDayflowStore.getState().sleepLogs,
+        journalEntries: useDayflowStore.getState().journalEntries,
       },
       null,
       2
     );
 
-  // Local cache reset: wipes the IndexedDB snapshot and re-pulls
-  // every row from Supabase (the server is the source of truth).
-  const resetLocalCache = async () => {
-    await useDayflowStore.persist.clearStorage();
-    useDayflowStore.setState({
-      profile: null,
-      habits: [],
-      habitLogs: [],
-      hydrationLogs: [],
-      workoutLogs: [],
-      sleepLogs: [],
-      journalEntries: [],
-      lastSyncCursor: null,
-      lastSyncedAt: null,
-      syncError: null,
+  const copyData = async () => {
+    try {
+      await navigator.clipboard.writeText(exportJson());
+      toast({ title: "Copied", description: "Your data is on the clipboard as JSON." });
+    } catch {
+      toast({ title: "Copy blocked by the browser" });
+    }
+  };
+
+  // ---- reset (reference double-tap confirm; keeps name + seal) ----
+  const resetSettings = () => {
+    if (!resetArmed) {
+      setResetArmed(true);
+      haptic(18);
+      setTimeout(() => setResetArmed(false), 3000);
+      return;
+    }
+    setResetArmed(false);
+    // Clear every goal key from the sections — deriveGoals falls
+    // back to the library defaults; rhythm + glass + morning
+    // check reset too. Name, seal, and logs are untouched.
+    const occ = asSection(profileRow?.occupational_context);
+    const met = asSection(profileRow?.metabolism);
+    const chr = asSection(profileRow?.chronobiology);
+    const strip = (src: Record<string, unknown>, keys: string[]) =>
+      Object.fromEntries(keys.map((k) => [k, null]));
+    void updateProfileSections({
+      occupational_context: {
+        ...occ,
+        ...strip(occ, ["dailyCareerTargetMinutes", "dailyPersonalCraftMinutes"]),
+        enforceMorningAnchor: false,
+      } as unknown as Json,
+      metabolism: {
+        ...met,
+        ...strip(met, ["fitnessMinutes", "workoutFrequencyTargetDays", "dailyWaterBaseMl", "mealsPerDay"]),
+        waterGlassMl: 250,
+      } as unknown as Json,
+      chronobiology: {
+        ...chr,
+        ...strip(chr, ["targetSleepDurationMinutes", "targetWakeMinutes"]),
+      } as unknown as Json,
+      identity: mergeSection(profileRow?.identity, { role: "" }),
     });
-    await useDayflowStore.getState().syncDeltas();
+    toast({ title: "Settings reset", description: "Goals are back to the defaults." });
   };
 
-  const download = (content: string, filename: string, type: string) => {
-    const blob = new Blob([content], { type });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const rowCount =
-    habits.length +
-    habitLogs.length +
-    hydrationLogs.length +
-    workoutLogs.length +
-    sleepLogs.length +
-    journalEntries.length;
+  const goalsSummary = `${GOAL_FIELDS.filter((f) => f.unit !== "count")
+    .slice(0, 3)
+    .map((f) => goalDisplay(f))
+    .join(" · ")}…`;
 
   return (
-    <>
-      <SectionCard title="Storage & Supabase" icon={<Database className="h-4 w-4" />}>
-        <p className="text-[12.5px] leading-relaxed" style={{ color: "var(--df-text-secondary)" }}>
-          Delta Sync is live: every log writes to your Supabase account first, then mirrors into
-          this browser&apos;s IndexedDB for offline reads. Rows written elsewhere (Apple
-          Shortcuts, another device) are pulled on the next boot.
-        </p>
-        <div
-          className="mt-3 rounded-[16px] px-3.5 py-3 max-w-[460px]"
-          style={{
-            background: "var(--df-chip-fill)",
-            border: "0.5px solid var(--df-chip-border)",
-          }}
-        >
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <span
-                className="w-2 h-2 rounded-full"
-                style={{ background: syncError ? "var(--df-destructive)" : "var(--df-streak)", boxShadow: "0 0 0 2px color-mix(in srgb, var(--df-streak) 30%, transparent)" }}
-              />
-              <span className="text-[12.5px] font-semibold flex items-center gap-1.5" style={{ color: "var(--df-text-primary)" }}>
-                Supabase — {syncError ? "sync error (will retry)" : "connected"}
-                {isSyncing && (
-                  <span className="flex items-center gap-1.5">
-                    <LogoLoop size="sm" />
-                    <span className="text-[10.5px] font-medium" style={{ color: "var(--df-text-muted)" }}>
-                      syncing…
-                    </span>
-                  </span>
-                )}
-              </span>
-            </div>
-            <span className="text-[10.5px]" style={{ color: "var(--df-text-muted)" }}>
-              {rowCount} rows synced
-            </span>
-          </div>
-          <p className="text-[11px] mt-1.5 leading-relaxed" style={{ color: "var(--df-text-muted)" }}>
-            {lastSyncedAt
-              ? `Last sync ${new Date(lastSyncedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`
-              : "Sync runs on boot and after every write."}
-          </p>
-        </div>
-      </SectionCard>
-
-      <SectionCard title="Export" icon={<Download className="h-4 w-4" />} className="mt-4">
-        <p className="text-[12.5px] leading-relaxed" style={{ color: "var(--df-text-secondary)" }}>
-          Take your data with you — full JSON backup, or any day as Markdown.
-        </p>
-        <div className="mt-3 flex gap-2 flex-wrap">
+    <div
+      className="dfset-scroll"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Settings"
+    >
+      <div className="dfset">
+        {/* ---------- header ---------- */}
+        <div className="dfset-head">
+          <h1>Settings</h1>
           <button
+            type="button"
+            className="dfset-x df-press"
             onClick={() => {
-              download(exportJson(), "dayflow-data.json", "application/json");
-              onToast({ title: "JSON backup downloaded" });
+              hapticSelect();
+              onNavigate("today");
             }}
-            className="df-press df-btn-secondary h-9 px-3.5 text-[12.5px] font-semibold flex items-center gap-1.5"
+            aria-label="Done"
           >
-            <Download className="h-3.5 w-3.5" />
-            Download JSON
-          </button>
-          <button
-            onClick={async () => {
-              try {
-                await navigator.clipboard.writeText(dayToMarkdown(data, keyForOffset(0)));
-                onToast({ title: "Today copied as Markdown" });
-              } catch {
-                onToast({ title: "Copy failed" });
-              }
-            }}
-            className="df-press df-btn-secondary h-9 px-3.5 text-[12.5px] font-semibold flex items-center gap-1.5"
-          >
-            <Copy className="h-3.5 w-3.5" />
-            Copy today (.md)
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
           </button>
         </div>
-      </SectionCard>
 
-      <SectionCard title="Account" icon={<UserRound className="h-4 w-4" />} className="mt-4">
-        <p className="text-[12.5px] leading-relaxed" style={{ color: "var(--df-text-secondary)" }}>
-          Sign out ends this session and clears the local IndexedDB snapshot — nothing stays
-          on a shared device (F-3 remediation). Your rows remain safe in Supabase and re-sync
-          the next time you sign in.
-        </p>
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 max-w-[460px] rounded-[16px] px-3.5 py-3"
-          style={{ background: "var(--df-chip-fill)", border: "0.5px solid var(--df-chip-border)" }}>
-          <div>
-            <div className="text-[12.5px] font-semibold" style={{ color: "var(--df-text-primary)" }}>
-              Sign out on this device
-            </div>
-            <div className="text-[11px]" style={{ color: "var(--df-text-muted)" }}>
-              Clears local data, keeps your account
+        {/* ---------- profile card ---------- */}
+        <section className="dfset-card dfset-pf" aria-label="Your profile">
+          <div className="dfset-pr1">
+            <button
+              type="button"
+              className={`dfset-bigav${stampNonce ? "" : ""} df-press`}
+              style={{ ["--dfset-sc" as string]: seal[1] }}
+              onClick={() => {
+                // stamp the seal + hop to the grid (reference stamp())
+                haptic([8, 30, 8]);
+                setStampNonce((n) => n + 1);
+                document
+                  .getElementById("dfset-sgrid")
+                  ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+              }}
+              aria-label={`Your seal: ${seal[0]}. Activate to see the seal grid.`}
+            >
+              <span key={emoji} className="dfset-avstamp">
+                {emoji}
+              </span>
+            </button>
+            <div className="dfset-fld">
+              <input
+                value={name}
+                maxLength={24}
+                placeholder="Your name"
+                aria-label="Your name"
+                autoComplete="off"
+                onChange={(e) => patchSections({ identity: { displayName: e.target.value } })}
+              />
+              <div className="dfset-sn" style={{ ["--dfset-sc" as string]: seal[1] }}>
+                {seal[0]}
+              </div>
             </div>
           </div>
+
+          {/* your rhythm */}
+          <div className="dfset-pl2">
+            <b>Your rhythm</b>
+            <span>Pick the one that sounds most like you</span>
+          </div>
+          <div className="dfset-per" role="radiogroup" aria-label="Your rhythm">
+            {RHYTHMS.map((r) => {
+              const on = role === r.label;
+              return (
+                <button
+                  key={r.label}
+                  type="button"
+                  role="radio"
+                  aria-checked={on}
+                  className={on ? "on" : ""}
+                  style={{ ["--dfset-sc" as string]: r.color }}
+                  onClick={() => {
+                    haptic([8, 30, 8]);
+                    patchSections({
+                      identity: { role: r.label },
+                      chronobiology: { targetWakeMinutes: r.wake },
+                    });
+                    toast({
+                      title: `${r.label} · wake ${t12(r.wake / 60)}`,
+                    });
+                  }}
+                >
+                  <span aria-hidden="true">{r.emoji}</span>
+                  <b>{r.label}</b>
+                  <small>{r.desc}</small>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* the seal grid */}
+          <div className="dfset-sgrid" id="dfset-sgrid" role="radiogroup" aria-label="Seal">
+            {AVATARS.map((a) => {
+              const on = a === emoji;
+              return (
+                <button
+                  key={a}
+                  type="button"
+                  role="radio"
+                  aria-checked={on}
+                  aria-label={SEAL_SIG[a][0]}
+                  className={on ? "on" : ""}
+                  style={{ ["--dfset-sc" as string]: SEAL_SIG[a][1] }}
+                  onClick={() => {
+                    haptic([8, 30, 8]);
+                    patchSections({ identity: { emoji: a } });
+                    setStampNonce((n) => n + 1);
+                  }}
+                >
+                  {a}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* ---------- goals ---------- */}
+        <Label>Goals</Label>
+        <section className="dfset-card dfset-st" aria-label="Goals">
+          <div className={`dfset-accw${goalsOpen ? " ex" : ""}`} id="dfset-a-goals">
+            <button
+              type="button"
+              className="dfset-row"
+              onClick={() => {
+                hapticSelect();
+                setGoalsOpen((v) => !v);
+              }}
+              aria-expanded={goalsOpen}
+            >
+              <RowIcon name="goal" tint="var(--df-p-blue)" />
+              <div>
+                <b>Daily goals</b>
+                <small>{goalsSummary}</small>
+              </div>
+              <Chevron open={goalsOpen} />
+            </button>
+            <div className="dfset-xp">
+              <div>
+                {GOAL_FIELDS.map((f) => (
+                  <div key={f.key} className="dfset-row dfset-row-sub">
+                    <div>
+                      <b>{f.label}</b>
+                      <small>{f.help}</small>
+                    </div>
+                    <Stepper
+                      value={goalValue(f)}
+                      display={goalDisplay(f)}
+                      onStep={(d) => setGoal(f, goalValue(f) + d * f.step)}
+                    />
+                  </div>
+                ))}
+                {/* glass size */}
+                <div className="dfset-row dfset-row-sub">
+                  <div>
+                    <b>Glass size</b>
+                    <small>One tap of water</small>
+                  </div>
+                  <div className="dfset-seg" role="radiogroup" aria-label="Glass size">
+                    {[200, 250, 300, 350].map((ml) => (
+                      <button
+                        key={ml}
+                        type="button"
+                        role="radio"
+                        aria-checked={glassMl === ml}
+                        className={glassMl === ml ? "on" : ""}
+                        onClick={() => {
+                          hapticSelect();
+                          patchSections({ metabolism: { waterGlassMl: ml } });
+                        }}
+                      >
+                        {ml}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* morning check */}
+          <div className="dfset-row">
+            <RowIcon name="rise" tint="var(--df-p-powder)" />
+            <div>
+              <b>Morning check</b>
+              <small>Hydrate and get light before the Timeline opens</small>
+            </div>
+            <Switch
+              on={anchorOn}
+              label="Morning check"
+              onChange={(next) =>
+                patchSections({ occupational_context: { enforceMorningAnchor: next } })
+              }
+            />
+          </div>
+        </section>
+
+        {/* ---------- app ---------- */}
+        <Label>App</Label>
+        <section className="dfset-card dfset-st" aria-label="App">
+          <div className="dfset-row">
+            <RowIcon name="sun" tint="var(--df-p-mauve)" />
+            <div>
+              <b>Appearance</b>
+            </div>
+            <ThemeSegment />
+          </div>
+
+          <div className="dfset-row">
+            <RowIcon name="moon" tint="var(--df-p-powder)" />
+            <div>
+              <b>Time-of-day background</b>
+              <small>Shifts from morning to night</small>
+            </div>
+            <Switch on={!skyOff} label="Time-of-day background" onChange={(next) => toggleSky(!next)} />
+          </div>
+
+          <div className="dfset-row">
+            <div>
+              <b>Preview</b>
+              <small>{skyHour === null ? "Now" : t12(skyHour)}</small>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={24}
+              step={0.25}
+              value={skyHour ?? new Date().getHours() + new Date().getMinutes() / 60}
+              onChange={(e) => previewSky(Number(e.target.value))}
+              aria-label="Preview time of day"
+              className="dfset-skyr"
+              style={{ accentColor: "var(--df-p-blue)" }}
+            />
+            <button
+              type="button"
+              className="dfset-cp df-press"
+              onClick={() => {
+                hapticSelect();
+                previewSky(null);
+              }}
+            >
+              Now
+            </button>
+          </div>
+
+          <div className="dfset-row">
+            <RowIcon name="hap" tint="var(--df-p-celadon)" />
+            <div>
+              <b>Haptics</b>
+              <small>Subtle taps on actions</small>
+            </div>
+            <Switch on={!hapOff} label="Haptics" onChange={(next) => toggleHaptics(!next)} />
+          </div>
+        </section>
+
+        {/* ---------- connect ---------- */}
+        <Label>Connect</Label>
+        <section className="dfset-card dfset-st" aria-label="Connect">
+          <Link href="/team" className="dfset-row df-press" style={{ textDecoration: "none" }}>
+            <RowIcon name="team" tint="var(--df-p-rose)" />
+            <div>
+              <b>Team Mode</b>
+              <small>Share habit wins with up to five people. Journal stays private.</small>
+            </div>
+            <Chevron />
+          </Link>
+
+          <div className={`dfset-accw${instOpen ? " ex" : ""}`}>
+            <button
+              type="button"
+              className="dfset-row"
+              onClick={() => {
+                hapticSelect();
+                setInstOpen((v) => !v);
+              }}
+              aria-expanded={instOpen}
+            >
+              <RowIcon name="inst" tint="var(--df-p-blue)" />
+              <div>
+                <b>Install app</b>
+                <small>Add to your Home Screen</small>
+              </div>
+              <Chevron open={instOpen} />
+            </button>
+            <div className="dfset-xp">
+              <div className="dfset-instw">
+                <InstallAppCard />
+              </div>
+            </div>
+          </div>
+
+          <div className={`dfset-accw${scOpen ? " ex" : ""}`}>
+            <button
+              type="button"
+              className="dfset-row"
+              onClick={() => {
+                hapticSelect();
+                setScOpen((v) => !v);
+              }}
+              aria-expanded={scOpen}
+            >
+              <RowIcon name="bolt" tint="var(--df-p-powder)" />
+              <div>
+                <b>Apple Shortcuts</b>
+                <small>Log water, sleep and workouts from anywhere</small>
+              </div>
+              <Chevron open={scOpen} />
+            </button>
+            <div className="dfset-xp">
+              <div className="dfset-instw">
+                <ShortcutsSetupCard />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ---------- data ---------- */}
+        <Label>Data</Label>
+        <section className="dfset-card dfset-st" aria-label="Data">
+          <button type="button" className="dfset-row df-press" onClick={() => void copyData()}>
+            <RowIcon name="data" tint="var(--df-p-slate)" />
+            <div>
+              <b>Copy my data</b>
+              <small>Profile, goals and logs as JSON</small>
+            </div>
+            <Chevron />
+          </button>
+
           <button
+            type="button"
+            className="dfset-row df-press"
             onClick={() => void signOut()}
             disabled={signingOut}
             aria-busy={signingOut}
-            className="df-press df-btn-secondary h-9 px-3.5 rounded-full text-[12.5px] font-semibold flex items-center gap-1.5 disabled:opacity-50"
           >
-            <LogOut className="h-3.5 w-3.5" />
-            {signingOut ? "Signing out…" : "Sign out"}
+            <div>
+              <b>{signingOut ? "Signing out…" : "Sign out"}</b>
+              <small>Back to the welcome screen</small>
+            </div>
           </button>
-        </div>
-        <div className="mt-3 max-w-[460px] rounded-[16px] px-3.5 py-3"
-          style={{
-            background: "color-mix(in srgb, var(--df-destructive) 6%, transparent)",
-            border: "0.5px solid color-mix(in srgb, var(--df-destructive) 22%, transparent)",
-          }}
-          aria-label="Delete account status"
-        >
-          <div className="text-[12.5px] font-semibold" style={{ color: "var(--df-text-primary)" }}>
-            Delete account
-          </div>
-          <p className="mt-0.5 text-[11px] leading-relaxed" style={{ color: "var(--df-text-secondary)" }}>
-            Full deletion (every log, habit, and journal, plus the auth user) lands with the
-            owner-side <code>delete_user_account</code> RPC — see the proposal in
-            <span style={{ color: "var(--df-accent-text)" }}> docs/PRIVACY.md</span>. Until the
-            migration ships, sign out and reset the local cache, or request deletion from the
-            repo owner.
-          </p>
-        </div>
-      </SectionCard>
 
-      <SectionCard title="Reset" icon={<Lock className="h-4 w-4" />} className="mt-4">
-        <p className="text-[12.5px] leading-relaxed" style={{ color: "var(--df-text-secondary)" }}>
-          Clears this browser&apos;s IndexedDB snapshot and re-pulls every row from Supabase.
-          Nothing on the server is deleted — this is a cache reset, not a data reset.
-        </p>
-        <div
-          className="mt-3 flex items-center justify-between max-w-[460px] rounded-[16px] px-3.5 py-3"
-          style={{
-            background: "var(--df-chip-fill)",
-            border: "0.5px solid var(--df-chip-border)",
-          }}
-        >
-          <div>
-            <div className="text-[12.5px] font-semibold" style={{ color: "var(--df-text-primary)" }}>
-              Reset local cache
+          <button type="button" className="dfset-row df-press" onClick={resetSettings}>
+            <div>
+              <b className="dfset-dng">{resetArmed ? "Tap again to confirm" : "Reset settings"}</b>
+              <small>Keeps your name, seal and logs</small>
             </div>
-            <div className="text-[11px]" style={{ color: "var(--df-text-muted)" }}>
-              {confirmReset ? "Tap Reset again to confirm" : "Re-pull everything from Supabase"}
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {confirmReset && (
-              <button
-                onClick={() => setConfirmReset(false)}
-                className="df-press df-btn-secondary h-9 px-3.5 rounded-full text-[12px] font-semibold"
-              >
-                Cancel
-              </button>
-            )}
-            <button
-              onClick={() => {
-                if (!confirmReset) {
-                  setConfirmReset(true);
-                  return;
-                }
-                void resetLocalCache();
-                setConfirmReset(false);
-                onToast({ title: "Local cache cleared", description: "Re-pulling your rows from Supabase." });
-              }}
-              className="df-press h-9 px-3.5 rounded-full text-[12px] font-semibold flex items-center gap-1.5"
-              style={{
-                background: "color-mix(in srgb, var(--df-destructive) 12%, transparent)",
-                border: "0.5px solid color-mix(in srgb, var(--df-destructive) 35%, transparent)",
-                color: "var(--df-destructive-text)",
-              }}
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-              Reset
-            </button>
-          </div>
-        </div>
-      </SectionCard>
+          </button>
+        </section>
 
-      <SectionCard title="About this web build" icon={<Monitor className="h-4 w-4" />} className="mt-4">
-        <div className="mb-3 flex items-center gap-2.5">
-          <LogoMark size={26} />
-          <span className="text-[12.5px] font-semibold" style={{ color: "var(--df-text-primary)" }}>
-            Dayflow AI
-          </span>
-          <DoodleHeart className="h-4 w-4 rotate-6" />
-        </div>
-        <ul className="flex flex-col gap-1.5">
-          {[
-            "Timeline, Daily, Weekly, Habits, Journal, and Settings are fully interactive — every log persists to your Supabase account.",
-            "Screen capture, OCR, menu bar, and the local agent bridge are native-Mac features and are intentionally absent.",
-            "Offline-first: writes land in IndexedDB immediately and sync the moment you're back online (pending rows retry on boot).",
-          ].map((line) => (
-            <li key={line} className="flex items-start gap-2">
-              <span
-                className="mt-[6px] w-[4.5px] h-[4.5px] rounded-full shrink-0"
-                style={{ background: "var(--df-accent)" }}
-              />
-              <span className="text-[12.5px] leading-relaxed" style={{ color: "var(--df-text-secondary)" }}>
-                {line}
-              </span>
-            </li>
-          ))}
-        </ul>
+        <p className="dfset-foot">Your data stays yours — synced privately to your account.</p>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   Stepper — hold to repeat (reference .stp2 + pointerdown loop)
+   ============================================================ */
+
+function Stepper({
+  value,
+  display,
+  onStep,
+}: {
+  value: number;
+  display: string;
+  onStep: (dir: 1 | -1) => void;
+}) {
+  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const holdInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const stop = useCallback(() => {
+    if (holdTimer.current) clearTimeout(holdTimer.current);
+    if (holdInterval.current) clearInterval(holdInterval.current);
+    holdTimer.current = null;
+    holdInterval.current = null;
+  }, []);
+
+  useEffect(() => stop, [stop]);
+
+  const start = (dir: 1 | -1) => {
+    onStep(dir);
+    haptic(3);
+    stop();
+    holdTimer.current = setTimeout(() => {
+      holdInterval.current = setInterval(() => onStep(dir), 110);
+    }, 420);
+  };
+
+  return (
+    <span className="dfset-stp">
+      <button
+        type="button"
+        aria-label="Less"
+        onPointerDown={() => start(-1)}
+        onPointerUp={stop}
+        onPointerLeave={stop}
+        onPointerCancel={stop}
+      >
+        −
+      </button>
+      <b>{display}</b>
+      <button
+        type="button"
+        aria-label="More"
+        onPointerDown={() => start(1)}
+        onPointerUp={stop}
+        onPointerLeave={stop}
+        onPointerCancel={stop}
+      >
+        +
+      </button>
+    </span>
+  );
+}
+
+/* ============================================================
+   Appearance segment (next-themes: auto = system)
+   ============================================================ */
+
+function ThemeSegment() {
+  const { theme, setTheme } = useTheme();
+  const options: { id: string; label: string }[] = [
+    { id: "system", label: "Auto" },
+    { id: "light", label: "Light" },
+    { id: "dark", label: "Dark" },
+  ];
+  return (
+    <div className="dfset-seg" role="radiogroup" aria-label="Appearance">
+      {options.map((o) => (
         <button
-          onClick={() => onNavigate("today")}
-          className="mt-3 df-press df-btn-primary h-9 px-4 text-[12.5px] font-semibold"
+          key={o.id}
+          type="button"
+          role="radio"
+          aria-checked={(theme ?? "system") === o.id}
+          className={(theme ?? "system") === o.id ? "on" : ""}
+          onClick={() => {
+            hapticSelect();
+            setTheme(o.id);
+          }}
         >
-          Back to Today
+          {o.label}
         </button>
-      </SectionCard>
-    </>
+      ))}
+    </div>
   );
 }

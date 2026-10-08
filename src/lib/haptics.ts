@@ -9,9 +9,25 @@
 //      vibration coupling triggers the system selection haptic.
 //      Wrapped in triggerHaptic() (Phase 5 T2a) and paired with a
 //      visual tick everywhere it is called (PRD §4.3 / §7).
+//
+// Phase 15: the Settings sheet's Haptics switch (localStorage
+// "dayflow-haptics-off" = "1") gates every engine — the master
+// off-switch users expect.
+
+export const HAPTICS_OFF_KEY = "dayflow-haptics-off";
+
+/** The Settings master switch — true unless explicitly disabled. */
+export function hapticsEnabled(): boolean {
+  try {
+    return window.localStorage.getItem(HAPTICS_OFF_KEY) !== "1";
+  } catch {
+    return true;
+  }
+}
 
 export function haptic(pattern: number | number[] = 8) {
   if (typeof navigator === "undefined") return;
+  if (!hapticsEnabled()) return;
   try {
     if (typeof navigator.vibrate === "function") navigator.vibrate(pattern);
   } catch {
@@ -35,6 +51,7 @@ export const hapticWarn = () => haptic([18, 60, 18, 60, 18]);
  * checkbox-toggle hack. No-op (never throws) everywhere else.
  */
 export function triggerHaptic() {
+  if (!hapticsEnabled()) return;
   haptic(12);
 
   if (typeof document === "undefined") return;
