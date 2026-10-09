@@ -27,6 +27,14 @@ import { useDayflowStore } from "@/store/useDayflowStore";
 import { useToast } from "@/hooks/use-toast";
 import { haptic, hapticSelect } from "@/lib/haptics";
 import type { TabId } from "@/components/dayflow/AppShell";
+import {
+  RHYTHMS,
+  RhythmGlyph,
+  SEALS,
+  SealGlyph,
+  rhythmFromRole,
+  sealFromValue,
+} from "@/components/brand/seals";
 import { InstallAppCard } from "@/components/dayflow/InstallAppCard";
 import { ShortcutsSetupCard } from "@/components/dayflow/ShortcutsSetupCard";
 import {
@@ -39,42 +47,10 @@ import type { Json } from "@/types/supabase";
 
 /* ---------------- the seal system (reference SIG) ---------------- */
 
-/** avatar emoji → [seal name, pastel tint token] */
-const SEAL_SIG: Record<string, [string, string]> = {
-  "🌊": ["Tide Rider", "var(--df-p-blue)"],
-  "💪": ["Iron Will", "var(--df-p-rose)"],
-  "🔥": ["Ember", "var(--df-p-powder)"],
-  "🏃": ["Fleet Foot", "var(--df-p-celadon)"],
-  "🧘": ["Still Mind", "var(--df-p-mauve)"],
-  "🥗": ["Green Gauge", "var(--df-p-marine)"],
-  "🛏️": ["Dream Keeper", "var(--df-p-aqua)"],
-  "💧": ["Dew Drop", "var(--df-p-frost)"],
-  "🧠": ["Deep Thinker", "var(--df-p-orchid)"],
-  "🚴": ["Pedal Sage", "var(--df-p-lemon)"],
-  "⚡": ["Live Wire", "var(--df-p-powder)"],
-  "🌱": ["Sprout", "var(--df-p-celadon)"],
-  "☕": ["Slow Brew", "var(--df-p-rose)"],
-  "🌙": ["Night Owl", "var(--df-p-mauve)"],
-  "💻": ["Flow State", "var(--df-p-blue)"],
-  "🪐": ["Wanderer", "var(--df-p-orchid)"],
-};
-
-const AVATARS = Object.keys(SEAL_SIG);
-
-/** "Your rhythm" (reference PER) — role label + wake target. */
-const RHYTHMS: {
-  label: string;
-  emoji: string;
-  desc: string;
-  wake: number;
-  color: string;
-}[] = [
-  { label: "Early riser", emoji: "☀️", desc: "Up with the sun, done by noon", wake: 360, color: "var(--df-p-powder)" },
-  { label: "Steady", emoji: "⚖️", desc: "Same shape every day", wake: 450, color: "var(--df-p-celadon)" },
-  { label: "Balancer", emoji: "🌗", desc: "Mornings for work, evenings for life", wake: 480, color: "var(--df-p-blue)" },
-  { label: "Late start", emoji: "🌆", desc: "Finds focus after lunch", wake: 540, color: "var(--df-p-mauve)" },
-  { label: "Night owl", emoji: "🌙", desc: "Alive when the stars are", wake: 630, color: "var(--df-p-orchid)" },
-];
+// All glyphs (seals, rhythms, meal icons) live in
+// components/brand/seals.tsx — hand-drawn SVGs ported verbatim
+// from the reference HTML. identity.emoji now stores a seal KEY
+// ("wave", "peak", …); legacy emoji values migrate on read.
 
 /** Goals (reference GOALS) — hold-to-repeat steppers. */
 const GOAL_FIELDS: {
@@ -316,7 +292,7 @@ export function SettingsView({ onNavigate }: { onNavigate: (t: TabId) => void })
   const chronobiology = asSection(profileRow?.chronobiology);
   const occupation = asSection(profileRow?.occupational_context);
 
-  const emoji = (typeof identity.emoji === "string" && identity.emoji) || "🌊";
+  const seal = sealFromValue(identity.emoji);
   const name = typeof identity.displayName === "string" ? identity.displayName : data.profile.name;
   const role = typeof identity.role === "string" ? identity.role : data.profile.role;
   const glassMl = typeof metabolism.waterGlassMl === "number" ? metabolism.waterGlassMl : 250;
@@ -325,7 +301,7 @@ export function SettingsView({ onNavigate }: { onNavigate: (t: TabId) => void })
       ? chronobiology.targetWakeMinutes
       : null;
   const anchorOn = occupation.enforceMorningAnchor === true;
-  const seal = SEAL_SIG[emoji] ?? SEAL_SIG["🌊"];
+  const activeRhythm = rhythmFromRole(role);
 
   const patchSections = (patch: {
     identity?: Record<string, unknown>;
@@ -525,8 +501,8 @@ export function SettingsView({ onNavigate }: { onNavigate: (t: TabId) => void })
           <div className="dfset-pr1">
             <button
               type="button"
-              className={`dfset-bigav${stampNonce ? "" : ""} df-press`}
-              style={{ ["--dfset-sc" as string]: seal[1] }}
+              className="dfset-bigav df-press"
+              style={{ ["--dfset-sc" as string]: seal.color }}
               onClick={() => {
                 // stamp the seal + hop to the grid (reference stamp())
                 haptic([8, 30, 8]);
@@ -535,10 +511,10 @@ export function SettingsView({ onNavigate }: { onNavigate: (t: TabId) => void })
                   .getElementById("dfset-sgrid")
                   ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
               }}
-              aria-label={`Your seal: ${seal[0]}. Activate to see the seal grid.`}
+              aria-label={`Your seal: ${seal.name}. Activate to see the seal grid.`}
             >
-              <span key={emoji} className="dfset-avstamp">
-                {emoji}
+              <span key={`${seal.key}-${stampNonce}`} className="dfset-avstamp">
+                <SealGlyph seal={seal} />
               </span>
             </button>
             <div className="dfset-fld">
@@ -550,8 +526,8 @@ export function SettingsView({ onNavigate }: { onNavigate: (t: TabId) => void })
                 autoComplete="off"
                 onChange={(e) => patchSections({ identity: { displayName: e.target.value } })}
               />
-              <div className="dfset-sn" style={{ ["--dfset-sc" as string]: seal[1] }}>
-                {seal[0]}
+              <div className="dfset-sn" style={{ ["--dfset-sc" as string]: seal.color }}>
+                {seal.name}
               </div>
             </div>
           </div>
@@ -563,7 +539,7 @@ export function SettingsView({ onNavigate }: { onNavigate: (t: TabId) => void })
           </div>
           <div className="dfset-per" role="radiogroup" aria-label="Your rhythm">
             {RHYTHMS.map((r) => {
-              const on = role === r.label;
+              const on = activeRhythm?.label === r.label;
               return (
                 <button
                   key={r.label}
@@ -583,7 +559,7 @@ export function SettingsView({ onNavigate }: { onNavigate: (t: TabId) => void })
                     });
                   }}
                 >
-                  <span aria-hidden="true">{r.emoji}</span>
+                  <RhythmGlyph rhythm={r} />
                   <b>{r.label}</b>
                   <small>{r.desc}</small>
                 </button>
@@ -593,24 +569,24 @@ export function SettingsView({ onNavigate }: { onNavigate: (t: TabId) => void })
 
           {/* the seal grid */}
           <div className="dfset-sgrid" id="dfset-sgrid" role="radiogroup" aria-label="Seal">
-            {AVATARS.map((a) => {
-              const on = a === emoji;
+            {SEALS.map((s) => {
+              const on = s.key === seal.key;
               return (
                 <button
-                  key={a}
+                  key={s.key}
                   type="button"
                   role="radio"
                   aria-checked={on}
-                  aria-label={SEAL_SIG[a][0]}
+                  aria-label={s.name}
                   className={on ? "on" : ""}
-                  style={{ ["--dfset-sc" as string]: SEAL_SIG[a][1] }}
+                  style={{ ["--dfset-sc" as string]: s.color }}
                   onClick={() => {
                     haptic([8, 30, 8]);
-                    patchSections({ identity: { emoji: a } });
+                    patchSections({ identity: { emoji: s.key } });
                     setStampNonce((n) => n + 1);
                   }}
                 >
-                  {a}
+                  <SealGlyph seal={s} />
                 </button>
               );
             })}

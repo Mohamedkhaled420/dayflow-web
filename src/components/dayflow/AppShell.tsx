@@ -16,6 +16,7 @@ import { useDockHidden, watchDockKeyboard } from "@/hooks/use-dock-visibility";
 import { useKeyboardTracking } from "@/components/ui/Sheet";
 import { DiaEngine } from "@/components/companion/DiaEngine";
 import { SkySync } from "@/components/dayflow/SkySync";
+import { SealGlyph, sealFromValue } from "@/components/brand/seals";
 import { TAB_ACCENTS } from "@/styles/palette";
 
 // Phase 13 bundle diet: every tab view is code-split and streams in
@@ -143,18 +144,17 @@ const TAB_ICON: Record<string, ReactNode> = {
  *  the owning pane opens its sheet when the nonce changes. */
 export type LogAction = "block" | "meal" | "workout";
 
-/** The avatar emoji from the profiles row's identity JSONB section
- *  (same extraction as viewmodel's deriveProfile). */
-function profileEmoji(row: unknown): string {
+/** The seal from the profiles row's identity JSONB section —
+ *  identity.emoji stores a seal key ("wave", "peak", …); legacy
+ *  emoji values migrate on read (same rules as viewmodel). */
+function ProfileSeal({ row }: { row: unknown }) {
   const identity =
     row && typeof row === "object" && !Array.isArray(row)
       ? ((row as { identity?: unknown }).identity as
           | { emoji?: unknown }
           | undefined)
       : undefined;
-  return typeof identity?.emoji === "string" && identity.emoji
-    ? identity.emoji
-    : "🌊";
+  return <SealGlyph seal={sealFromValue(identity?.emoji)} />;
 }
 
 export function AppShell() {
@@ -360,7 +360,7 @@ export function AppShell() {
             }}
             aria-label="Profile and settings"
           >
-            {profileEmoji(profileRow)}
+            <ProfileSeal row={profileRow} />
           </button>
           <button
             className={`dfx-hbtn${tab === "weekly" ? " on" : ""}`}

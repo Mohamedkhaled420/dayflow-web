@@ -3164,11 +3164,24 @@ select {
   width: 38px;
   height: 38px;
   border-radius: 12px;
-  background: var(--df-input-fill);
+  background: color-mix(
+    in srgb,
+    var(--dfn-tint, var(--df-p-powder)) 30%,
+    var(--df-input-fill)
+  );
   display: grid;
   place-items: center;
-  font-size: 19px;
   flex: none;
+  color: var(--df-text-primary);
+}
+.dfn-ic svg {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 .dfn-tm {
   width: 58px;
@@ -3709,15 +3722,18 @@ select {
   display: grid;
   place-items: center;
   flex: none;
-  font-size: 19px;
-  line-height: 1;
   background: var(--df-nav-pill-fill);
   box-shadow: inset 0 0 0 1px var(--df-card-border),
     var(--df-lift-shadow);
   transition: transform 0.3s var(--dfx-ease-spring);
 }
+.dfx-av svg {
+  width: 21px;
+  height: 21px;
+  display: block;
+}
 .dfx-av:active {
-  transform: scale(0.9);
+  transform: scale(0.9) rotate(-8deg);
 }
 .dfx-hbtn svg {
   width: 21px;
@@ -8239,13 +8255,18 @@ select {
     0 14px 30px -14px var(--dfset-sc, var(--df-p-blue));
   transform: rotate(-4deg);
   transition: transform 0.4s var(--dfx-ease-spring);
-  font-size: 44px;
-  line-height: 1;
+}
+.dfset-bigav svg {
+  width: 64px; /* 70% — reference .big-av svg */
+  height: 64px;
+  display: block;
 }
 .dfset-bigav:active {
   transform: rotate(-4deg) scale(0.92);
 }
 .dfset-avstamp {
+  display: grid;
+  place-items: center;
   animation: dfset-stamp 0.65s cubic-bezier(0.3, 1.5, 0.5, 1);
 }
 @keyframes dfset-stamp {
@@ -8292,7 +8313,10 @@ select {
   color: color-mix(in srgb, var(--dfset-sc, var(--df-p-blue)) 40%, var(--df-text-primary));
 }
 
-/* rhythm picker — horizontal scroll of personality cards */
+/* rhythm picker — two-column grid of personality cards
+   (reference .per): every card carries a tiny animated scene
+   (pe-* classes). Idle cards are PAUSED — only the selected
+   card runs, exactly like the reference `.per .on *`. */
 .dfset-pl2 {
   margin-top: 16px;
 }
@@ -8318,16 +8342,23 @@ select {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 3px;
+  gap: 4px;
   padding: 12px 12px 10px;
   border-radius: 20px;
   text-align: left;
-  background: var(--df-segment-track);
-  transition: transform 0.35s var(--dfx-ease-spring), box-shadow 0.25s, background 0.25s;
+  color: var(--df-text-primary);
+  background: color-mix(in srgb, var(--dfset-sc, var(--df-p-blue)) 10%, var(--df-card-fill));
+  box-shadow: inset 0 0 0 1.5px
+    color-mix(in srgb, var(--dfset-sc, var(--df-p-blue)) 20%, transparent);
+  transition: transform 0.35s var(--dfx-ease-spring), box-shadow 0.25s,
+    background 0.25s;
 }
-.dfset-per button > span {
-  font-size: 21px;
-  line-height: 1;
+.dfset-per button > svg {
+  width: 52px;
+  height: 52px;
+  display: block;
+  overflow: visible;
+  margin-bottom: 2px;
 }
 .dfset-per button b {
   font-size: 13.5px;
@@ -8339,15 +8370,120 @@ select {
   color: var(--df-text-muted);
 }
 .dfset-per button.on {
-  background: color-mix(in srgb, var(--dfset-sc, var(--df-p-blue)) 18%, var(--df-card-fill));
-  box-shadow: inset 0 0 0 2px var(--dfset-sc, var(--df-p-blue));
-  transform: scale(1.03);
+  background: color-mix(in srgb, var(--dfset-sc, var(--df-p-blue)) 26%, var(--df-card-fill));
+  box-shadow: inset 0 0 0 2px var(--dfset-sc, var(--df-p-blue)),
+    0 16px 30px -16px var(--dfset-sc, var(--df-p-blue));
+  transform: translateY(-2px);
 }
 .dfset-per button:active {
   transform: scale(0.95);
 }
 
-/* seal grid (reference .sg2) */
+/* the pe-* scenes — animations pause unless the card is selected */
+.dfset-per button * {
+  animation-play-state: paused;
+}
+.dfset-per button.on * {
+  animation-play-state: running;
+}
+@keyframes dfset-pe-r {
+  from {
+    transform: translateY(9px);
+  }
+  to {
+    transform: none;
+  }
+}
+.pe-rise {
+  animation: dfset-pe-r 2.4s ease-in-out infinite alternate;
+}
+@keyframes dfset-pe-s {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.pe-sp {
+  transform-origin: 24px 30px;
+  animation: dfset-pe-s 12s linear infinite;
+}
+.pe-hand {
+  transform-origin: 24px 24px;
+  animation: dfset-pe-s 6s steps(12) infinite;
+}
+@keyframes dfset-pe-t {
+  50% {
+    opacity: 0.2;
+    transform: scale(0.5);
+  }
+}
+.pe-tw {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: dfset-pe-t 2.4s ease-in-out infinite;
+}
+.pe-d2 {
+  animation-delay: 0.8s;
+}
+.pe-d3 {
+  animation-delay: 1.5s;
+}
+@keyframes dfset-pe-b {
+  0% {
+    transform: translateY(4px);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-22px);
+    opacity: 0;
+  }
+}
+.pe-bb {
+  animation: dfset-pe-b 3s ease-in infinite;
+}
+@keyframes dfset-pe-w {
+  to {
+    transform: translateX(-36px);
+  }
+}
+.pe-wv {
+  animation: dfset-pe-w 2.8s linear infinite;
+}
+@keyframes dfset-pe-z {
+  50% {
+    transform: scale(1.14) rotate(-5deg);
+  }
+}
+.pe-bz {
+  transform-origin: 24px 24px;
+  animation: dfset-pe-z 1.3s ease-in-out infinite;
+}
+@keyframes dfset-pe-l {
+  0% {
+    transform: translateX(7px);
+    opacity: 0;
+  }
+  50% {
+    opacity: 0.7;
+  }
+  100% {
+    transform: translateX(-5px);
+    opacity: 0;
+  }
+}
+.pe-ln {
+  animation: dfset-pe-l 1.3s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dfset-per *,
+  .dfset-per button * {
+    animation: none !important;
+  }
+}
+
+/* seal grid (reference .sg2) — the 12 hand-drawn seals */
 .dfset-sgrid {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
@@ -8358,11 +8494,15 @@ select {
   aspect-ratio: 1;
   min-height: 44px;
   border-radius: 16px;
-  font-size: 22px;
   display: grid;
   place-items: center;
   background: color-mix(in srgb, var(--dfset-sc, var(--df-p-blue)) 11%, transparent);
   transition: transform 0.3s var(--dfx-ease-spring), box-shadow 0.2s, background 0.2s;
+}
+.dfset-sgrid button > svg {
+  width: 26px;
+  height: 26px;
+  display: block;
 }
 .dfset-sgrid button:active {
   transform: scale(0.85);

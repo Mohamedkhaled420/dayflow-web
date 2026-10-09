@@ -87,7 +87,7 @@ export function deriveProfile(row: ProfileRow | null): Profile {
   const metabolism = asSection(row?.metabolism) as MetabolismSection;
   return {
     name: identity.displayName?.trim() || "Friend",
-    emoji: identity.emoji || "🌊",
+    emoji: identity.emoji || "wave",
     role:
       identity.role ??
       STATUS_LABELS[occupation.status ?? ""] ??

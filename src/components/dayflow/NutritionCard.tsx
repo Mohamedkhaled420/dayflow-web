@@ -18,10 +18,10 @@ import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { triggerHaptic } from "@/lib/haptics";
 import { CATEGORY_COLORS, MACRO_COLORS } from "@/styles/palette";
+import { MealGlyph, MEAL_TINTS } from "@/components/brand/seals";
 
 /** meal type from the clock — mirrors the sheet's autoType */
 const autoType = (m: number): number => (m < 660 ? 0 : m < 960 ? 1 : m < 1260 ? 2 : 3);
-const MEAL_EMOJI = ["🍳", "🥗", "🍝", "🍎"];
 const MEAL_NAMES = ["Breakfast", "Lunch", "Dinner", "Snack"];
 
 const RING_C = 339.3; // 2πr, r = 54 (viewBox 120)
@@ -378,8 +378,12 @@ function MealSwipeRow({
         Delete
       </div>
       <div className="dfn-sw" ref={swRef}>
-        <span className="dfn-ic" aria-hidden="true">
-          {MEAL_EMOJI[type]}
+        <span
+          className="dfn-ic"
+          aria-hidden="true"
+          style={{ ["--dfn-tint" as string]: MEAL_TINTS[type] ?? MEAL_TINTS[0] }}
+        >
+          <MealGlyph type={type} />
         </span>
         <span className="dfn-tm">{time}</span>
         <span className="dfn-nm">
