@@ -7244,6 +7244,742 @@ select {
 }
 
 /* ============================================================
+   The voice update — Talk view (.dfc-vs)  [reference "Dayflow
+   (5).html" #vs / #ow / #wv2 / #vl / #cap / #try / #cmp / #trs]
+   Dia's soul orb + live waveform + word-lit captions + the
+   voice dock + the transcript sheet. All state lookups key off
+   .dfc-vs[data-s] and the orb's own state classes; --sl is the
+   live soul color, --lv the live audio level (0..1, written by
+   the rAF loop, never by React).
+   ============================================================ */
+
+/* ---------- state colors (reference CBC) ---------- */
+.dfc-vs {
+  --dfc-sl: #9477d4;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 430px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 18px 6px;
+  position: relative;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  overscroll-behavior: contain;
+}
+.dfc-vs::-webkit-scrollbar {
+  display: none;
+}
+.dfc-vs[data-s="idle"] {
+  --dfc-sl: #9477d4;
+}
+.dfc-vs[data-s="listen"] {
+  --dfc-sl: #2fa6c9;
+}
+.dfc-vs[data-s="think"] {
+  --dfc-sl: #cf7dc4;
+}
+.dfc-vs[data-s="speak"] {
+  --dfc-sl: #e26a7c;
+}
+.dark .dfc-vs[data-s="idle"] {
+  --dfc-sl: var(--df-p-mauve);
+}
+.dark .dfc-vs[data-s="listen"] {
+  --dfc-sl: var(--df-p-frost);
+}
+.dark .dfc-vs[data-s="think"] {
+  --dfc-sl: var(--df-p-orchid);
+}
+.dark .dfc-vs[data-s="speak"] {
+  --dfc-sl: var(--df-p-rose);
+}
+
+/* ---------- transcript toggle (reference .trb) ---------- */
+.dfc-trb {
+  position: absolute;
+  top: 0;
+  right: 18px;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: var(--df-card-fill);
+  box-shadow: inset 0 0 0 1px var(--df-card-border);
+  display: grid;
+  place-items: center;
+  z-index: 2;
+}
+.dfc-trb svg {
+  width: 24px;
+  height: 24px;
+  stroke: var(--df-text-primary);
+  fill: none;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ---------- the orb stage ---------- */
+.dfc-vs-stage {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+.dfc-orbw {
+  position: relative;
+  flex: none;
+  width: clamp(84px, calc(100dvh - 540px), 230px);
+  aspect-ratio: 1;
+  margin-top: 6px;
+  animation: dfc-oflo 6s ease-in-out infinite;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.dfc-orbw::after {
+  content: "";
+  position: absolute;
+  left: 16%;
+  right: 16%;
+  bottom: -16px;
+  height: 18px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(80, 60, 130, 0.28), transparent);
+  pointer-events: none;
+}
+.dfc-orbw:focus-visible {
+  outline: 2px solid var(--df-text-primary);
+  outline-offset: 6px;
+  border-radius: 50%;
+}
+.dfc-orb {
+  --l1: var(--df-p-mauve);
+  --l2: var(--df-p-blue);
+  --l3: var(--df-p-orchid);
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  transform: scale(calc(1 + var(--lv, 0) * 0.05));
+  --sx: 0px;
+  --sy: 0px;
+}
+.dfc-orb.idle {
+  --l1: var(--df-p-mauve);
+  --l2: var(--df-p-blue);
+  --l3: var(--df-p-orchid);
+}
+.dfc-orb.listen {
+  --l1: var(--df-p-frost);
+  --l2: var(--df-p-marine);
+  --l3: var(--df-p-blue);
+}
+.dfc-orb.think {
+  --l1: var(--df-p-orchid);
+  --l2: var(--df-p-mauve);
+  --l3: var(--df-p-powder);
+}
+.dfc-orb.speak {
+  --l1: var(--df-p-rose);
+  --l2: var(--df-p-powder);
+  --l3: var(--df-p-orchid);
+}
+/* orb internals — scoped, reference #orb rules */
+.dfc-orb .st-w {
+  stop-color: #fff;
+}
+.dfc-orb .ob {
+  fill: color-mix(in srgb, var(--l3) 38%, rgba(255, 255, 255, 0.6));
+}
+.dfc-orb .or {
+  fill: none;
+  stroke: var(--df-text-primary);
+  stroke-opacity: 0.14;
+  stroke-width: 2;
+}
+.dfc-orb .rp {
+  fill: none;
+  stroke: var(--l2);
+  stroke-width: 2;
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: dfc-rpl 2.4s ease-out infinite;
+}
+.dfc-orb .rp.r2 {
+  animation-delay: 0.8s;
+}
+.dfc-orb .rp.r3 {
+  animation-delay: 1.6s;
+}
+.dfc-orb .lq {
+  transform: translateY(78px);
+  animation: dfc-slosh 1.8s ease-in-out infinite alternate;
+  transform-origin: 100px 100px;
+}
+.dfc-orb .lv2 {
+  transform-box: fill-box;
+  transform-origin: top;
+  transform: scaleY(calc(0.8 + var(--lv, 0) * 1.8));
+}
+.dfc-orb .wv {
+  animation: dfc-ws 5s linear infinite;
+}
+.dfc-orb .wv.a {
+  fill: var(--l1);
+  fill-opacity: 0.9;
+}
+.dfc-orb .wv.b {
+  fill: var(--l2);
+  fill-opacity: 0.75;
+  animation: dfc-ws 7s linear infinite reverse;
+}
+.dfc-orb .soul {
+  transform: translate(calc(var(--ex, 0) * 7px), calc(var(--ey, 0) * 7px));
+  transition: transform 0.6s cubic-bezier(0.3, 1.4, 0.5, 1);
+}
+.dfc-orb .soul * {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.dfc-orb .bh {
+  animation: dfc-brt 4.6s ease-in-out infinite;
+}
+.dfc-orb .hb {
+  animation: dfc-hbt 3.8s ease-in-out infinite;
+}
+.dfc-orb .sglow {
+  transform: scale(calc(1 + var(--lv, 0) * 0.5));
+  transition: opacity 0.5s;
+}
+.dfc-orb .core {
+  transform: scale(calc(1 + var(--lv, 0) * 0.9));
+}
+.dfc-orb .wsp {
+  animation: dfc-spn 14s linear infinite;
+}
+.dfc-orb .ws {
+  opacity: 0.6;
+}
+.dfc-orb .ws.b {
+  transform: rotate(60deg);
+}
+.dfc-orb .ws.c {
+  transform: rotate(120deg);
+}
+.dfc-orb.listen .wsp {
+  animation-duration: 7s;
+}
+.dfc-orb.think .wsp {
+  animation-duration: 3.2s;
+}
+.dfc-orb.speak .wsp {
+  animation-duration: 5s;
+}
+.dfc-orb.happy .wsp {
+  animation-duration: 2.2s;
+}
+.dfc-orb .sr {
+  fill: none;
+  stroke: var(--dfc-sl);
+  stroke-width: 2.2;
+  opacity: 0;
+}
+.dfc-orb.listen .sr,
+.dfc-orb.speak .sr {
+  animation: dfc-srp 2.6s ease-out infinite;
+}
+.dfc-orb .sr.r2 {
+  animation-delay: 0.87s;
+}
+.dfc-orb .sr.r3 {
+  animation-delay: 1.74s;
+}
+.dfc-orb .mts {
+  opacity: 0;
+  transition: opacity 0.4s;
+}
+.dfc-orb .mts circle {
+  fill: #fff;
+  stroke: var(--dfc-sl);
+  stroke-width: 1.6;
+}
+.dfc-orb.think .mts {
+  opacity: 1;
+  animation: dfc-spn 2.6s linear infinite;
+  transform-box: view-box;
+  transform-origin: 100px 100px;
+}
+.dfc-orb .spk {
+  opacity: 0;
+}
+.dfc-orb.happy .spk {
+  opacity: 1;
+}
+.dfc-orb .spk path {
+  fill: var(--df-p-lemon);
+  stroke: var(--df-text-primary);
+  stroke-opacity: 0.5;
+  stroke-width: 1.4;
+  stroke-linejoin: round;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: dfc-spp 0.9s cubic-bezier(0.34, 2, 0.5, 1) both;
+}
+.dfc-orb .spk path:nth-child(2) {
+  animation-delay: 0.12s;
+}
+.dfc-orb .spk path:nth-child(3) {
+  animation-delay: 0.24s;
+}
+.dfc-orb.happy .core {
+  transform: scale(1.5);
+}
+.dfc-orb.happy .sglow {
+  transform: scale(1.4);
+}
+/* ambient moods (reference cMod) */
+.dfc-orb.sleepy.idle .bh {
+  animation-duration: 9s;
+}
+.dfc-orb.sleepy.idle .sglow,
+.dfc-orb.sleepy.idle .wsp {
+  opacity: 0.4;
+}
+.dfc-orb.sleepy.idle .hb {
+  animation-duration: 8s;
+}
+.dfc-orb.care.idle .bh {
+  animation-duration: 6.8s;
+}
+
+@keyframes dfc-oflo {
+  50% {
+    transform: translateY(-6px);
+  }
+}
+@keyframes dfc-ws {
+  to {
+    transform: translateX(-100px);
+  }
+}
+@keyframes dfc-brt {
+  50% {
+    transform: scale(1.07);
+  }
+}
+@keyframes dfc-hbt {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  10% {
+    transform: scale(1.16);
+  }
+  20% {
+    transform: scale(0.98);
+  }
+  32% {
+    transform: scale(1.09);
+  }
+  46% {
+    transform: scale(1);
+  }
+}
+@keyframes dfc-spn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes dfc-srp {
+  0% {
+    transform: scale(1);
+    opacity: 0.75;
+  }
+  100% {
+    transform: scale(5.2);
+    opacity: 0;
+  }
+}
+@keyframes dfc-rpl {
+  0% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(1.45);
+    opacity: 0;
+  }
+}
+@keyframes dfc-slosh {
+  from {
+    transform: translateY(78px) rotate(-5deg);
+  }
+  to {
+    transform: translateY(78px) rotate(5deg);
+  }
+}
+@keyframes dfc-spp {
+  from {
+    transform: scale(0) rotate(-40deg);
+  }
+}
+@keyframes dfc-mp {
+  0% {
+    box-shadow: 0 0 0 0 rgba(144, 219, 244, 0.7);
+  }
+  100% {
+    box-shadow: 0 0 0 24px rgba(144, 219, 244, 0);
+  }
+}
+
+/* ---------- waveform (reference .wv2) ---------- */
+.dfc-wv2 {
+  flex: none;
+  width: min(78%, 300px);
+  height: 40px;
+  margin-top: 16px;
+  overflow: visible;
+}
+.dfc-wv2 path {
+  fill: none;
+  stroke: var(--dfc-sl);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  transition: stroke 0.6s;
+}
+
+/* ---------- voice label (reference .vl) ---------- */
+.dfc-vl {
+  flex: none;
+  margin: 2px 0 0;
+  font-size: 12.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--df-text-muted);
+}
+
+/* ---------- captions (reference .cap) ---------- */
+.dfc-cap {
+  flex: 1 0 auto;
+  min-height: 84px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+  padding: 10px 2px 8px;
+  overflow: visible;
+  scrollbar-width: none;
+  justify-content: flex-start;
+}
+.dfc-cap::-webkit-scrollbar {
+  display: none;
+}
+.dfc-cap .coach {
+  font-size: 18px;
+  line-height: 1.3;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  max-width: 24ch;
+  color: var(--df-text-primary);
+}
+.dfc-cap .coach.hi {
+  opacity: 0.9;
+}
+.dfc-cap .you {
+  font-size: 13.5px;
+  color: var(--df-text-muted);
+  max-width: 32ch;
+}
+.dfc-mut2 {
+  color: var(--df-text-muted);
+  font-weight: 500;
+}
+.dfc-cap .w {
+  opacity: 0.3;
+  transition: opacity 0.25s;
+}
+.dfc-cap .w.on {
+  opacity: 1;
+}
+
+/* ---------- prompt chips (reference .try) ---------- */
+.dfc-try {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 2px 0 8px;
+}
+.dfc-try button {
+  flex: none;
+  min-height: 44px;
+  padding: 0 16px 0 12px;
+  border-radius: 99px;
+  background: var(--df-card-fill);
+  box-shadow: inset 0 0 0 1px var(--df-card-border);
+  font-weight: 600;
+  font-size: 14px;
+  white-space: normal;
+  line-height: 1.2;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  transition: transform 0.3s cubic-bezier(0.34, 1.6, 0.5, 1);
+}
+.dfc-try button:active {
+  transform: scale(0.94);
+}
+.dfc-try svg {
+  width: 18px;
+  height: 18px;
+  fill: var(--df-p-mauve);
+  stroke: var(--df-text-primary);
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+}
+
+/* ---------- the dock (reference .cmp / .dk) ---------- */
+.dfc-cmp {
+  flex: none;
+  padding: 6px 0 4px;
+}
+.dfc-dk {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  padding: 4px 18px 10px;
+  max-width: 430px;
+  margin: 0 auto;
+}
+.dfc-sm2 {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: var(--df-card-fill);
+  box-shadow: inset 0 0 0 1px var(--df-card-border);
+  display: grid;
+  place-items: center;
+  transition: transform 0.3s cubic-bezier(0.34, 1.6, 0.5, 1);
+}
+.dfc-sm2:active {
+  transform: scale(0.88);
+}
+.dfc-sm2 svg {
+  width: 24px;
+  height: 24px;
+  stroke: var(--df-text-primary);
+  fill: none;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.dfc-sm2 .sl {
+  opacity: 0;
+  stroke: #e26a7c;
+}
+.dfc-sm2.off .sl {
+  opacity: 1;
+}
+.dfc-sm2.off .wv {
+  opacity: 0.2;
+}
+.dfc-sm3 {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--df-chip-fill);
+  display: grid;
+  place-items: center;
+  align-self: center;
+}
+.dfc-sm3 svg {
+  width: 22px;
+  height: 22px;
+  stroke: var(--df-text-primary);
+  fill: none;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+/* the big mic (reference .mic) */
+.dfc-micb {
+  position: relative;
+  width: 82px;
+  height: 82px;
+  border-radius: 50%;
+  background: linear-gradient(140deg, var(--df-p-mauve), var(--df-p-blue) 55%, var(--df-p-frost));
+  box-shadow: 0 16px 30px -12px var(--df-p-frost),
+    inset 0 2px 0 rgba(255, 255, 255, 0.7);
+  display: grid;
+  place-items: center;
+  transition: transform 0.35s cubic-bezier(0.34, 1.8, 0.5, 1), background 0.5s;
+}
+.dfc-micb:active {
+  transform: scale(0.9);
+}
+.dfc-micb svg {
+  width: 34px;
+  height: 34px;
+  stroke: #2b2940;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.dfc-micb .i-mic rect {
+  fill: #fff;
+  fill-opacity: 0.7;
+}
+.dfc-micb .i-stop rect {
+  fill: #2b2940;
+}
+.dfc-micb .i-stop,
+.dfc-micb[data-s="listen"] .i-mic,
+.dfc-micb[data-s="speak"] .i-mic,
+.dfc-micb[data-s="think"] .i-mic {
+  display: none;
+}
+.dfc-micb[data-s="listen"] .i-stop,
+.dfc-micb[data-s="speak"] .i-stop,
+.dfc-micb[data-s="think"] .i-stop {
+  display: block;
+}
+.dfc-micb[data-s="listen"] {
+  background: linear-gradient(140deg, var(--df-p-marine), var(--df-p-frost));
+  animation: dfc-mp 1.4s ease-out infinite;
+}
+.dfc-micb[data-s="speak"] {
+  background: linear-gradient(140deg, var(--df-p-rose), var(--df-p-powder));
+}
+.dfc-micb[data-s="think"] {
+  background: linear-gradient(140deg, var(--df-p-orchid), var(--df-p-mauve));
+}
+
+/* ---------- transcript sheet (reference .trs) ---------- */
+.dfc-trs {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  padding-top: calc(22px + var(--safe-area-top, 0px));
+  background: color-mix(in srgb, var(--df-window-bg) 90%, transparent);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+}
+.dfc-trh {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 430px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 18px 10px;
+}
+.dfc-trh b {
+  font-size: 22px;
+  letter-spacing: -0.03em;
+  color: var(--df-text-primary);
+}
+.dfc-trh button {
+  height: 44px;
+  padding: 0 18px;
+  border-radius: 99px;
+  background: var(--df-text-primary);
+  color: var(--df-window-bg);
+  font-weight: 600;
+}
+.dfc-trl {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 430px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 4px 18px 24px;
+}
+.dfc-tmsg {
+  max-width: 86%;
+  padding: 12px 16px;
+  border-radius: 22px;
+  font-size: 16px;
+  line-height: 1.4;
+  flex: none;
+  white-space: pre-wrap;
+}
+.dfc-tmsg.u {
+  align-self: flex-end;
+  background: var(--df-text-primary);
+  color: var(--df-window-bg);
+  border-bottom-right-radius: 8px;
+}
+.dfc-tmsg.c {
+  align-self: flex-start;
+  background: var(--df-card-fill);
+  box-shadow: inset 0 0 0 1px var(--df-card-border);
+  color: var(--df-text-primary);
+  border-bottom-left-radius: 8px;
+}
+
+/* ---------- voice: compact + motion budgets ---------- */
+@media (max-width: 379px) {
+  .dfc-orbw {
+    width: clamp(84px, calc(100dvh - 560px), 190px);
+  }
+  .dfc-micb {
+    width: 72px;
+    height: 72px;
+  }
+  .dfc-dk {
+    gap: 20px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dfc-orbw,
+  .dfc-orb .bh,
+  .dfc-orb .hb,
+  .dfc-orb .sc,
+  .dfc-orb .wsp,
+  .dfc-orb .sr,
+  .dfc-orb.think .mts,
+  .dfc-orb .rp,
+  .dfc-orb .lq,
+  .dfc-orb .wv,
+  .dfc-orb .spk path,
+  .dfc-micb {
+    animation: none !important;
+  }
+  .dfc-cap .w {
+    transition: none !important;
+    opacity: 1;
+  }
+  .dfc-try button,
+  .dfc-sm2,
+  .dfc-micb {
+    transition: none !important;
+  }
+}
+
+
+/* ============================================================
    Phase 15 — Settings sheet (.dfset-*)  [reference #set]
    Full-bleed overlay that slides over the whole app.
    ============================================================ */

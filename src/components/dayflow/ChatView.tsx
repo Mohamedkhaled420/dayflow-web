@@ -1,44 +1,44 @@
 "use client";
 
 // ============================================================
-// Dayflow AI — Coach pane (reference "Dayflow (4).html" #cp)
+// Dayflow AI — Coach pane (reference "Dayflow (5).html" #cp)
 // ------------------------------------------------------------
-// The AI chat, rebuilt on the updated mockup: a slim header
-// (privacy line + "Coach" + Chat/Journal segment), the chat
-// flow, and the capsule composer. DIA — the 3D white tiger —
-// lives HERE now and only here (user decision, Oct 2026): her
-// glass terrarium sits inside the gradient hero, thinking
-// while the coach streams, celebrating when rings close, and
-// evolving with the XP her engine accrues app-wide (see
-// companion/DiaEngine.tsx — the headless half mounted in the
-// AppShell).
+// The BIG update: the Coach is now VOICE-FIRST. The old chat
+// bubble flow became the Talk view — Dia's soul orb (see
+// voice/VoiceOrb.tsx), a live waveform, word-lit captions, four
+// prompt chips, and a dock that flips between the big mic and a
+// typing capsule. Typed input rides the SAME session: it is
+// injected into the live Deepgram agent (df:Inject → InjectUser-
+// Message) so the answer still comes back by voice.
 //
-// Two axes, kept distinct on purpose:
-//   view  Chat | Journal   — talk to the coach vs write entries
-//   mode  journal|workout  — WHICH coach answers (CBT/Stoic
-//                            reading your last 3 entries vs the
-//                            S&C coach reading your sessions)
-// The mode capsule in the hero + the prompt chips set it.
+// Under the hood (2026-10 research, all live-verified):
+//   browser ⇄ /api/ai/voice-agent ⇄ wss://agent.deepgram.com/
+//   v1/agent/converse — the relay exists because Deepgram's live
+//   endpoint is header-auth only (401 on query/subprotocol auth),
+//   so the key must stay server-side. Models: flux-general-en
+//   (listen, conversational turn-taking) → managed gpt-4o-mini
+//   (think, Standard tier) → flux-kit-en (speak). Barge-in,
+//   word-lit captions, transcript sheet — all real events.
 //
-// Everything functional is unchanged from the Phase-8 build:
-// Delta Sync journal writes (owner-only RLS), /api/ai/coach
-// with Bearer auth + SSE streaming + algorithmic floor,
-// per-mode persisted turns, Coach Notes (the actionable tail
-// + one-tap logs), honest fallback labeling. Entries render
-// through sanitizeJournalHtml; replies through the allowlist
-// markdown renderer — never literal asterisks.
+// Fallback: if voice is unavailable (not configured / relay
+// error), typed input degrades to the Phase-15 text coach
+// (/api/ai/coach SSE) with speechSynthesis reading the reply —
+// every existing behavior survives: per-mode persisted turns,
+// Coach Notes + one-tap logs, honest fallback labeling.
+//
+// The Journal view is unchanged (five mood faces, Ask Coach now
+// jumps to Talk and speaks the entry to Dia).
 // ============================================================
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "motion/react";
-import { RotateCw, StickyNote } from "lucide-react";
+import { StickyNote } from "lucide-react";
 import { useDayflowStore } from "@/store/useDayflowStore";
 import { useDayflowData } from "@/lib/viewmodel";
 import { useCompanionStore } from "@/store/companionStore";
 import { useToast } from "@/hooks/use-toast";
 import { triggerHaptic, hapticSelect } from "@/lib/haptics";
 import type { DiaCoachMode, DiaSyncState } from "@/components/dayflow/DiaChatShell";
-import { DiaStage } from "@/components/companion/DiaStage";
 import { journalHtmlToText, sanitizeJournalHtml } from "@/lib/journal-html";
 import { stripReasoning } from "@/lib/coach-text";
 import { renderCoachMarkdown } from "@/lib/coach-markdown";
@@ -47,6 +47,12 @@ import {
   CoachNotesSheet,
   type CoachNote,
 } from "@/components/dayflow/CoachNotesSheet";
+import { VoiceOrb, type VoiceLevels } from "@/components/dayflow/voice/VoiceOrb";
+import {
+  VoiceSession,
+  type VoiceHistoryItem,
+  type VoiceState,
+} from "@/lib/voice-agent";
 
 /** The five mood faces — reference mouth paths + pastel tokens.
  *  Score 1..5 → index 0..4 (Rough, Low, Okay, Good, Great). */
@@ -88,68 +94,50 @@ function FaceIcon({ score, size = 34 }: { score: number; size?: number }) {
   );
 }
 
-/** Quick prompts — stacked chip rows in the empty chat (reference .pq). */
-const PRESETS: { label: string; prompt: string; mode: DiaCoachMode }[] = [
-  {
-    label: "Plan my day around my energy",
-    prompt: "Given my recent entries, where should my first focus block go tomorrow?",
-    mode: "journal",
-  },
-  {
-    label: "Build me a 30 minute workout",
-    prompt: "How should I train today, given my recent workouts?",
-    mode: "workout",
-  },
-  {
-    label: "Help me reframe a rough day",
-    prompt: "Today felt heavy. Help me reframe it and pick one concrete next step.",
-    mode: "journal",
-  },
-  {
-    label: "What patterns do you see this week?",
-    prompt: "What patterns do you see across my recent entries?",
-    mode: "journal",
-  },
+/** Talk-view prompt chips (reference PQ/PQL, verbatim). */
+const VOICE_PROMPTS: { label: string; prompt: string }[] = [
+  { label: "Plan my day", prompt: "Plan my day around my energy" },
+  { label: "30 min workout", prompt: "Build me a 30 minute workout" },
+  { label: "Reframe a rough day", prompt: "Help me reframe a rough day" },
+  { label: "Weekly patterns", prompt: "What patterns do you see this week?" },
 ];
 
 const SYSTEM_PROMPTS: Record<DiaCoachMode, string> = {
   journal:
-    "You are Dayflow's psychology coach — CBT and Stoic framing, warm, concrete, brief. Reflect the user's own logged entries back to them. Never give medical advice; suggest professional help for clinical concerns.",
+    "You are Dia, the journal coach inside Dayflow. Warm, concise, CBT/Stoic framing. Ground every reply in the entries supplied as context. 2-4 short paragraphs max.",
   workout:
-    "You are Dayflow's strength & conditioning coach in conversation — practical, warm, brief. Ground every suggestion in the user's logged sessions; favor progression, recovery, and one concrete next step. Never give medical advice.",
+    "You are Dia, the training coach inside Dayflow. Practical strength & conditioning guidance grounded in the logged sessions supplied as context. 2-4 short paragraphs max.",
 };
 
 /** Asked when the user sends an empty composer — the coach is
- *  useful without new text (v0 audit #6). */
+ *  invited to talk about what it already knows. */
 const DEFAULT_QUESTIONS: Record<DiaCoachMode, string> = {
-  journal: "What patterns do you see across my recent entries?",
-  workout: "How should I train today, given my recent workouts?",
+  journal: "Reading my last few entries, what should I focus on today?",
+  workout: "Based on my recent sessions, what should I train today?",
 };
 
 /** Stable route codes → friendly copy (v0 audit #3). */
 const CODE_MESSAGES: Record<string, string> = {
-  RATE_LIMITED: "You're asking quickly — give the coach a minute before trying again.",
   INVALID_SESSION: "Sign in again — your session expired.",
-  INVALID_REQUEST: "That didn't look right — try rephrasing.",
-  COACH_UNAVAILABLE: "The coach couldn't be reached. Try again in a moment.",
+  INVALID_REQUEST: "That question couldn't be sent — try rewording it.",
+  RATE_LIMIT: "You're going fast! Give the coach a moment, then try again.",
+  COACH_UNAVAILABLE: "The coach is offline right now — try again shortly.",
 };
 
 const GENERIC_UNREACHABLE =
-  "The coach couldn't be reached. Try again in a moment.";
+  "Couldn't reach the coach — check your connection and try again.";
 
 /** Whole-request client timeout (v0 audit #5) — the route also
- *  enforces a per-hop upstream timeout server-side. */
+ *  enforces its own server-side budget. */
 const CLIENT_TIMEOUT_MS = 60_000;
 
 /** Coach chat persists on-device only (localStorage, capped) —
- *  the conversation survives reloads without any new server
- *  table (v0 audit #9; privacy: same owner-device model as the
- *  Delta Sync IndexedDB cache). */
+ *  never synced, never sent anywhere (PRD §8 privacy stance). */
 const TURNS_STORAGE_KEY = "dayflow.coach.turns.v1";
 const MAX_PERSISTED_TURNS = 60;
 
 /** Coach Notes (the actionable tail of replies + offered logs)
- *  persist on-device beside the turns — same privacy model. */
+ *  live in their own capped store. */
 const NOTES_STORAGE_KEY = "dayflow.coach.notes.v1";
 const MAX_PERSISTED_NOTES = 40;
 
@@ -157,106 +145,100 @@ interface CoachTurn {
   id: number;
   role: "user" | "coach";
   content: string;
-  /** Conversations are per coach context (Qwen #3 / v0 #8): the
-   *  journal coach and the training coach never share a thread. */
   mode: DiaCoachMode;
   /** Algorithmic-floor answers are labeled honestly (v0 #16). */
   source?: "ai" | "fallback";
   /** Actionable tail the route stripped out of `content` and
-   *  routed to the Coach Notes panel instead. */
+   *  routed to Coach Notes instead. */
   note?: string | null;
   actions?: CoachLogAction[];
 }
 
-interface SSEReadResult {
-  full: string;
-  source: "ai" | "fallback";
-  errorCode: string | null;
-  note: string | null;
-  actions: CoachLogAction[];
-}
-
 /** Read the route's SSE answer stream, painting throttled progress
- *  and collecting the note/action events the route parsed off the
- *  reply's trailing NOTE/LOG protocol lines. */
+ *  through setLiveReply as it arrives. Returns the full answer. */
 async function readCoachSSE(
   body: ReadableStream<Uint8Array>,
-  onProgress: (fullSoFar: string) => void
-): Promise<SSEReadResult> {
+  setLiveReply: (t: string) => void
+): Promise<{
+  full: string;
+  source: "ai" | "fallback";
+  errorCode?: string;
+  note: string | null;
+  actions: CoachLogAction[];
+}> {
   const reader = body.getReader();
   const decoder = new TextDecoder();
-  let buffer = "";
+  let buf = "";
   let full = "";
   let source: "ai" | "fallback" = "ai";
-  let errorCode: string | null = null;
+  let errorCode: string | undefined;
   let note: string | null = null;
   const actions: CoachLogAction[] = [];
   let lastPaint = 0;
 
-  const handleEvent = (data: string) => {
-    let evt: { type?: string; text?: string; source?: string; code?: string; action?: unknown };
+  const handleLine = (line: string) => {
+    if (!line.startsWith("data:")) return;
+    const raw = line.slice(5).trim();
+    if (!raw) return;
     try {
-      evt = JSON.parse(data);
-    } catch {
-      return; // keep-alive fragments
-    }
-    if (evt.type === "meta" && evt.source === "fallback") source = "fallback";
-    else if (evt.type === "delta" && typeof evt.text === "string") {
-      full += evt.text;
-      const now = Date.now();
-      if (now - lastPaint > 60) {
-        lastPaint = now;
-        onProgress(full);
+      const ev = JSON.parse(raw) as {
+        type?: string;
+        text?: string;
+        source?: "ai" | "fallback";
+        code?: string;
+        note?: string | null;
+        action?: CoachLogAction;
+      };
+      if (ev.type === "delta" && ev.text) {
+        full += ev.text;
+        const now = performance.now();
+        if (now - lastPaint > 80) {
+          lastPaint = now;
+          setLiveReply(full);
+        }
+      } else if (ev.type === "meta" && ev.source) {
+        source = ev.source;
+      } else if (ev.type === "note" && ev.note) {
+        note = ev.note;
+      } else if (ev.type === "action" && ev.action) {
+        actions.push(ev.action);
+      } else if (ev.type === "error" && ev.code) {
+        errorCode = ev.code;
+      } else if (ev.type === "done") {
+        /* terminal */
       }
-    } else if (evt.type === "note" && typeof evt.text === "string") {
-      note = evt.text; // last NOTE wins (route contract: one line)
-    } else if (evt.type === "action") {
-      const action = coerceCoachAction(evt.action);
-      if (action) actions.push(action);
-    } else if (evt.type === "error" && evt.code) {
-      errorCode = evt.code;
+    } catch {
+      /* keep-alive comment or partial frame */
     }
   };
 
-  try {
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      let sep: number;
-      while ((sep = buffer.indexOf("\n\n")) !== -1) {
-        const rawEvent = buffer.slice(0, sep);
-        buffer = buffer.slice(sep + 2);
-        for (const line of rawEvent.split("\n")) {
-          if (line.startsWith("data:")) handleEvent(line.slice(5).trim());
-        }
-      }
-    }
-  } finally {
-    reader.releaseLock();
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    const lines = buf.split("\n");
+    buf = lines.pop() ?? "";
+    for (const l of lines) handleLine(l);
   }
+  if (buf) handleLine(buf);
   return { full, source, errorCode, note, actions };
 }
 
 /** Validate a restored Coach Note from localStorage — every action
- *  re-passes coerceCoachAction so corrupted or hostile storage can
- *  never produce a bogus store write. */
+ *  re-validates so a tampered store can never write bad logs. */
 function reviveCoachNote(raw: unknown): CoachNote | null {
   if (!raw || typeof raw !== "object") return null;
-  const n = raw as Record<string, unknown>;
+  const n = raw as CoachNote;
   if (typeof n.id !== "number" || typeof n.text !== "string") return null;
-  const actions = Array.isArray(n.actions)
-    ? n.actions.map(coerceCoachAction).filter((a): a is CoachLogAction => a !== null)
-    : [];
+  if (n.mode !== "journal" && n.mode !== "workout") return null;
+  if (!Array.isArray(n.actions) || n.actions.length > 6) return null;
+  if (!Array.isArray(n.appliedIdx)) return null;
   return {
-    id: n.id,
-    text: n.text.slice(0, 240),
-    mode: n.mode === "workout" ? "workout" : "journal",
-    createdAt: typeof n.createdAt === "string" ? n.createdAt : new Date().toISOString(),
-    actions,
-    appliedIdx: Array.isArray(n.appliedIdx)
-      ? n.appliedIdx.filter((i): i is number => typeof i === "number")
-      : [],
+    ...n,
+    actions: n.actions
+      .map(coerceCoachAction)
+      .filter((a): a is CoachLogAction => a !== null),
+    appliedIdx: n.appliedIdx.filter((i) => typeof i === "number"),
   };
 }
 
@@ -272,13 +254,13 @@ export function ChatView() {
   const data = useDayflowData();
   const { toast } = useToast();
 
-  const [view, setView] = useState<"chat" | "journal">("chat");
+  const [view, setView] = useState<"talk" | "journal">("talk");
   const [draft, setDraft] = useState("");
   const [mood, setMood] = useState<number>(3);
   const [saving, setSaving] = useState(false);
   const [coachTurns, setCoachTurns] = useState<CoachTurn[]>([]);
   const [asking, setAsking] = useState(false);
-  // Companion sync: while the coach streams, Dia thinks (3D mood).
+  // Companion sync: while the text coach streams, Dia thinks.
   const setCompanionThinking = useCompanionStore((s) => s.setThinking);
   useEffect(() => {
     setCompanionThinking(asking);
@@ -304,10 +286,38 @@ export function ChatView() {
   const [turnsHydrated, setTurnsHydrated] = useState(false);
   const [notesHydrated, setNotesHydrated] = useState(false);
 
+  // ---------- voice session state ----------
+  const [voiceState, setVoiceState] = useState<VoiceState>("idle");
+  const [voiceLive, setVoiceLive] = useState(false);
+  /** True once the relay refused us — typed input goes SSE. */
+  const [voiceFailed, setVoiceFailed] = useState(false);
+  const [voiceOut, setVoiceOut] = useState(true);
+  const [dock, setDock] = useState<"voice" | "type">("voice");
+  const [connecting, setConnecting] = useState(false);
+  const [capUser, setCapUser] = useState("");
+  const [capAgent, setCapAgent] = useState("");
+  const [transcript, setTranscript] = useState<VoiceHistoryItem[]>([]);
+  const [transcriptOpen, setTranscriptOpen] = useState(false);
+  const [happyUntil, setHappyUntil] = useState(false);
+  const [revealIdx, setRevealIdx] = useState(0);
+  const [reducedMotion, setReducedMotion] = useState(false);
+
+  const levelsRef = useRef<VoiceLevels>({ input: 0, output: 0 });
+  const sessionRef = useRef<VoiceSession | null>(null);
+  const happyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const mq = matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setReducedMotion(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
   // Restore on-device coach history (v0 #9) — best-effort, deferred
   // to a microtask so the effect body performs no synchronous
-  // setState (react-hooks/set-state-in-effect) and hydration's first
-  // paint stays deterministic; corrupted storage starts fresh.
+  // setState and hydration's first paint stays deterministic;
+  // corrupted storage starts fresh.
   useEffect(() => {
     let cancelled = false;
     queueMicrotask(() => {
@@ -432,30 +442,17 @@ export function ChatView() {
 
   const sync: DiaSyncState = !online || syncError ? "error" : isSyncing ? "pending" : "ok";
 
-  // Auto-scroll: the chat flow follows the live end while the
-  // coach streams or a turn lands; the journal view parks at the
-  // top (its newest entry is right under the composer card).
+  // The journal view parks at the top (its newest entry is right
+  // under the composer card); Talk scrolls itself via captions.
   useEffect(() => {
     if (view === "journal") {
       scrollRef.current?.scrollTo({ top: 0, behavior: "auto" });
-      return;
     }
-    if (mode === "journal" && coachTurns.length === 0 && !asking) {
-      scrollRef.current?.scrollTo({ top: 0, behavior: "auto" });
-      return;
-    }
-    scrollRef.current?.scrollTo({
-      top: scrollRef.current.scrollHeight,
-      behavior: "smooth",
-    });
-  }, [entries.length, coachTurns.length, liveReply, asking, view, mode]);
+  }, [view]);
 
   const draftText = draft.trim();
 
-  // The visible conversation is per coach context (Qwen #3 / v0 #8):
-  // switching journal ↔ training switches threads; refresh re-runs
-  // the last question OF THE CURRENT context, so answers can never
-  // drift into the wrong coach.
+  // The visible conversation is per coach context (fallback path).
   const visibleTurns = useMemo(
     () => coachTurns.filter((t) => t.mode === mode),
     [coachTurns, mode]
@@ -558,19 +555,220 @@ export function ChatView() {
     }
   };
 
-  /** Ask the coach. `overrideMode` lets the prompt chips and the
-   *  journal's Ask Coach button pick WHICH coach answers in the
-   *  same tick they switch to the chat view (mode state itself
-   *  updates for the NEXT turn). */
+  // ---------- voice: context, session, controls ----------
+
+  /** Compact context block for the voice prompt — same discipline
+   *  as the text coach: last 3 entries + last 3 workouts, capped. */
+  const voiceContext = useMemo(() => {
+    const parts: string[] = [];
+    for (const e of entries.slice(0, 3).reverse()) {
+      parts.push(
+        `[journal ${e.created_at.slice(0, 10)}${
+          e.mood_score ? ` · mood ${e.mood_score}/5` : ""
+        }] ${journalHtmlToText(e.content).slice(0, 400)}`
+      );
+    }
+    for (const w of recentWorkouts) {
+      parts.push(
+        `[workout ${w.logged_at.slice(0, 10)}] ${w.type}${
+          w.duration_minutes ? ` · ${w.duration_minutes}m` : ""
+        }`
+      );
+    }
+    return parts.join("\n").slice(0, 3_800);
+  }, [entries, recentWorkouts]);
+
+  const firstName = (data.profile?.name ?? "").split(" ")[0] ?? "";
+
+  /** Dia's ambient mood (reference cModBase): sleepy late at
+   *  night, care right after a rough entry, otherwise neutral. */
+  const orbMood: "happy" | "care" | "sleepy" | "" = happyUntil
+    ? "happy"
+    : (() => {
+        const h = new Date().getHours();
+        if (h >= 23 || h < 5) return "sleepy";
+        if (entries[0]?.mood_score && entries[0].mood_score <= 1 && transcript.length === 0)
+          return "care";
+        return "";
+      })();
+
+  /** speechSynthesis reader for the SSE fallback path (reference
+   *  cSpeak minus the boundary tricks — word reveal is timed). */
+  const speakFallback = (text: string) => {
+    if (!voiceOut) return;
+    try {
+      const synth = window.speechSynthesis;
+      if (!synth) return;
+      synth.cancel();
+      const u = new SpeechSynthesisUtterance(stripReasoning(text).slice(0, 600));
+      u.rate = 1;
+      u.pitch = 1.08;
+      const voices = synth.getVoices();
+      const v =
+        voices.find((x) => /en[-_]US/i.test(x.lang) && /Samantha|Google US English|Jenny|Aria|Natural|Zira/i.test(x.name)) ??
+        voices.find((x) => /^en/i.test(x.lang));
+      if (v) u.voice = v;
+      u.onstart = () => setVoiceState("speak");
+      u.onend = () => setVoiceState("idle");
+      u.onerror = () => setVoiceState("idle");
+      synth.speak(u);
+    } catch {
+      /* no synthesis — captions still work */
+    }
+  };
+
+  /** Open a voice session (mic + relay + Deepgram). Returns the
+   *  live session, or null when it couldn't start. */
+  const startVoice = async (): Promise<VoiceSession | null> => {
+    if (sessionRef.current || connecting) return sessionRef.current;
+    setConnecting(true);
+    setCoachError(null);
+    const session = new VoiceSession({
+      onState: (s) => setVoiceState(s),
+      onUserText: (text) => {
+        setCapUser(text);
+        setCapAgent(""); // new turn — clear the coach caption
+      },
+      onAgentText: (text) =>
+        setCapAgent((prev) => (prev ? `${prev} ${text}` : text)),
+      onHistory: (item) =>
+        setTranscript((t) => [...t.slice(-199), item]),
+      onLevel: (input, output) => {
+        levelsRef.current = { input, output };
+      },
+      onReady: () => setVoiceLive(true),
+      onError: () => {
+        setVoiceFailed(true);
+        setDock("type");
+        toast({
+          title: "Voice unavailable",
+          description: "Dia can still answer typed questions.",
+        });
+      },
+      onClose: () => {
+        setVoiceLive(false);
+        setVoiceState("idle");
+        sessionRef.current = null;
+      },
+    });
+    sessionRef.current = session;
+    try {
+      await session.start({ ctx: voiceContext, name: firstName, mic: true });
+      setVoiceLive(true);
+      return session;
+    } catch {
+      sessionRef.current = null;
+      setVoiceFailed(true);
+      setDock("type");
+      setVoiceState("idle");
+      setVoiceLive(false);
+      toast({
+        title: "Couldn't start voice",
+        description: "Check the mic permission — typing still works.",
+      });
+      return null;
+    } finally {
+      setConnecting(false);
+    }
+  };
+
+  const endVoice = () => {
+    sessionRef.current?.stop();
+    sessionRef.current = null;
+    setVoiceLive(false);
+    setVoiceState("idle");
+    setCapUser("");
+    setCapAgent("");
+    levelsRef.current = { input: 0, output: 0 };
+  };
+
+  /** The big mic button (reference mic handler): idle → open a
+   *  session; listen → end it; speak/think → interrupt Dia. */
+  const toggleMic = async () => {
+    hapticSelect();
+    if (!sessionRef.current) {
+      await startVoice();
+      return;
+    }
+    if (voiceState === "listen") {
+      endVoice();
+      return;
+    }
+    // speak / think → barge: kill her audio, keep listening
+    sessionRef.current.interrupt();
+    setVoiceState("listen");
+  };
+
+  /** Everything the user can "say" by text: chips, the type dock,
+   *  and the journal's Ask Coach. */
+  const speakToDia = async (text: string, overrideMode?: DiaCoachMode) => {
+    const q = text.trim();
+    if (!q) return;
+    hapticSelect();
+    setCapUser(q);
+    setCapAgent("");
+    if (voiceFailed) {
+      void askCoach(q, false, overrideMode);
+      return;
+    }
+    if (sessionRef.current) {
+      sessionRef.current.inject(q);
+      return;
+    }
+    const session = await startVoice();
+    if (session) session.inject(q);
+    else void askCoach(q, false, overrideMode);
+  };
+
+  /** Poke the orb → Dia celebrates for a moment (reference
+   *  cHappy: squash + sparks + haptic). */
+  const pokeDia = () => {
+    triggerHaptic();
+    if (happyTimer.current) clearTimeout(happyTimer.current);
+    setHappyUntil(true);
+    happyTimer.current = setTimeout(() => setHappyUntil(false), 2400);
+  };
+
+  useEffect(
+    () => () => {
+      if (happyTimer.current) clearTimeout(happyTimer.current);
+      sessionRef.current?.stop();
+    },
+    []
+  );
+
+  // Word-lit captions while Dia speaks (reference cMark): a
+  // steady reveal cadence paced like the mockup's, since the
+  // agent stream carries no word boundaries. Non-speaking states
+  // derive "all revealed" — no state write at all.
+  const agentWords = useMemo(() => capAgent.split(/(\s+)/), [capAgent]);
+  useEffect(() => {
+    if (voiceState !== "speak" || reducedMotion) return;
+    queueMicrotask(() => setRevealIdx(0));
+    let i = 0;
+    const t = setInterval(() => {
+      i += 1;
+      setRevealIdx(i);
+      if (i >= agentWords.length) clearInterval(t);
+    }, 340);
+    return () => clearInterval(t);
+  }, [voiceState, capAgent, agentWords.length, reducedMotion]);
+  const revealed =
+    voiceState === "speak" && !reducedMotion
+      ? Math.min(revealIdx, agentWords.length)
+      : agentWords.length;
+
+  /** Ask the coach over the text pipeline — now the fallback when
+   *  voice is unavailable. `overrideMode` lets the journal's Ask
+   *  Coach pick WHICH coach answers in the same tick. */
   const askCoach = async (question: string, repeat = false, overrideMode?: DiaCoachMode) => {
     if (asking) return;
     const ctxMode = overrideMode ?? mode;
     if (overrideMode && overrideMode !== mode) setMode(overrideMode);
-    // An empty composer still means a question — the mode default
-    // asks about existing entries/sessions (v0 audit #6).
     const q = question.trim() || DEFAULT_QUESTIONS[ctxMode];
     setAsking(true);
     setCoachError(null);
+    setVoiceState("think");
     let optimisticId: number | null = null;
     if (!repeat) {
       const turnId = Date.now();
@@ -579,22 +777,15 @@ export function ChatView() {
         ...t,
         { id: turnId, role: "user", content: q, mode: ctxMode },
       ]);
-      // The draft is deliberately NOT cleared yet — it is only
-      // cleared once a coach answer lands (v0 audit #2: a failed
-      // request must never eat unsent writing).
     }
-    // Failure reverts the optimistic bubble so a retry doesn't
-    // duplicate the question; the draft stays for one-tap retry.
     const fail = (message: string) => {
       setCoachError(message);
+      setVoiceState("idle");
       if (optimisticId !== null) {
         setCoachTurns((t) => t.filter((turn) => turn.id !== optimisticId));
       }
     };
     try {
-      // Amendment #12: live session JWT on the Bearer. A missing
-      // token first triggers ONE silent refresh before giving up
-      // (Qwen #2 / v0 #17) — expired-at-rest sessions recover.
       const { createClient } = await import("@/utils/supabase/client");
       const supabase = createClient();
       const { data: sessionData } = await supabase.auth.getSession();
@@ -607,9 +798,6 @@ export function ChatView() {
         fail(CODE_MESSAGES.INVALID_SESSION);
         return;
       }
-      // Context (§10.1 prompt discipline; the route re-caps at
-      // 4K tokens before any Groq call): last 3 entries for the
-      // journal coach, last 3 sessions for the training coach.
       const context =
         ctxMode === "journal"
           ? entries.slice(0, 3).reverse().map((e) => ({
@@ -624,10 +812,6 @@ export function ChatView() {
                 w.duration_minutes ? ` · ${w.duration_minutes}m` : ""
               }`,
             }));
-      // View mode maps to the route's conversational modes:
-      // journal → journal (reasoning), workout → coaching. The
-      // structured workout JSON cascade is HabitsView's generator,
-      // not this conversational surface.
       const apiMode = ctxMode === "journal" ? "journal" : "coaching";
       const res = await fetch("/api/ai/coach", {
         method: "POST",
@@ -657,13 +841,11 @@ export function ChatView() {
       }
       const contentType = res.headers.get("content-type") ?? "";
       if (contentType.includes("text/event-stream") && res.body) {
-        // Streamed answer (v0 #1): text paints as it arrives; the
-        // route strips the trailing NOTE/LOG protocol lines and
-        // sends them as structured events instead.
         const { full, source, errorCode, note, actions } = await readCoachSSE(
           res.body,
-          setLiveReply
+          (t) => setLiveReply(t)
         );
+        setLiveReply(null);
         if (errorCode) {
           fail(CODE_MESSAGES[errorCode] ?? GENERIC_UNREACHABLE);
           return;
@@ -672,14 +854,15 @@ export function ChatView() {
           fail("The coach had nothing to say.");
           return;
         }
-        setLiveReply(null);
+        setCapAgent(stripReasoning(full));
+        setVoiceState("idle");
         const turnId = Date.now() + 1;
         setCoachTurns((t) => [
           ...t,
           { id: turnId, role: "coach", content: full, mode: ctxMode, source, note, actions },
         ]);
         addCoachNote(turnId, note, actions, ctxMode);
-        if (!repeat) setDraft("");
+        speakFallback(full);
         return;
       }
       const payload = (await res.json()) as {
@@ -697,11 +880,11 @@ export function ChatView() {
         );
         return;
       }
-      // Non-streamed envelope: the route already stripped the
-      // NOTE/LOG tail out of `text` and returned it structured.
       const cleanActions = (payload.actions ?? [])
         .map(coerceCoachAction)
         .filter((a): a is CoachLogAction => a !== null);
+      setCapAgent(stripReasoning(payload.text));
+      setVoiceState("idle");
       const turnId = Date.now() + 1;
       setCoachTurns((t) => [
         ...t,
@@ -716,7 +899,7 @@ export function ChatView() {
         },
       ]);
       addCoachNote(turnId, payload.note ?? null, cleanActions, ctxMode);
-      if (!repeat) setDraft("");
+      speakFallback(payload.text);
     } catch (e) {
       if (
         e instanceof DOMException &&
@@ -732,43 +915,29 @@ export function ChatView() {
     }
   };
 
-  /** Refresh control: re-run the last coach answer — always
-   *  within the CURRENT coach context. */
-  const rerunCoach = () => {
-    const lastQuestion = [...visibleTurns].reverse().find((t) => t.role === "user");
-    if (lastQuestion) void askCoach(lastQuestion.content, true);
-  };
-  const lastUserQuestion = [...visibleTurns].reverse().find((t) => t.role === "user");
-  const refreshDisabled = asking || !lastUserQuestion;
-
-  const cycleMode = () => {
-    hapticSelect();
-    setMode((m) => (m === "journal" ? "workout" : "journal"));
-  };
-
-  /** A prompt chip: sends immediately (reference .pq cadence) but
-   *  never destroys unsent writing — a non-empty draft asks first. */
-  const sendPreset = (preset: (typeof PRESETS)[number]) => {
-    hapticSelect();
-    if (draftText && draftText !== preset.prompt) {
-      const replace = window.confirm(
-        "Replace your current draft with this prompt?"
-      );
-      if (!replace) return;
-    }
-    setDraft("");
-    void askCoach(preset.prompt, false, preset.mode);
-  };
-
-  /** Journal card → Ask Coach on a saved entry: hop to the chat
-   *  view and ask the journal coach about that entry. */
+  /** Journal card → Ask Coach on a saved entry: hop to the talk
+   *  view and hand the entry to Dia by voice. */
   const askAboutEntry = (content: string) => {
-    hapticSelect();
-    setView("chat");
-    void askCoach(journalHtmlToText(content), false, "journal");
+    setView("talk");
+    void speakToDia(journalHtmlToText(content), "journal");
   };
 
-  const firstName = (data.profile.name || "there").split(" ")[0];
+  const sendTyped = () => {
+    if (!draftText || asking) return;
+    const text = draft;
+    setDraft("");
+    void speakToDia(text);
+  };
+
+  /** Transcript rows: live session history, else the persisted
+   *  text-coach turns (fallback mode). */
+  const transcriptRows: Array<{ role: "user" | "assistant"; content: string }> =
+    voiceLive || transcript.length > 0
+      ? transcript
+      : visibleTurns.map((t) => ({
+          role: t.role === "user" ? "user" : "assistant",
+          content: t.content,
+        }));
 
   return (
     <div className="dfc-root">
@@ -777,8 +946,13 @@ export function ChatView() {
         <div className="dfc-head-l">
           <p className="dfc-priv">
             <span className="dfc-sync-dot" data-sync={sync} aria-hidden="true" />
-            Private · replies use your{" "}
-            {mode === "journal" ? "last 3 entries" : "last 3 workouts"}
+            {view === "talk"
+              ? voiceLive
+                ? "Private · voice via Deepgram"
+                : "Private · replies use your last 3 entries"
+              : mode === "journal"
+                ? "Private · replies use your last 3 entries"
+                : "Private · replies use your last 3 workouts"}
           </p>
           <h1 className="dfc-h1">Coach</h1>
         </div>
@@ -797,29 +971,18 @@ export function ChatView() {
               <b>{notes.length}</b>
             </button>
           )}
-          {view === "chat" && (
-            <button
-              type="button"
-              onClick={rerunCoach}
-              disabled={refreshDisabled}
-              aria-label="Ask the last question again"
-              className="dfc-refresh df-press"
-            >
-              <RotateCw className="h-4 w-4" aria-hidden="true" />
-            </button>
-          )}
           <div className="dfc-seg" role="tablist" aria-label="Coach surface">
             <button
               type="button"
               role="tab"
-              aria-selected={view === "chat"}
+              aria-selected={view === "talk"}
               onClick={() => {
                 hapticSelect();
-                setView("chat");
+                setView("talk");
               }}
-              className={view === "chat" ? "on" : ""}
+              className={view === "talk" ? "on" : ""}
             >
-              Chat
+              Talk
             </button>
             <button
               type="button"
@@ -837,154 +1000,209 @@ export function ChatView() {
         </div>
       </header>
 
-      {/* ---------- the flow (reference .cv) ---------- */}
-      {view === "chat" ? (
+      {/* ---------- the talk view (reference .vs + .cmp) ---------- */}
+      {view === "talk" ? (
         <>
-          <div
-            ref={scrollRef}
-            className="dfc-flow"
-            role="log"
-            aria-label="Coach conversation"
-            aria-live="polite"
-            aria-busy={asking}
-          >
-            {/* the hero — Dia's home + the reference greeting card */}
-            {visibleTurns.length === 0 && (
-              <>
-                <section className="dfc-hero" aria-label="Ask your coach">
-                  <div className="dfc-hero-stage">
-                    <DiaStage />
-                  </div>
-                  <h2 className="dfc-hero-h">Hey, {firstName}</h2>
-                  <p className="dfc-hero-p">What&apos;s the plan for today?</p>
-                  <button
-                    type="button"
-                    onClick={cycleMode}
-                    className="dfc-mode df-press"
-                    aria-label={`Coach context: ${
-                      mode === "journal" ? "journal" : "training"
-                    } coach. Activate to switch.`}
-                  >
-                    {mode === "journal" ? "Journal coach" : "Training coach"}
-                  </button>
-                </section>
-                <div className="dfc-pq-col" role="list" aria-label="Quick prompts for the coach">
-                  {PRESETS.map((preset) => (
-                    <button
-                      key={preset.label}
-                      type="button"
-                      role="listitem"
-                      onClick={() => sendPreset(preset)}
-                      className="dfc-pq df-press"
-                    >
-                      <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M12 3l1.6 4.6L18 9l-4.4 1.4L12 15l-1.6-4.6L6 9l4.4-1.4z" />
-                      </svg>
-                      {preset.label}
-                    </button>
+          <div className="dfc-vs" data-s={voiceState} aria-live="polite">
+            {/* transcript toggle */}
+            <button
+              type="button"
+              className="dfc-trb df-press"
+              onClick={() => {
+                hapticSelect();
+                setTranscriptOpen(true);
+              }}
+              aria-label="Transcript"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 5h11a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H9l-3 2.6V14H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z" />
+                <path d="M19 9.5h1a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-1v2l-2.4-2" />
+              </svg>
+            </button>
+
+            {/* Dia — orb + waveform + label */}
+            <VoiceOrb
+              state={voiceState}
+              mood={orbMood}
+              levelsRef={levelsRef}
+              onPoke={pokeDia}
+              reducedMotion={reducedMotion}
+            />
+
+            {/* captions (reference .cap) */}
+            <div className="dfc-cap" aria-label="Live captions">
+              {capUser ? (
+                <p className="you">{capUser}</p>
+              ) : voiceState === "listen" ? (
+                <p className="you dfc-mut2">Go ahead, I&apos;m listening…</p>
+              ) : null}
+              {capAgent ? (
+                <p className="coach" aria-label="Dia's reply">
+                  {agentWords.map((w, i) => (
+                    <Fragment key={i}>
+                      <span className={`w${i < revealed ? " on" : ""}`}>{w}</span>
+                    </Fragment>
                   ))}
-                </div>
-              </>
-            )}
+                </p>
+              ) : !capUser && voiceState === "idle" ? (
+                <p className="coach hi">
+                  {voiceLive
+                    ? "Ready when you are."
+                    : `Hey${firstName ? ` ${firstName}` : ""} — tap the mic and tell me about your day.`}
+                </p>
+              ) : null}
+              {coachError && (
+                <p className="dfc-err" role="alert">
+                  {coachError}
+                </p>
+              )}
+            </div>
 
-            {visibleTurns.map((t) => (
-              <Fragment key={t.id}>
-                <Bubble role={t.role === "user" ? "user" : "coach"} source={t.source}>
-                  {t.role === "coach" ? renderCoachMarkdown(stripReasoning(t.content)) : t.content}
-                </Bubble>
-                {/* the actionable tail landed in Coach Notes, not in
-                    the bubble — point at it without flooding the chat */}
-                {t.role === "coach" && (t.note || (t.actions?.length ?? 0) > 0) && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      hapticSelect();
-                      setNotesOpen(true);
-                    }}
-                    aria-label="Open Coach Notes — this reply saved a takeaway there"
-                    className="dfc-note-chip df-press"
-                  >
-                    <StickyNote className="h-3 w-3" aria-hidden="true" />
-                    Saved to Coach Notes
-                  </button>
-                )}
-              </Fragment>
-            ))}
-
-            {/* streaming answer — text paints as it arrives (v0 #1);
-                the animated dots only cover the wait before the
-                first delta lands */}
-            {asking && liveReply !== null && (
-              <Bubble role="coach" streaming>
-                {renderCoachMarkdown(stripReasoning(liveReply))}
-              </Bubble>
-            )}
-
-            {asking && liveReply === null && (
-              <div className="dfc-msg c dfc-ty" aria-label="Coach is thinking">
-                <i />
-                <i />
-                <i />
-              </div>
-            )}
-
-            {coachError && (
-              <p className="dfc-err" role="alert">
-                {coachError}
-              </p>
-            )}
+            {/* prompt chips (reference .try) */}
+            <div className="dfc-try" role="list" aria-label="Quick things to ask">
+              {VOICE_PROMPTS.map((p) => (
+                <button
+                  key={p.label}
+                  type="button"
+                  role="listitem"
+                  onClick={() => void speakToDia(p.prompt)}
+                  className="df-press"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 3l1.6 4.6L18 9l-4.4 1.4L12 15l-1.6-4.6L6 9l4.4-1.4z" />
+                  </svg>
+                  {p.label}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* ---------- composer (reference .cmp / .cin) ---------- */}
-          <footer className="dfc-compose">
-            <div className="dfc-cin">
-              <textarea
-                ref={chatInputRef}
-                rows={1}
-                value={draft}
-                placeholder="Ask your coach…"
-                aria-label="Message your coach"
-                onChange={(e) => setDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    void askCoach(draftText);
-                  }
-                }}
-              />
-              <button
-                type="button"
-                className="dfc-send df-press"
-                onClick={() => void askCoach(draftText)}
-                disabled={asking}
-                aria-busy={asking}
-                aria-label={
-                  asking
-                    ? "Coach is thinking"
-                    : draftText
-                      ? "Send to your coach"
-                      : `Ask the coach about your recent ${
-                          mode === "journal" ? "entries" : "workouts"
-                        }`
-                }
-              >
-                {asking ? (
-                  <span className="dfc-send-dots" aria-hidden="true">
-                    <i />
-                    <i />
-                    <i />
-                  </span>
-                ) : (
+          {/* ---------- dock (reference .cmp) ---------- */}
+          <footer className="dfc-cmp">
+            {dock === "voice" ? (
+              <div className="dfc-dk">
+                <button
+                  type="button"
+                  className="dfc-sm2 df-press"
+                  onClick={() => {
+                    hapticSelect();
+                    setDock("type");
+                    setTimeout(() => chatInputRef.current?.focus(), 60);
+                  }}
+                  aria-label="Type instead"
+                >
                   <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M12 19V5M5.5 11.5L12 5l6.5 6.5" />
+                    <rect x="3" y="6.5" width="18" height="11" rx="3.2" />
+                    <path d="M7 10.5h.01M10.5 10.5h.01M14 10.5h.01M17 10.5h.01M8 14h8" />
                   </svg>
-                )}
-              </button>
-            </div>
-            <p className="dfc-foot">
-              Chat history stays on this device; coach answers read your{" "}
-              {mode === "journal" ? "last 3 entries" : "last 3 workouts"} for context.
-            </p>
+                </button>
+                <button
+                  type="button"
+                  className="dfc-micb df-press"
+                  data-s={voiceState}
+                  onClick={() => void toggleMic()}
+                  aria-busy={connecting}
+                  aria-label={
+                    connecting
+                      ? "Waking Dia"
+                      : voiceState === "listen"
+                        ? "Stop listening"
+                        : voiceState === "idle"
+                          ? "Talk to your coach"
+                          : "Interrupt"
+                  }
+                >
+                  <svg className="i-mic" viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="9" y="3" width="6" height="11.5" rx="3" />
+                    <path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3M8.5 21h7" />
+                  </svg>
+                  <svg className="i-stop" viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="7" y="7" width="10" height="10" rx="3" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  className={`dfc-sm2 df-press${voiceOut ? "" : " off"}`}
+                  onClick={() => {
+                    hapticSelect();
+                    const next = !voiceOut;
+                    setVoiceOut(next);
+                    if (!next) {
+                      sessionRef.current?.interrupt();
+                      try {
+                        window.speechSynthesis?.cancel();
+                      } catch { /* noop */ }
+                    }
+                    toast({
+                      title: next ? "Coach voice on" : "Coach voice off",
+                    });
+                  }}
+                  aria-label="Coach voice"
+                  aria-pressed={voiceOut}
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4.5 9.8h3L12 6.2v11.6l-4.5-3.6h-3z" />
+                    <path className="wv" d="M15.2 9.2a4 4 0 0 1 0 5.6M17.8 6.8a7.5 7.5 0 0 1 0 10.4" />
+                    <path className="sl" d="M4 4l16 16" />
+                  </svg>
+                </button>
+              </div>
+            ) : (
+              <div className="dfc-cin">
+                <button
+                  type="button"
+                  className="dfc-sm3 df-press"
+                  onClick={() => {
+                    hapticSelect();
+                    setDock("voice");
+                  }}
+                  aria-label="Use voice"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="9" y="3" width="6" height="11.5" rx="3" />
+                    <path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3M8.5 21h7" />
+                  </svg>
+                </button>
+                <textarea
+                  ref={chatInputRef}
+                  rows={1}
+                  value={draft}
+                  placeholder="Type to your coach…"
+                  aria-label="Message"
+                  onChange={(e) => {
+                    setDraft(e.target.value);
+                    e.target.style.height = "auto";
+                    e.target.style.height = `${Math.min(120, e.target.scrollHeight)}px`;
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      sendTyped();
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  className="dfc-send df-press"
+                  onClick={sendTyped}
+                  disabled={asking || !draftText}
+                  aria-busy={asking}
+                  aria-label={draftText ? "Send to your coach" : "Type a message first"}
+                >
+                  {asking ? (
+                    <span className="dfc-send-dots" aria-hidden="true">
+                      <i />
+                      <i />
+                      <i />
+                    </span>
+                  ) : (
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M12 19V5M5.5 11.5L12 5l6.5 6.5" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+            )}
           </footer>
         </>
       ) : (
@@ -1095,6 +1313,39 @@ export function ChatView() {
         </div>
       )}
 
+      {/* ---------- transcript sheet (reference .trs) ---------- */}
+      {transcriptOpen && (
+        <div className="dfc-trs" role="dialog" aria-label="Transcript">
+          <div className="dfc-trh">
+            <b>Transcript</b>
+            <button
+              type="button"
+              className="df-press"
+              onClick={() => setTranscriptOpen(false)}
+            >
+              Done
+            </button>
+          </div>
+          <div className="dfc-trl">
+            {transcriptRows.length > 0 ? (
+              transcriptRows.map((m, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+                  className={`dfc-tmsg ${m.role === "user" ? "u" : "c"}`}
+                >
+                  {m.role === "assistant" ? stripReasoning(m.content) : m.content}
+                </motion.div>
+              ))
+            ) : (
+              <p className="dfc-empty">Nothing yet. Say hi to your coach.</p>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Coach Notes — the dedicated surface for the coach's
           actionable tail (notes + one-tap logs), OUTSIDE the chat
           box so it never drowns in the conversation. */}
@@ -1110,45 +1361,5 @@ export function ChatView() {
         applyingIdx={applyingAction}
       />
     </div>
-  );
-}
-
-function Bubble({
-  role,
-  source,
-  streaming,
-  children,
-}: {
-  role: "user" | "coach";
-  source?: "ai" | "fallback";
-  streaming?: boolean;
-  /** Coach bodies arrive PRE-RENDERED as allowlist markdown HTML
-   *  (the caller renders); user bodies are plain text. */
-  children: string;
-}) {
-  const isUser = role === "user";
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10, scale: 0.99 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-      className={`dfc-msg ${isUser ? "u" : "c"}`}
-    >
-      {isUser ? (
-        <p className="dfc-msg-text">{children}</p>
-      ) : (
-        <div className="df-prose dfc-msg-text">
-          <div dangerouslySetInnerHTML={{ __html: children }} />
-          {streaming && (
-            <span className="dfc-caret" aria-hidden="true" />
-          )}
-        </div>
-      )}
-      {/* honest labeling (v0 #16): the algorithmic floor is quick
-          local guidance, not a live model answer — say so, quietly */}
-      {!isUser && source === "fallback" && (
-        <p className="dfc-fallback">Quick guidance · coach offline</p>
-      )}
-    </motion.div>
   );
 }

@@ -2,7 +2,7 @@
   "name": "dayflow-web",
   "version": "1.0.0",
   "private": true,
-  "description": "Dayflow web \u2014 a private, customizable life tracker for fitness, work, sleep, water, and food. Timeline, daily recap, weekly review, habit streaks, and journal chat.",
+  "description": "Dayflow web — a private, customizable life tracker for fitness, work, sleep, water, and food. Timeline, daily recap, weekly review, habit streaks, and journal chat.",
   "scripts": {
     "dev": "next dev",
     "build": "node scripts/check-raw-colors.mjs && eslint . && next build && node scripts/patch-error-html.mjs",
@@ -17,6 +17,7 @@
     "@react-three/fiber": "^9.3.0",
     "@supabase/ssr": "0.7.0",
     "@supabase/supabase-js": "2.57.4",
+    "@vercel/functions": "^3.9.11",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "idb-keyval": "^6.3.0",
@@ -28,6 +29,7 @@
     "react-dom": "^19.2.0",
     "tailwind-merge": "^3.3.1",
     "three": "^0.180.0",
+    "ws": "^8.22.0",
     "zod": "^3.25.76",
     "zustand": "^5.0.6"
   },
@@ -37,6 +39,7 @@
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@types/three": "^0.180.0",
+    "@types/ws": "^8.18.2",
     "eslint": "^9.30.0",
     "eslint-config-next": "^16.1.1",
     "tailwindcss": "^4.1.11",
