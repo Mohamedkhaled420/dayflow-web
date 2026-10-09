@@ -7255,7 +7255,7 @@ select {
 
 /* ---------- state colors (reference CBC) ---------- */
 .dfc-vs {
-  --dfc-sl: #9477d4;
+  --dfc-sl: var(--df-vc-soul-idle);
   flex: 1;
   min-height: 0;
   display: flex;
@@ -7275,29 +7275,19 @@ select {
   display: none;
 }
 .dfc-vs[data-s="idle"] {
-  --dfc-sl: #9477d4;
+  --dfc-sl: var(--df-vc-soul-idle);
 }
 .dfc-vs[data-s="listen"] {
-  --dfc-sl: #2fa6c9;
+  --dfc-sl: var(--df-vc-soul-listen);
 }
 .dfc-vs[data-s="think"] {
-  --dfc-sl: #cf7dc4;
+  --dfc-sl: var(--df-vc-soul-think);
 }
 .dfc-vs[data-s="speak"] {
-  --dfc-sl: #e26a7c;
+  --dfc-sl: var(--df-vc-soul-speak);
 }
-.dark .dfc-vs[data-s="idle"] {
-  --dfc-sl: var(--df-p-mauve);
-}
-.dark .dfc-vs[data-s="listen"] {
-  --dfc-sl: var(--df-p-frost);
-}
-.dark .dfc-vs[data-s="think"] {
-  --dfc-sl: var(--df-p-orchid);
-}
-.dark .dfc-vs[data-s="speak"] {
-  --dfc-sl: var(--df-p-rose);
-}
+/* dark-mode soul colors are --df-vc-soul-* overrides in
+   theme.css (.dark), so no per-state dark rules needed here. */
 
 /* ---------- transcript toggle (reference .trb) ---------- */
 .dfc-trb {
@@ -7350,7 +7340,7 @@ select {
   bottom: -16px;
   height: 18px;
   border-radius: 50%;
-  background: radial-gradient(closest-side, rgba(80, 60, 130, 0.28), transparent);
+  background: radial-gradient(closest-side, var(--df-vc-orb-shadow), transparent);
   pointer-events: none;
 }
 .dfc-orbw:focus-visible {
@@ -7391,10 +7381,10 @@ select {
 }
 /* orb internals — scoped, reference #orb rules */
 .dfc-orb .st-w {
-  stop-color: #fff;
+  stop-color: var(--df-vc-glyph-white);
 }
 .dfc-orb .ob {
-  fill: color-mix(in srgb, var(--l3) 38%, rgba(255, 255, 255, 0.6));
+  fill: color-mix(in srgb, var(--l3) 38%, var(--df-vc-glass-tint));
 }
 .dfc-orb .or {
   fill: none;
@@ -7505,7 +7495,7 @@ select {
   transition: opacity 0.4s;
 }
 .dfc-orb .mts circle {
-  fill: #fff;
+  fill: var(--df-vc-glyph-white);
   stroke: var(--dfc-sl);
   stroke-width: 1.6;
 }
@@ -7631,10 +7621,10 @@ select {
 }
 @keyframes dfc-mp {
   0% {
-    box-shadow: 0 0 0 0 rgba(144, 219, 244, 0.7);
+    box-shadow: 0 0 0 0 var(--df-vc-mic-pulse);
   }
   100% {
-    box-shadow: 0 0 0 24px rgba(144, 219, 244, 0);
+    box-shadow: 0 0 0 24px var(--df-vc-mic-pulse-end);
   }
 }
 
@@ -7789,7 +7779,7 @@ select {
 }
 .dfc-sm2 .sl {
   opacity: 0;
-  stroke: #e26a7c;
+  stroke: var(--df-vc-soul-speak);
 }
 .dfc-sm2.off .sl {
   opacity: 1;
@@ -7824,7 +7814,7 @@ select {
   border-radius: 50%;
   background: linear-gradient(140deg, var(--df-p-mauve), var(--df-p-blue) 55%, var(--df-p-frost));
   box-shadow: 0 16px 30px -12px var(--df-p-frost),
-    inset 0 2px 0 rgba(255, 255, 255, 0.7);
+    inset 0 2px 0 var(--df-vc-mic-sheen);
   display: grid;
   place-items: center;
   transition: transform 0.35s cubic-bezier(0.34, 1.8, 0.5, 1), background 0.5s;
@@ -7835,18 +7825,18 @@ select {
 .dfc-micb svg {
   width: 34px;
   height: 34px;
-  stroke: #2b2940;
+  stroke: var(--df-vc-mic-ink);
   fill: none;
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 .dfc-micb .i-mic rect {
-  fill: #fff;
+  fill: var(--df-vc-glyph-white);
   fill-opacity: 0.7;
 }
 .dfc-micb .i-stop rect {
-  fill: #2b2940;
+  fill: var(--df-vc-mic-ink);
 }
 .dfc-micb .i-stop,
 .dfc-micb[data-s="listen"] .i-mic,

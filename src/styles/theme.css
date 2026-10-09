@@ -713,6 +713,21 @@
   --df-p-celadon: #b9fbc0;
   --df-p-slate: #9a98aa;
 
+  /* Phase 16: the voice/Talk view — soul-orb state colors
+     (reference CBC), orb glass composites, and mic glyph inks.
+     Raw literals live HERE only; globals.css stays guard-clean. */
+  --df-vc-soul-idle: #9477d4;
+  --df-vc-soul-listen: #2fa6c9;
+  --df-vc-soul-think: #cf7dc4;
+  --df-vc-soul-speak: #e26a7c;
+  --df-vc-orb-shadow: rgba(80, 60, 130, 0.28);
+  --df-vc-glass-tint: rgba(255, 255, 255, 0.6);
+  --df-vc-glyph-white: #ffffff;
+  --df-vc-mic-sheen: rgba(255, 255, 255, 0.7);
+  --df-vc-mic-pulse: rgba(144, 219, 244, 0.7);
+  --df-vc-mic-pulse-end: rgba(144, 219, 244, 0);
+  --df-vc-mic-ink: #2b2940;
+
   /* Phase 15 composites — Coach pane + Settings sheet (globals.css
      carries no raw literals; the drift guard stays green). */
   --dfc-hero-grad: linear-gradient(
@@ -1271,6 +1286,13 @@
   --df-p-marine: #98f5e1;
   --df-p-celadon: #b9fbc0;
   --df-p-slate: #9a98aa;
+  /* Phase 16 voice (dark) — the soul lifts to pastels on the
+     night window; glass + mic composites inherit from :root
+     (fixed, like the orb palette itself). */
+  --df-vc-soul-idle: #cfbaf0;
+  --df-vc-soul-listen: #90dbf4;
+  --df-vc-soul-think: #f1c0e8;
+  --df-vc-soul-speak: #ffcfd2;
   /* Phase 15 composites (dark) — the hero dims toward the night
      window with paper ink; the sheet's radials fade out. */
   --dfc-hero-grad: linear-gradient(
