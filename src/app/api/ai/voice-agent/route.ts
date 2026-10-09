@@ -56,6 +56,86 @@ const LISTEN_MODEL = process.env.DEEPGRAM_LISTEN_MODEL ?? "flux-general-en";
 const THINK_MODEL = process.env.DEEPGRAM_THINK_MODEL ?? "gpt-4o-mini";
 const SPEAK_MODEL = process.env.DEEPGRAM_SPEAK_MODEL ?? "flux-kit-en";
 
+/** Tools Dia may invoke mid-conversation (client-side — the
+ * browser executes them; see sendSettings for the protocol). */
+const AGENT_FUNCTIONS = [
+  {
+    name: "log_water",
+    description:
+      "Log water the user drank. Call whenever the user mentions drinking water or asks to log it.",
+    parameters: {
+      type: "object",
+      properties: {
+        amount_ml: {
+          type: "number",
+          description: "Amount in milliliters (a glass is about 250, a bottle about 500)",
+        },
+      },
+      required: ["amount_ml"],
+    },
+  },
+  {
+    name: "log_workout",
+    description:
+      "Log a workout the user did or just finished. Call for any exercise: run, gym, yoga, swim, sports, walk.",
+    parameters: {
+      type: "object",
+      properties: {
+        type: {
+          type: "string",
+          description: "Short workout name, e.g. 'Morning run', 'Gym upper body', 'Yoga'",
+        },
+        duration_minutes: {
+          type: "number",
+          description: "Duration in minutes if mentioned or clearly inferable",
+        },
+        active_calories: {
+          type: "number",
+          description: "Calories burned, only if the user stated a number",
+        },
+      },
+      required: ["type"],
+    },
+  },
+  {
+    name: "log_meal",
+    description:
+      "Log a meal or snack the user ate. Estimate calories and macros from the description when not stated.",
+    parameters: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Meal name, e.g. 'Chicken sandwich', 'Oatmeal with berries'" },
+        calories: { type: "number", description: "Estimated calories for the whole meal" },
+        protein_g: { type: "number", description: "Estimated protein grams" },
+        carbs_g: { type: "number", description: "Estimated carb grams" },
+        fat_g: { type: "number", description: "Estimated fat grams" },
+      },
+      required: ["name", "calories"],
+    },
+  },
+  {
+    name: "log_activity",
+    description:
+      "Log a time block that is not water, food, or exercise: work, study, chores, hobbies, leisure, socializing.",
+    parameters: {
+      type: "object",
+      properties: {
+        title: { type: "string", description: "What they did, e.g. 'Deep work on thesis'" },
+        category: {
+          type: "string",
+          enum: ["work", "personal", "leisure", "other"],
+          description: "Best-fit category",
+        },
+        duration_minutes: { type: "number", description: "Duration in minutes if known" },
+      },
+      required: ["title"],
+    },
+  },
+] as const;
+
+/** Names the relay is willing to forward a function response for. */
+const FUNCTION_NAMES = new Set<string>(AGENT_FUNCTIONS.map((f) => f.name));
+
 /**
  * Same auth gate as /api/ai/coach (Amendment #12): the canonical
  * cookie-session client first. A browser WebSocket handshake
@@ -86,6 +166,13 @@ function diaPrompt(name: string, ctx: string): string {
     "# What you know",
     "The user's recent logged context (most recent last):",
     ctx.trim() ? ctx : "(no entries logged yet — ask how things are going)",
+    "",
+    "# Actions",
+    "You can log things FOR the user by calling your functions: log_water, log_workout, log_meal, and log_activity for any other time block.",
+    "- When the user mentions something they drank, ate, or did — call the matching function instead of just talking about it, then confirm in one short warm sentence.",
+    "- For meals, estimate calories yourself from the description; mention your estimate when confirming so they can correct you.",
+    "- If a needed detail is truly missing (like what they ate), ask ONE short question first instead of guessing.",
+    "- Never call a function for something the user is only asking ABOUT; only when they want it logged.",
     "",
     "# Style",
     "- Ground advice in the logged context when relevant; otherwise stay general.",
@@ -152,6 +239,19 @@ export async function GET(req: Request) {
       };
 
       // Server-built Settings, sent once Deepgram says hello.
+      //
+      // FUNCTION CALLING (protocol live-verified 2026-10-10,
+      // scripts/test-voice-functions.mjs): declare tools in
+      // Settings.think.functions; Deepgram then sends
+      // { type: "FunctionCallRequest", functions: [{ id, name,
+      // arguments, client_side }] } and expects
+      // { type: "FunctionCallResponse", id, name, content } back
+      // (the field is CONTENT — anything else is
+      // UNPARSABLE_CLIENT_MESSAGE). The request is forwarded to
+      // the browser verbatim; the browser executes against the
+      // same store the UI uses and answers via
+      // df:FunctionCallResponse, which this relay re-validates
+      // (the name must be one WE defined) before forwarding.
       const sendSettings = () => {
         if (settingsSent) return;
         settingsSent = true;
@@ -170,6 +270,13 @@ export async function GET(req: Request) {
               think: {
                 provider: { type: "open_ai", model: THINK_MODEL, temperature: 0.6 },
                 prompt: diaPrompt(name, ctx),
+                // Voice-controlled actions — executed browser-side
+                // against the user's own store.
+                functions: AGENT_FUNCTIONS.map((f) => ({
+                  name: f.name,
+                  description: f.description,
+                  parameters: f.parameters,
+                })),
               },
               speak: {
                 provider: { type: "deepgram", version: "v2", model: SPEAK_MODEL },
@@ -224,15 +331,39 @@ export async function GET(req: Request) {
           } catch { closeBoth(); }
           return;
         }
-        // The ONLY honored control: text the user typed in the
-        // talk dock, so typed input gets a spoken answer too.
+        // The honored controls: text the user typed in the talk
+        // dock (spoken answers), and the browser's answer to a
+        // function call we forwarded it (name re-validated against
+        // the server-defined tool list).
         try {
-          const msg = JSON.parse(data.toString()) as { type?: string; content?: string };
+          const msg = JSON.parse(data.toString()) as {
+            type?: string;
+            content?: string;
+            id?: string;
+            name?: string;
+          };
           if (msg?.type === "df:Inject" && typeof msg.content === "string") {
             dg.send(
               JSON.stringify({
                 type: "InjectUserMessage",
                 content: msg.content.slice(0, 2_000),
+              })
+            );
+          } else if (
+            msg?.type === "df:FunctionCallResponse" &&
+            typeof msg.id === "string" &&
+            typeof msg.name === "string" &&
+            typeof msg.content === "string" &&
+            FUNCTION_NAMES.has(msg.name)
+          ) {
+            // Deepgram v1 expects { type, id, name, content } —
+            // content is a short JSON string for the think model.
+            dg.send(
+              JSON.stringify({
+                type: "FunctionCallResponse",
+                id: msg.id.slice(0, 128),
+                name: msg.name,
+                content: msg.content.slice(0, 1_000),
               })
             );
           }

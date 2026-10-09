@@ -250,6 +250,8 @@ export function ChatView({ active = true }: { active?: boolean }) {
   const addHydrationLog = useDayflowStore((s) => s.addHydrationLog);
   const addWorkoutLog = useDayflowStore((s) => s.addWorkoutLog);
   const addSleepLog = useDayflowStore((s) => s.addSleepLog);
+  const addMealLog = useDayflowStore((s) => s.addMealLog);
+  const addActivityLog = useDayflowStore((s) => s.addActivityLog);
   const isSyncing = useDayflowStore((s) => s.isSyncing);
   const syncError = useDayflowStore((s) => s.syncError);
   const data = useDayflowData();
@@ -643,6 +645,101 @@ export function ChatView({ active = true }: { active?: boolean }) {
         levelsRef.current = { input, output };
       },
       onReady: () => setVoiceLive(true),
+      onFunctionCall: async (fn) => {
+        // Dia asked the app to log something — run it through the
+        // SAME store the UI uses, toast, and hand the result back
+        // so she can confirm it aloud.
+        const num = (v: unknown, fallback: number | null = null) =>
+          typeof v === "number" && Number.isFinite(v) ? v : fallback;
+        const str = (v: unknown, fallback = "") =>
+          typeof v === "string" && v.trim() ? v.trim() : fallback;
+        try {
+          let id: string | null = null;
+          let description = "";
+          switch (fn.name) {
+            case "log_water": {
+              const ml = num(fn.args.amount_ml, 250)!;
+              id = await addHydrationLog({ amount_ml: ml });
+              description = `${ml} ml of water logged`;
+              break;
+            }
+            case "log_workout": {
+              const type = str(fn.args.type, "Workout");
+              const dur = num(fn.args.duration_minutes);
+              id = await addWorkoutLog({
+                type,
+                duration_minutes: dur,
+                active_calories: num(fn.args.active_calories),
+              });
+              description = `${type}${dur ? ` · ${dur} min` : ""} logged`;
+              break;
+            }
+            case "log_meal": {
+              const name = str(fn.args.name, "Meal");
+              const kcal = Math.max(0, Math.round(num(fn.args.calories, 300)!));
+              id = await addMealLog({
+                name,
+                calories: kcal,
+                protein_g: num(fn.args.protein_g),
+                carbs_g: num(fn.args.carbs_g),
+                fat_g: num(fn.args.fat_g),
+                source: "voice",
+              });
+              description = `${name} · ~${kcal} kcal logged`;
+              break;
+            }
+            case "log_activity": {
+              const title = str(fn.args.title, "Activity");
+              const category = str(fn.args.category, "other");
+              const dur = num(fn.args.duration_minutes);
+              id = await addActivityLog({
+                category,
+                title,
+                duration_minutes: dur,
+                notes: "Logged by voice",
+              });
+              description = `${title} logged`;
+              break;
+            }
+            default:
+              session.respondFunctionCall(
+                fn.id,
+                fn.name,
+                JSON.stringify({ ok: false, message: "Unknown action" })
+              );
+              return;
+          }
+          if (id === null) {
+            toast({
+              title: "Couldn't log that",
+              description: "It didn't save — try saying it again.",
+            });
+            session.respondFunctionCall(
+              fn.id,
+              fn.name,
+              JSON.stringify({ ok: false, message: "Could not save the entry; tell the user to try again." })
+            );
+            return;
+          }
+          toast({ title: "Logged by voice", description });
+          triggerHaptic();
+          // a happy little pulse for Dia
+          setHappyUntil(true);
+          if (happyTimer.current) clearTimeout(happyTimer.current);
+          happyTimer.current = setTimeout(() => setHappyUntil(false), 2400);
+          session.respondFunctionCall(
+            fn.id,
+            fn.name,
+            JSON.stringify({ ok: true, message: description })
+          );
+        } catch {
+          session.respondFunctionCall(
+            fn.id,
+            fn.name,
+            JSON.stringify({ ok: false, message: "Something went wrong while saving." })
+          );
+        }
+      },
       onError: () => {
         setVoiceFailed(true);
         setDock("type");

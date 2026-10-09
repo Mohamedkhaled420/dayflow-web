@@ -35,6 +35,15 @@ export interface VoiceHistoryItem {
   content: string;
 }
 
+/** One tool call Dia wants the APP to execute (Deepgram
+ * FunctionCallRequest.functions[] entry, parsed). */
+export interface VoiceFunctionCall {
+  id: string;
+  name: string;
+  /** Parsed JSON arguments ({} when unparsable). */
+  args: Record<string, unknown>;
+}
+
 export interface VoiceSessionEvents {
   /** State machine transitions (idle only after a full stop). */
   onState(s: VoiceState): void;
@@ -50,6 +59,11 @@ export interface VoiceSessionEvents {
   onLevel(input: number, output: number): void;
   /** Session actually opened + configured (SettingsApplied). */
   onReady(): void;
+  /** Dia wants the app to DO something (log water / a workout /
+   *  a meal / a block). Execute it, then call
+   *  session.respondFunctionCall(id, name, content) with a short
+   *  JSON result — the agent speaks the confirmation. */
+  onFunctionCall(fn: VoiceFunctionCall): void;
   /** Fatal session problem — UI falls back to typed mode. */
   onError(message: string): void;
   /** The socket closed (both graceful and not). */
@@ -199,6 +213,21 @@ export class VoiceSession {
     }
   }
 
+  /** Answer a FunctionCallRequest — `content` is a short JSON
+   *  string the think model reads before replying. */
+  respondFunctionCall(id: string, name: string, content: string) {
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      this.ws.send(
+        JSON.stringify({
+          type: "df:FunctionCallResponse",
+          id,
+          name,
+          content: content.slice(0, 1_000),
+        })
+      );
+    }
+  }
+
   /** Stop agent audio locally (barge / tap-to-interrupt). */
   interrupt() {
     this.flushPlayback();
@@ -241,6 +270,24 @@ export class VoiceSession {
         case "AgentThinking":
           this.setState("think");
           break;
+        case "FunctionCallRequest": {
+          // Deepgram v1 shape: { functions: [{ id, name,
+          // arguments (JSON string), client_side }], ... } — one
+          // request can batch parallel calls; emit each separately.
+          const fns = Array.isArray(msg.functions) ? msg.functions : [];
+          for (const f of fns) {
+            const id = typeof f?.id === "string" ? f.id : "";
+            const name = typeof f?.name === "string" ? f.name : "";
+            if (!id || !name) continue;
+            let args: Record<string, unknown> = {};
+            try {
+              args = JSON.parse(typeof f.arguments === "string" ? f.arguments : "{}") as Record<string, unknown>;
+            } catch { /* model sent bad JSON — empty args */ }
+            this.setState("think");
+            this.ev.onFunctionCall({ id, name, args });
+          }
+          break;
+        }
         case "AgentAudioDone":
           this.agentDone = true;
           this.watchDrain();

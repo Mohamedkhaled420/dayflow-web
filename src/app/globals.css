@@ -1616,17 +1616,13 @@ select {
 
 /* recent blocks — horizontal pills */
 .dff-recent {
+  /* wrap, don't scroll sideways — pills can't hide off the edge */
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
-  overflow-x: auto;
-  margin: 10px -20px 0;
-  padding: 0 20px;
-  scrollbar-width: none;
+  margin: 10px 0 0;
 }
 .dff-recent:empty {
-  display: none;
-}
-.dff-recent::-webkit-scrollbar {
   display: none;
 }
 .dff-recent button {
@@ -7271,11 +7267,12 @@ select {
 
 /* ---------- state colors (reference CBC) ---------- */
 .dfc-vs {
+  /* --sl is the soul color — CONSTANT in the reference (one rule
+     on #orb, no state variant: the ball shifts colors internally
+     per state; the SVG soul + waveform stroke stay lavender).
+     Phase 17's per-state tints removed for parity — the reference
+     waveform never changes color. */
   --dfc-sl: var(--df-vc-soul-idle);
-  /* --sl feeds the shell SVG's soul/core gradient stops — the
-     Phase-16 port referenced var(--sl) without ever defining it,
-     so the fallback soul rendered black. Defined here (and
-     mood-tinted below) exactly like the mockup's cBallState. */
   --sl: var(--dfc-sl);
   flex: 1;
   min-height: 0;
@@ -7295,26 +7292,8 @@ select {
 .dfc-vs::-webkit-scrollbar {
   display: none;
 }
-.dfc-vs[data-s="idle"] {
-  --dfc-sl: var(--df-vc-soul-idle);
-}
-.dfc-vs[data-s="listen"] {
-  --dfc-sl: var(--df-vc-soul-listen);
-}
-.dfc-vs[data-s="think"] {
-  --dfc-sl: var(--df-vc-soul-think);
-}
-.dfc-vs[data-s="speak"] {
-  --dfc-sl: var(--df-vc-soul-speak);
-}
-/* mood tints (reference cSoulColor: happy → warm amber, care →
-   rose — overriding the state color while the mood is active) */
-.dfc-vs[data-m="happy"] {
-  --dfc-sl: var(--df-vc-soul-happy);
-}
-.dfc-vs[data-m="care"] {
-  --dfc-sl: var(--df-vc-soul-care);
-}
+/* (state/mood --dfc-sl overrides removed — reference keeps --sl
+   constant; SoulOrb handles state colors inside the shader) */
 /* dark-mode soul colors are --df-vc-soul-* overrides in
    theme.css (.dark), so no per-state dark rules needed here. */
 
@@ -7353,9 +7332,12 @@ select {
 .dfc-orbw {
   position: relative;
   flex: none;
-  width: min(54vw, 230px);
+  /* reference FINAL width rule (its own later !important patch wins
+     over the min(54vw,230px) base and the max-height:700px override):
+     clamp(84px, calc(100dvh - 530px), 230px), margin-top 4px */
+  width: clamp(84px, calc(100dvh - 530px), 230px);
   aspect-ratio: 1;
-  margin-top: 6px;
+  margin-top: 4px;
   animation: dfc-oflo 6s ease-in-out infinite;
   cursor: pointer;
   -webkit-user-select: none;
@@ -7370,11 +7352,20 @@ select {
   z-index: 0;
   pointer-events: none;
 }
-/* GL live → the shell's own soul glow + ripples stand down (the
-   ball renders the soul); glass body + liquid + outline stay */
-.dfc-orbw.gl .dfc-orb .soul,
-.dfc-orbw.gl .dfc-orb .rp {
+/* GL live → the SVG shell stands down ENTIRELY (reference rules
+   .orbw.gl #orb .ob/.or/.rp/g[clip-path]{display:none} PLUS its
+   later patch .orbw.gl #orb .soul{display:none}) — with the ball
+   rendering, you see ONLY the flowing-light orb, exactly like the
+   attached HTML. Only the happy-celebration sparks stay. */
+.dfc-orbw.gl .dfc-orb .ob,
+.dfc-orbw.gl .dfc-orb .or,
+.dfc-orbw.gl .dfc-orb .rp,
+.dfc-orbw.gl .dfc-orb g[clip-path],
+.dfc-orbw.gl .dfc-orb .soul {
   display: none;
+}
+.dfc-orbw.gl::after {
+  opacity: 0.5;
 }
 .dfc-orbw::after {
   content: "";
@@ -7521,9 +7512,9 @@ select {
   animation-duration: 2.2s;
 }
 .dfc-orb .sr {
-  fill: none;
-  stroke: var(--dfc-sl);
-  stroke-width: 2.2;
+  /* reference final .sr patch: gradient-filled, never stroked */
+  fill: url(#g-soul) !important;
+  stroke: none !important;
   opacity: 0;
 }
 .dfc-orb.listen .sr,
@@ -7983,11 +7974,6 @@ select {
 }
 
 /* ---------- voice: compact + motion budgets ---------- */
-@media (max-height: 700px) {
-  .dfc-orbw {
-    width: min(44vw, 180px);
-  }
-}
 @media (max-width: 379px) {
   .dfc-micb {
     width: 72px;
@@ -8320,20 +8306,15 @@ select {
   color: var(--df-text-muted);
 }
 .dfset-per {
-  display: flex;
+  /* two-column grid — all six rhythms visible, nothing off-screen
+     (was a sideways scroller that hid four cards on touchscreens) */
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
-  overflow-x: auto;
   margin-top: 10px;
-  padding-bottom: 4px;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-}
-.dfset-per::-webkit-scrollbar {
-  display: none;
 }
 .dfset-per button {
-  flex: none;
-  width: 116px;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
