@@ -7,7 +7,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
         with:
-          version: 9
+          # pnpm 10 — the project's toolchain since Phase 10 (the
+          # settings-only pnpm-workspace.yaml with onlyBuiltDependencies
+          # is invalid under pnpm 9, which is what broke every CI run
+          # from 2026-09-21 onward with "packages field missing").
+          version: 10
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
