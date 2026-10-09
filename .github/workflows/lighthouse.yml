@@ -17,8 +17,19 @@ jobs:
           node-version: '22'
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
+      # Dummy public env so the prerender + `next start` render real
+      # pages with REAL assets. Serving .next statically (the old
+      # staticDistDir hack) 404s every /_next asset, so hydration
+      # never ran and the "performance" scores measured an empty
+      # shell — which is also why the redesigned auth/onboarding
+      # returned NaN (nothing visible without CSS/JS).
       - run: pnpm build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://ci-dummy.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-dummy-anon-key
       - uses: treosh/lighthouse-ci-action@v12
         with:
           configPath: '.lighthouserc.json'
-          runs: 3
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://ci-dummy.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-dummy-anon-key
