@@ -318,7 +318,7 @@ export function AppShell() {
   const overflowPane = useMemo(() => {
     switch (tab) {
       case "journal":
-        return <ChatView />;
+        return <ChatView active />;
       case "weekly":
         return <WeeklyView />;
       default:
@@ -406,7 +406,9 @@ export function AppShell() {
             <HabitsView />
           </div>
           <div className={`dfx-pane${tab === "coach" ? " on" : ""}`} aria-hidden={tab !== "coach"}>
-            <ChatView />
+            {/* active → Dia's GL orb keeps its rAF budget only while
+                this keep-alive pane is truly on-stage (mockup cBallRun) */}
+            <ChatView active={tab === "coach"} />
           </div>
           {overflowPane && (
             <div className="dfx-pane on">{overflowPane}</div>

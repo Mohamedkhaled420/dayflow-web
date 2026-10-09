@@ -48,6 +48,7 @@ import {
   type CoachNote,
 } from "@/components/dayflow/CoachNotesSheet";
 import { VoiceOrb, type VoiceLevels } from "@/components/dayflow/voice/VoiceOrb";
+import { useDockHidden } from "@/hooks/use-dock-visibility";
 import {
   VoiceSession,
   type VoiceHistoryItem,
@@ -242,7 +243,7 @@ function reviveCoachNote(raw: unknown): CoachNote | null {
   };
 }
 
-export function ChatView() {
+export function ChatView({ active = true }: { active?: boolean }) {
   const journalEntries = useDayflowStore((s) => s.journalEntries);
   const workoutLogs = useDayflowStore((s) => s.workoutLogs);
   const addJournalEntry = useDayflowStore((s) => s.addJournalEntry);
@@ -253,6 +254,11 @@ export function ChatView() {
   const syncError = useDayflowStore((s) => s.syncError);
   const data = useDayflowData();
   const { toast } = useToast();
+  /** Dock hidden (keyboard / immersive)? → release the nav band
+   *  on the pane root (reference body.full #st{bottom:0}) so the
+   *  dock rides down to the screen bottom in lockstep with the
+   *  nav sliding away. */
+  const dockHidden = useDockHidden();
 
   const [view, setView] = useState<"talk" | "journal">("talk");
   const [draft, setDraft] = useState("");
@@ -940,7 +946,7 @@ export function ChatView() {
         }));
 
   return (
-    <div className="dfc-root">
+    <div className={`dfc-root${dockHidden ? " dfc-full" : ""}`}>
       {/* ---------- header (reference .cth) ---------- */}
       <header className="dfc-head">
         <div className="dfc-head-l">
@@ -1003,7 +1009,7 @@ export function ChatView() {
       {/* ---------- the talk view (reference .vs + .cmp) ---------- */}
       {view === "talk" ? (
         <>
-          <div className="dfc-vs" data-s={voiceState} aria-live="polite">
+          <div className="dfc-vs" data-s={voiceState} data-m={orbMood} aria-live="polite">
             {/* transcript toggle */}
             <button
               type="button"
@@ -1020,13 +1026,14 @@ export function ChatView() {
               </svg>
             </button>
 
-            {/* Dia — orb + waveform + label */}
+            {/* Dia — the flowing-light orb + waveform + label */}
             <VoiceOrb
               state={voiceState}
               mood={orbMood}
               levelsRef={levelsRef}
               onPoke={pokeDia}
               reducedMotion={reducedMotion}
+              active={active && view === "talk"}
             />
 
             {/* captions (reference .cap) */}

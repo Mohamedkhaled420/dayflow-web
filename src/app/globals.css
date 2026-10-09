@@ -6656,6 +6656,17 @@ select {
 
 .dfc-root {
   --dfc-ink: var(--df-text-primary);
+  /* The nav band (reference #st{bottom:calc(92px + safe-area)} —
+     the mockup's stages STOP above the floating glass nav, which
+     is why its voice dock never hides behind it. Reserved here on
+     the Coach pane; RELEASED while the dock is hidden (reference
+     body.full #st{bottom:0}) so the typing capsule can sit at the
+     screen bottom when the keyboard is up. Same curve/duration as
+     the nav slide — they move as one. */
+  --dfc-nav-band: calc(92px + var(--safe-area-bottom, 0px));
+  position: relative;
+  padding-bottom: var(--dfc-nav-band);
+  transition: padding-bottom 0.55s var(--dfx-ease-out);
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -6663,6 +6674,9 @@ select {
   margin: 0 auto;
   height: 100%;
   min-height: 0;
+}
+.dfc-root.dfc-full {
+  --dfc-nav-band: 0px;
 }
 
 /* ---------- header (reference .cth) ---------- */
@@ -6983,10 +6997,12 @@ select {
   box-shadow: inset 0 0 0 1px var(--df-card-border);
 }
 
-/* journal view's flow is the LAST element (no composer under it)
-   — it carries the dock reservation itself. */
+/* journal view's flow is the LAST element (no composer under it) —
+   the nav band is reserved on .dfc-root, so it only breathes. */
 .dfc-flow.dfc-journal {
-  padding-bottom: calc(96px + var(--safe-area-bottom, 0px));
+  /* bottom breathing only — the nav band is reserved once on
+     .dfc-root (Phase 17); no per-view 96px double-reservation. */
+  padding-bottom: 16px;
 }
 
 /* ---------- composer (reference .cmp / .cin / .snd) ---------- */
@@ -7256,6 +7272,11 @@ select {
 /* ---------- state colors (reference CBC) ---------- */
 .dfc-vs {
   --dfc-sl: var(--df-vc-soul-idle);
+  /* --sl feeds the shell SVG's soul/core gradient stops — the
+     Phase-16 port referenced var(--sl) without ever defining it,
+     so the fallback soul rendered black. Defined here (and
+     mood-tinted below) exactly like the mockup's cBallState. */
+  --sl: var(--dfc-sl);
   flex: 1;
   min-height: 0;
   display: flex;
@@ -7285,6 +7306,14 @@ select {
 }
 .dfc-vs[data-s="speak"] {
   --dfc-sl: var(--df-vc-soul-speak);
+}
+/* mood tints (reference cSoulColor: happy → warm amber, care →
+   rose — overriding the state color while the mood is active) */
+.dfc-vs[data-m="happy"] {
+  --dfc-sl: var(--df-vc-soul-happy);
+}
+.dfc-vs[data-m="care"] {
+  --dfc-sl: var(--df-vc-soul-care);
 }
 /* dark-mode soul colors are --df-vc-soul-* overrides in
    theme.css (.dark), so no per-state dark rules needed here. */
@@ -7324,13 +7353,28 @@ select {
 .dfc-orbw {
   position: relative;
   flex: none;
-  width: clamp(84px, calc(100dvh - 540px), 230px);
+  width: min(54vw, 230px);
   aspect-ratio: 1;
   margin-top: 6px;
   animation: dfc-oflo 6s ease-in-out infinite;
   cursor: pointer;
   -webkit-user-select: none;
   user-select: none;
+}
+/* the flowing-light ball's layer (reference #bw) — the canvas
+   SoulOrb appends here bleeds 10% past the glass so the glow
+   halos out like the reference */
+.dfc-bw {
+  position: absolute;
+  inset: -10%;
+  z-index: 0;
+  pointer-events: none;
+}
+/* GL live → the shell's own soul glow + ripples stand down (the
+   ball renders the soul); glass body + liquid + outline stay */
+.dfc-orbw.gl .dfc-orb .soul,
+.dfc-orbw.gl .dfc-orb .rp {
+  display: none;
 }
 .dfc-orbw::after {
   content: "";
@@ -7352,6 +7396,8 @@ select {
   --l1: var(--df-p-mauve);
   --l2: var(--df-p-blue);
   --l3: var(--df-p-orchid);
+  position: relative;
+  z-index: 1;
   width: 100%;
   height: 100%;
   overflow: visible;
@@ -7744,7 +7790,7 @@ select {
 /* ---------- the dock (reference .cmp / .dk) ---------- */
 .dfc-cmp {
   flex: none;
-  padding: 6px 0 4px;
+  padding: 8px 0 12px;
 }
 .dfc-dk {
   display: flex;
@@ -7863,7 +7909,14 @@ select {
 /* ---------- transcript sheet (reference .trs) ---------- */
 .dfc-trs {
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  /* stops above the nav band — the reference's #st geometry:
+     the sheet lives INSIDE the stages, so it never runs under
+     the floating glass nav either. Releases with .dfc-full. */
+  bottom: var(--dfc-nav-band, calc(92px + var(--safe-area-bottom, 0px)));
+  transition: bottom 0.55s var(--dfx-ease-out);
   z-index: 5;
   display: flex;
   flex-direction: column;
@@ -7930,10 +7983,12 @@ select {
 }
 
 /* ---------- voice: compact + motion budgets ---------- */
-@media (max-width: 379px) {
+@media (max-height: 700px) {
   .dfc-orbw {
-    width: clamp(84px, calc(100dvh - 560px), 190px);
+    width: min(44vw, 180px);
   }
+}
+@media (max-width: 379px) {
   .dfc-micb {
     width: 72px;
     height: 72px;

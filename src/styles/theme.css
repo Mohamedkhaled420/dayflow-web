@@ -720,6 +720,10 @@
   --df-vc-soul-listen: #2fa6c9;
   --df-vc-soul-think: #cf7dc4;
   --df-vc-soul-speak: #e26a7c;
+  /* mood tints (reference cSoulColor — happy → warm amber,
+     care → rose; they override the state color while active) */
+  --df-vc-soul-happy: #f0a35e;
+  --df-vc-soul-care: #e5788c;
   --df-vc-orb-shadow: rgba(80, 60, 130, 0.28);
   --df-vc-glass-tint: rgba(255, 255, 255, 0.6);
   --df-vc-glyph-white: #ffffff;
@@ -1293,6 +1297,8 @@
   --df-vc-soul-listen: #90dbf4;
   --df-vc-soul-think: #f1c0e8;
   --df-vc-soul-speak: #ffcfd2;
+  --df-vc-soul-happy: #fde4cf;
+  --df-vc-soul-care: #ffcfd2;
   /* Phase 15 composites (dark) — the hero dims toward the night
      window with paper ink; the sheet's radials fade out. */
   --dfc-hero-grad: linear-gradient(

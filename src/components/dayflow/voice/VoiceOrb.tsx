@@ -4,26 +4,51 @@
 // Dayflow AI — Dia's voice stage (reference "Dayflow (5).html" #vs)
 // ------------------------------------------------------------
 // The voice-first hero of the Coach pane's Talk view: Dia's new
-// body — a layered SVG soul orb — plus the live waveform and the
-// voice-state label. Ported 1:1 from the mockup's #ow / #wv2 /
-// #vl trio (the mockup's optional WebGL layer degrades to exactly
-// this SVG when unavailable — we ship the graceful path, which
-// keeps the PWA at its Lighthouse budget).
+// body — the flowing-light SOUL ORB — plus the live waveform and
+// the voice-state label. Ported 1:1 from the mockup's #ow / #bw /
+// #wv2 / #vl quartet: the mockup layers a WebGL energy ball
+// (SoulOrb, vendored in ./soul-orb.js — the "isn't as I attached"
+// piece) BEHIND the SVG glass shell; when GL is live the shell's
+// own soul glow + ripples hide (.gl, reference line: .orbw.gl
+// #orb .soul,.rp{display:none}) and the SVG keeps only the glass
+// body + liquid + outline. Without WebGL2 the SVG degrades to
+// exactly the mockup's fallback — same paths, now correctly
+// colored via --sl (the Phase-16 port left it undefined, which
+// painted the soul gradients black).
 //
 //   orb states (data-s) : idle | listen | think | speak
 //   orb moods (class)   : happy (poke) · care · sleepy (late hour)
 //   eye tracking        : --ex/--ey follow the pointer (cLook)
-//   audio level         : --lv from the session meters (vLoop)
+//   audio level         : --lv from the session meters (vLoop) —
+//                         fed to BOTH the SVG (CSS) and the GL ball
+//                         (level())
 //   waveform            : three phase-shifted sine paths whose
 //                         amplitude tracks mic/agent level (cWave)
 //
 // All animation is CSS; the only JS loops are two cheap rAF/interval
 // writers that touch CSS variables directly — zero React renders
-// per frame. prefers-reduced-motion freezes every loop (CSS).
+// per frame. prefers-reduced-motion freezes every loop (CSS + the
+// ball's own media-query gate — it renders one static frame).
 // ============================================================
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { RefObject } from "react";
+import { useTheme } from "next-themes";
+
+/** The vendored SoulOrb instance (./soul-orb.js) — structural type
+ * so the .js module needs no declarations. */
+interface SoulOrbHandle {
+  set(opts: {
+    state?: string;
+    mood?: string;
+    dark?: boolean;
+    paused?: boolean;
+    active?: boolean;
+  }): void;
+  level(v: number): void;
+  nudge(v: number): void;
+  destroy(): void;
+}
 
 export type VoiceStageState = "idle" | "listen" | "think" | "speak";
 
@@ -47,17 +72,26 @@ export function VoiceOrb({
   levelsRef,
   onPoke,
   reducedMotion,
+  active,
 }: {
   state: VoiceStageState;
   mood: "happy" | "care" | "sleepy" | "";
   levelsRef: RefObject<VoiceLevels>;
   onPoke: () => void;
   reducedMotion: boolean;
+  /** On-stage (this Coach pane visible AND Talk view). Pauses the
+   * GL ball + pointer tracking when false (reference cBallRun). */
+  active: boolean;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const orbRef = useRef<SVGSVGElement>(null);
+  const bwRef = useRef<HTMLDivElement>(null);
+  const ballRef = useRef<SoulOrbHandle | null>(null);
   const pathsRef = useRef<Array<SVGPathElement | null>>([null, null, null]);
   const lookRaf = useRef(0);
+  const [gl, setGl] = useState(false);
+  const { resolvedTheme } = useTheme();
+  const dark = resolvedTheme === "dark";
 
   // Level loop (reference vLoop/cWave): writes --lv on the orb and
   // redraws the three waveform paths from the live levels.
@@ -82,6 +116,7 @@ export function VoiceOrb({
               : 0.05;
       const orb = orbRef.current;
       if (orb) orb.style.setProperty("--lv", level.toFixed(3));
+      ballRef.current?.level(level);
       const L = state === "idle" ? 0.05 : Math.min(1, level + 0.06);
       for (let i = 0; i < 3; i++) {
         const p = pathsRef.current[i];
@@ -98,6 +133,48 @@ export function VoiceOrb({
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [state, levelsRef, reducedMotion]);
+
+  // The flowing-light ball (reference cBallInit): dynamically
+  // imported so the ~54KB shader bundle never touches the server
+  // or the main chunk. Degrades to the SVG soul when WebGL2 is
+  // missing (createSoulOrb → null → no .gl class).
+  useEffect(() => {
+    let dead = false;
+    void import("./soul-orb").then((mod) => {
+      if (dead || !bwRef.current) return;
+      try {
+        ballRef.current = mod.createSoulOrb(bwRef.current, {
+          state,
+          mood,
+          dark,
+          paused: !active,
+          active,
+        }) as SoulOrbHandle | null;
+      } catch {
+        ballRef.current = null;
+      }
+      setGl(!!ballRef.current);
+    });
+    return () => {
+      dead = true;
+      ballRef.current?.destroy();
+      ballRef.current = null;
+    };
+    // init-once; live values flow through the effects below
+  }, []);
+
+  // Live state → the ball (reference cBallState). gl in the deps:
+  // re-apply once the async import actually creates the ball, so
+  // values that changed while it streamed in are not lost.
+  useEffect(() => {
+    ballRef.current?.set({ state, mood, dark });
+  }, [state, mood, dark, gl]);
+
+  // Stage visibility → pause/resume (reference cBallRun: the
+  // keep-alive pane can be off-tab while still mounted).
+  useEffect(() => {
+    ballRef.current?.set({ paused: !active, active });
+  }, [active, gl]);
 
   // Eye tracking (reference cLook): pointer → --ex/--ey on the
   // orb; while idle Dia glances around on her own every few s.
@@ -130,15 +207,41 @@ export function VoiceOrb({
     };
   }, [state, mood, reducedMotion]);
 
+  // Poke (reference cHappy): squash-stretch on the shell + a
+  // burst of energy in the ball + the parent's mood/haptics.
+  const poke = () => {
+    if (!reducedMotion) {
+      ballRef.current?.nudge(0.9);
+      orbRef.current
+        ?.animate(
+          [
+            { transform: "scale(1, 1)" },
+            { transform: "scale(1.13, 0.84)", offset: 0.25 },
+            { transform: "scale(0.92, 1.12)", offset: 0.55 },
+            { transform: "scale(1, 1)" },
+          ],
+          { duration: 560, easing: "ease-out" },
+        )
+        ?.finished.catch(() => {
+          /* cancelled — fine */
+        });
+    }
+    onPoke();
+  };
+
   return (
     <div ref={rootRef} className="dfc-vs-stage" data-s={state}>
       <button
         type="button"
-        className={`dfc-orbw${mood ? ` dfc-mood-${mood}` : ""}`}
-        onClick={onPoke}
+        className={`dfc-orbw${gl ? " gl" : ""}${mood ? ` dfc-mood-${mood}` : ""}`}
+        onClick={poke}
         aria-label="Say hi to Dia"
       >
-        {/* ---- Dia's soul orb (reference ORB svg) ---- */}
+        {/* the flowing-light ball (reference #bw) — canvas appended
+            here by the vendored SoulOrb; inset -10% so the glow
+            bleeds past the glass like the reference */}
+        <div ref={bwRef} className="dfc-bw" aria-hidden="true" />
+        {/* ---- Dia's glass shell (reference ORB svg) ---- */}
         <svg ref={orbRef} className={`dfc-orb ${state}${mood ? ` ${mood}` : ""}`} viewBox="0 0 200 200" aria-hidden="true">
           <defs>
             <clipPath id="g-clip">
