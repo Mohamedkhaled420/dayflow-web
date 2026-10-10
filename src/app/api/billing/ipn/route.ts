@@ -2,10 +2,10 @@
 // Dayflow AI — /api/billing/ipn (audit P0-6)
 // ------------------------------------------------------------
 // The NOWPayments webhook. Verifies the x-nowpayments-sig header
-// (HMAC-SHA512 over the SORTED JSON of the specific fields
-// NOWPayments signs — their documented algorithm) with a
-// timing-safe compare, then flips the payer's subscription to
-// plan 'plus' and appends the payload to billing_events.
+// (HMAC-SHA512 with the IPN secret) with a timing-safe compare,
+// then resolves the payer through the billing_events mapping row
+// that /api/billing/checkout wrote at mint time, and flips their
+// subscription to plan 'plus'.
 //
 // Env required:
 //   NOWPAYMENTS_IPN_SECRET    — from the NOWPayments dashboard
@@ -13,19 +13,30 @@
 //                               no user session, by definition)
 // Missing either → 503 logged loudly; the provider retries.
 //
+// Signature: NOWPayments has shipped two documented algorithms
+// over the years, so every candidate serialization is tried
+// (all HMAC-SHA512 over the same payload, timing-safe compared):
+//   A) ':'-joined values of ALL keys, sorted alphabetically
+//      (the current docs' algorithm)
+//   B) ':'-joined values of the classic signed-fields subset,
+//      sorted alphabetically
+//   C) JSON.stringify of the sorted signed-fields subset
+//      (the legacy docs' algorithm)
+//
 // Status mapping (NOWPayments payment_status):
-//   waiting / confirming / confirmed → keep listening (no write)
-//   finished                          → plan 'plus', status 'active'
-//   failed / expired / refunded      → plan 'free', status 'canceled'
+//   waiting / confirming / confirming/waiting → ack, no write
+//   finished                → plan 'plus', status 'active'
+//   failed / expired / refunded → plan 'free', status 'canceled'
 // ============================================================
 
 import { createHmac, timingSafeEqual } from "node:crypto";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceClient } from "@/utils/supabase/service";
 
 export const runtime = "nodejs";
 
-/** The exact fields NOWPayments includes in the IPN signature,
- * sorted alphabetically (their documented sort). */
+/** The fields NOWPayments has historically included in the IPN
+ * signature, sorted alphabetically (their documented sort). */
 const SIGNED_FIELDS = [
   "payment_status",
   "price_amount",
@@ -37,26 +48,86 @@ const SIGNED_FIELDS = [
   "purchase_id",
 ] as const;
 
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function hmacHex(secret: string, material: string): string {
+  return createHmac("sha512", secret).update(material, "utf8").digest("hex");
+}
+
+function hexEquals(a: string, b: string): boolean {
+  const ba = Buffer.from(a, "utf8");
+  const bb = Buffer.from(b, "utf8");
+  if (ba.length !== bb.length) return false;
+  return timingSafeEqual(ba, bb);
+}
+
+/** Render a JSON value the way a signing backend would join it
+ * into the ':'-separated string: JS string coercion for
+ * primitives, JSON for structured values, "null" for null. */
+function joinValue(v: unknown): string {
+  if (v === null) return "null";
+  if (Array.isArray(v) || typeof v === "object") return JSON.stringify(v);
+  return String(v);
+}
+
 function verifySignature(rawBody: string, header: string | null, secret: string): boolean {
   if (!header) return false;
-  let sorted: Record<string, unknown>;
+  let body: Record<string, unknown>;
   try {
-    const body = JSON.parse(rawBody) as Record<string, unknown>;
-    sorted = {};
-    for (const key of SIGNED_FIELDS) {
-      if (key in body) sorted[key] = body[key];
-    }
+    body = JSON.parse(rawBody) as Record<string, unknown>;
   } catch {
     return false;
   }
-  // NOWPayments serializes the sorted object with their exact
-  // spacing (no spaces after separators).
-  const material = JSON.stringify(sorted);
-  const expected = createHmac("sha512", secret).update(material).digest("hex");
-  const a = Buffer.from(expected, "utf8");
-  const b = Buffer.from(header.trim().toLowerCase(), "utf8");
-  if (a.length !== b.length) return false;
-  return timingSafeEqual(a, b);
+  const sig = header.trim().toLowerCase();
+
+  // A) current docs: all keys, sorted, values joined with ':'
+  const allJoined = Object.keys(body)
+    .sort()
+    .map((k) => joinValue(body[k]))
+    .join(":");
+  if (hexEquals(hmacHex(secret, allJoined), sig)) return true;
+
+  // B) classic subset, sorted, values joined with ':'
+  const subset: Record<string, unknown> = {};
+  for (const key of SIGNED_FIELDS) {
+    if (key in body) subset[key] = body[key];
+  }
+  const subsetJoined = Object.keys(subset)
+    .sort()
+    .map((k) => joinValue(subset[k]))
+    .join(":");
+  if (hexEquals(hmacHex(secret, subsetJoined), sig)) return true;
+
+  // C) legacy docs: sorted JSON.stringify of the subset
+  if (hexEquals(hmacHex(secret, JSON.stringify(subset)), sig)) return true;
+
+  return false;
+}
+
+/** Resolve the payer for an order_id through the mapping row
+ * that checkout wrote (payment_status 'checkout_created',
+ * payload.user_id). Order ids minted by OUR checkout always
+ * have exactly one; a foreign order_id resolves to null and is
+ * acknowledged + ignored. */
+async function resolvePayer(
+  orderId: string,
+  service: SupabaseClient
+): Promise<string | null> {
+  const { data, error } = await service
+    .from("billing_events")
+    .select("payload")
+    .eq("order_id", orderId)
+    .eq("payment_status", "checkout_created")
+    .order("id", { ascending: false })
+    .limit(1);
+  if (error) {
+    console.warn("[billing/ipn] mapping lookup failed:", error.message);
+    return null;
+  }
+  const payload = data?.[0]?.payload as Record<string, unknown> | undefined;
+  const userId = payload?.user_id;
+  return typeof userId === "string" && UUID_RE.test(userId) ? userId : null;
 }
 
 export async function POST(req: Request) {
@@ -105,16 +176,16 @@ export async function POST(req: Request) {
     return Response.json({ received: true, acted: false });
   }
 
-  // Resolve the user: our checkout minted order_id as
-  // "<prefix>-<user uuid>" (see /api/billing/checkout). Parse
-  // defensively — a foreign order_id is acknowledged and ignored.
-  const prefix = process.env.NOWPAYMENTS_ORDER_PREFIX ?? "dfplus";
-  const m = orderId.match(new RegExp(`^${prefix}-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$`, "i"));
-  if (!m) {
-    console.warn("[billing/ipn] unresolvable order_id:", orderId);
+  // Resolve the payer through the checkout mapping row.
+  if (!orderId) {
+    console.warn("[billing/ipn] missing order_id");
     return Response.json({ received: true, acted: false });
   }
-  const userId = m[1];
+  const userId = await resolvePayer(orderId, service);
+  if (!userId) {
+    console.warn("[billing/ipn] no payer mapping for order:", orderId);
+    return Response.json({ received: true, acted: false });
+  }
 
   const plus = status === "finished";
   const { error } = await service

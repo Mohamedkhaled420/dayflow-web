@@ -936,7 +936,7 @@ export function SettingsView({ onNavigate }: { onNavigate: (t: TabId) => void })
                 {plan === "plus"
                   ? "Thanks for supporting Dayflow"
                   : plan === "free"
-                    ? "You're on the free plan — everything included"
+                    ? "Everything's included for free — Plus ($4.99/yr, crypto) keeps Dayflow independent"
                     : "Support the app, keep it independent"}
               </small>
             </div>

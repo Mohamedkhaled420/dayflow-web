@@ -37,7 +37,12 @@ export async function GET() {
     status: db === "ok" ? "ok" : "degraded",
     db,
     dbLatencyMs,
-    version: process.env.NEXT_PUBLIC_BUILD_ID ?? "dev",
+    // Vercel injects VERCEL_GIT_COMMIT_SHA per deployment; fall
+    // back to the build id, then "dev" for local runs.
+    version:
+      process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ??
+      process.env.NEXT_PUBLIC_BUILD_ID ??
+      "dev",
     time: new Date().toISOString(),
   };
 
