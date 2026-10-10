@@ -1,7 +1,7 @@
 // ============================================================
-// Dayflow AI — /api/billing/checkout (audit P0-6)
+// Focus Triad — /api/billing/checkout (audit P0-6)
 // ------------------------------------------------------------
-// Creates a NOWPayments invoice for the Dayflow Plus plan and
+// Creates a NOWPayments invoice for the Focus Triad Plus plan and
 // returns the hosted checkout URL.
 //
 // Gated on the FULL reconciliation chain — we only take money
@@ -60,7 +60,7 @@ export async function POST(req: Request) {
   }
 
   const origin = new URL(req.url).origin;
-  const prefix = process.env.NOWPAYMENTS_ORDER_PREFIX ?? "dfplus";
+  const prefix = process.env.NOWPAYMENTS_ORDER_PREFIX ?? "ftplus";
   const orderId = `${prefix}-${crypto.randomUUID()}`;
 
   // Record the order→payer mapping BEFORE minting. The IPN
@@ -98,7 +98,7 @@ export async function POST(req: Request) {
         price_currency: "usd",
         pay_currency: "usdttrc20", // USDT on Tron — cheapest stable rail; the invoice page lists every supported crypto
         order_id: orderId,
-        order_description: "Dayflow Plus subscription",
+        order_description: "Focus Triad Plus subscription",
         ipn_callback_url: `${origin}/api/billing/ipn`,
         success_url: `${origin}/?upgraded=1`,
         cancel_url: `${origin}/?canceled=1`,

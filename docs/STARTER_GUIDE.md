@@ -1,18 +1,18 @@
-# Dayflow AI — Starter Guide
+# Focus Triad — Starter Guide
 
-Welcome! This guide gets you from zero to a working Dayflow practice — setup, every core feature, Apple Shortcuts one-tap logging, accessibility options, and fixes for the few things that can trip you up.
+Welcome! This guide gets you from zero to a working Focus Triad practice — setup, every core feature, Apple Shortcuts one-tap logging, accessibility options, and fixes for the few things that can trip you up.
 
 ---
 
-## What is Dayflow?
+## What is Focus Triad?
 
-Dayflow is a **resilience-focused health tracker**. Instead of nagging you with streak-guilt, it maps your day onto your body's circadian rhythm (when your focus actually peaks and dips), tracks habits, sleep, water and workouts, and gives you a psychology-grounded AI coach that draws on CBT and Stoic techniques. The design goal is long-term behavioral resilience: missed days don't break you, and the system adapts around real life.
+Focus Triad is a **resilience-focused health tracker**. Instead of nagging you with streak-guilt, it maps your day onto your body's circadian rhythm (when your focus actually peaks and dips), tracks habits, sleep, water and workouts, and gives you a psychology-grounded AI coach that draws on CBT and Stoic techniques. The design goal is long-term behavioral resilience: missed days don't break you, and the system adapts around real life.
 
 ## Getting Started
 
 ### 1. Create your account
 
-- Visit **https://dayflow-web.vercel.app**
+- Visit **https://focus-triad-web.vercel.app**
 - Tap **Continue with Face ID** to use a device passkey (where supported), or choose **Use email and password instead** and create an account.
 - After sign-up you'll receive a **confirmation email** — open it, then sign in. (If you see "Your account was created, but profile setup could not be completed" right after signing up, that's just the confirmation step pending: confirm your email and sign in again.)
 - On first sign-in you'll walk through **3 quick onboarding steps**: your display name (timezone is detected automatically), your **natural wake time** and target sleep duration — this is what powers your circadian timeline — and what you're building (job, freelance, founder…), plus your daily targets.
@@ -84,19 +84,19 @@ One-tap logging from your home screen, Lock Screen, or Back Tap.
 
 ### Quick test (access token, expires in 1 hour)
 
-1. In Dayflow, open **Settings → Apple Shortcuts → Copy authorization token** (this is your 1-hour JWT).
+1. In Focus Triad, open **Settings → Apple Shortcuts → Copy authorization token** (this is your 1-hour JWT).
 2. Create a shortcut with a **Get Contents of URL** action:
-   - URL: `https://dayflow-web.vercel.app/api/shortcuts/ingest`
+   - URL: `https://focus-triad-web.vercel.app/api/shortcuts/ingest`
    - Method: POST, Headers: `Authorization: Bearer <token>`, `Content-Type: application/json`
    - Body (JSON): `{"metricType":"hydration_tap","payload":{"volumeMl":250}}`
 3. Run it, then use **Test connection** on the same card — a "200 OK" toast confirms the pipeline.
 
 ### Daily driver (refresh-token flow — never expires)
 
-1. **"Dayflow Setup" shortcut** (one-time):
+1. **"Focus Triad Setup" shortcut** (one-time):
    - POST to `https://<project>.supabase.co/auth/v1/token?grant_type=password` with your email + password
-   - Save the returned `refresh_token` to a file in **iCloud Drive** (e.g. `Dayflow/token.txt`).
-2. **"Dayflow Water" shortcut** (permanent):
+   - Save the returned `refresh_token` to a file in **iCloud Drive** (e.g. `Focus Triad/token.txt`).
+2. **"Focus Triad Water" shortcut** (permanent):
    - Read the refresh token from iCloud Drive
    - POST to `…/auth/v1/token?grant_type=refresh_token` → get a fresh access token (and rotated refresh token — save it back)
    - POST to `/api/shortcuts/ingest` with the fresh access token, same body as above
@@ -140,10 +140,10 @@ Sign-out isn't in the app yet (on the roadmap). For now, clear site data for the
 
 - Journal entries are **owner-only**, enforced by row-level security — verified by cross-account penetration tests.
 - Team Mode shares **habit status only** — never journals, never entry content.
-- Passkeys live in your device's secure enclave / iCloud Keychain — no biometric data is stored by Dayflow.
+- Passkeys live in your device's secure enclave / iCloud Keychain — no biometric data is stored by Focus Triad.
 - All data is encrypted at rest (Supabase default) and scoped by RLS on every read and write.
 
 ## Support
 
-- Issues: https://github.com/Mohamedkhaled420/dayflow-web/issues
-- Product spec (PRD v6.1): https://github.com/Mohamedkhaled420/dayflow-web/blob/main/PRD.md
+- Issues: https://github.com/Mohamedkhaled420/focus-triad-web/issues
+- Product spec (PRD v6.1): https://github.com/Mohamedkhaled420/focus-triad-web/blob/main/PRD.md

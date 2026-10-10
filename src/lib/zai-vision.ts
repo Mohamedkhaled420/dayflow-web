@@ -1,5 +1,5 @@
 // ============================================================
-// Dayflow AI — z.ai vision client (Phase 9 Nutrition)
+// Focus Triad — z.ai vision client (Phase 9 Nutrition)
 // ------------------------------------------------------------
 // Raw-fetch client for Z.ai's OpenAI-compatible endpoint, used as
 // the PRIMARY food-photo hop by /api/ai/food. The free vision

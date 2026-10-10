@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // ============================================================
-// gen-icons.mjs — Dayflow icon raster pipeline (Phase 6.5 / B4)
+// gen-icons.mjs — Focus Triad icon raster pipeline (Phase 6.5 / B4)
 // ------------------------------------------------------------
 // Regenerates every icon surface from the single source of truth
 // (public/logo.svg):
@@ -45,7 +45,7 @@ async function markOnSurface(size, out) {
 
 await mkdir(`${ROOT}public/icons`, { recursive: true });
 
-console.log("regenerating Dayflow icon surfaces from public/logo.svg …");
+console.log("regenerating Focus Triad icon surfaces from public/logo.svg …");
 await markOnSurface(180, `${ROOT}public/apple-touch-icon.png`);
 await markOnSurface(192, `${ROOT}public/icons/icon-192.png`);
 await markOnSurface(512, `${ROOT}public/icons/icon-512.png`);

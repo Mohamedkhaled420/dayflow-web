@@ -1,5 +1,5 @@
 // ============================================================
-// Dayflow — pure computation layer
+// Focus Triad — pure computation layer
 //
 // All analytics (day totals, goal progress, weekly aggregates,
 // streaks, recaps, exports) are derived here from the store
@@ -7,8 +7,8 @@
 // a drop-in swap: same shapes in, same analytics out.
 // ============================================================
 
-import type { Category, DayflowData, GoalProgress, TrackEvent, WaterEntry } from "./types";
-import type { MealLogRow } from "@/store/useDayflowStore";
+import type { Category, FocusTriadData, GoalProgress, TrackEvent, WaterEntry } from "./types";
+import type { MealLogRow } from "@/store/useFocusTriadStore";
 import { keyForOffset, keyToDate, pad2 } from "./seed";
 import { GOAL_FALLBACK_COLORS, UNTRACKED_COLOR, CATEGORY_SWATCHES } from "@/styles/palette";
 
@@ -170,10 +170,10 @@ export const GOAL_META: Record<GoalProgress["key"], { label: string; fallbackHex
   meals: { label: "Meals", fallbackHex: GOAL_FALLBACK_COLORS.meals },
 };
 
-export const goalColor = (data: DayflowData, key: GoalProgress["key"]): string =>
+export const goalColor = (data: FocusTriadData, key: GoalProgress["key"]): string =>
   categoryById(data.categories, key).colorHex || GOAL_META[key].fallbackHex;
 
-export function goalsForDay(data: DayflowData, dateKey: string): GoalProgress[] {
+export function goalsForDay(data: FocusTriadData, dateKey: string): GoalProgress[] {
   const { events, water, goals, profile } = data;
   const glasses = profile.waterGlassMl > 0 ? waterTotal(water, dateKey) / profile.waterGlassMl : 0;
   const build = (
@@ -275,7 +275,7 @@ export interface DayAggregate {
   totalTracked: number;
 }
 
-export function aggregateWeek(data: DayflowData, week: WeekDay[]): DayAggregate[] {
+export function aggregateWeek(data: FocusTriadData, week: WeekDay[]): DayAggregate[] {
   const glassMl = data.profile.waterGlassMl || 250;
   return week.map((d) => {
     const totals = categoryTotals(data.events, d.dateKey);
@@ -307,7 +307,7 @@ export const weekCategoryTotals = (days: DayAggregate[]): CategoryTotal[] => {
     .sort((a, b) => b.minutes - a.minutes);
 };
 
-export const weekWorkoutSessions = (data: DayflowData, week: WeekDay[]) => {
+export const weekWorkoutSessions = (data: FocusTriadData, week: WeekDay[]) => {
   const sessions = week.flatMap((d) => workoutsForDay(data.events, d.dateKey));
   return {
     count: sessions.length,
@@ -318,7 +318,7 @@ export const weekWorkoutSessions = (data: DayflowData, week: WeekDay[]) => {
 
 // ---------- streaks (consecutive days up to and including dateKey) ----------
 
-export function goalStreak(data: DayflowData, key: GoalProgress["key"], endDateKey: string): number {
+export function goalStreak(data: FocusTriadData, key: GoalProgress["key"], endDateKey: string): number {
   let streak = 0;
   for (let offset = 0; offset >= -364; offset--) {
     const dayKey = keyForOffset(offset);
@@ -343,7 +343,7 @@ export interface DayRecap {
   watchouts: string[];
 }
 
-export function recapForDay(data: DayflowData, dateKey: string): DayRecap {
+export function recapForDay(data: FocusTriadData, dateKey: string): DayRecap {
   const { events } = data;
   const goals = goalsForDay(data, dateKey);
   const highlights: string[] = [];
@@ -404,7 +404,7 @@ export function recapForDay(data: DayflowData, dateKey: string): DayRecap {
 }
 
 /** Markdown export for a day, mirrors the native app's "Copy timeline". */
-export function dayToMarkdown(data: DayflowData, dateKey: string): string {
+export function dayToMarkdown(data: FocusTriadData, dateKey: string): string {
   const acts = eventsForDay(data.events, dateKey);
   const date = keyToDate(dateKey);
   const label = date.toLocaleDateString("en-US", {
@@ -412,7 +412,7 @@ export function dayToMarkdown(data: DayflowData, dateKey: string): string {
     month: "long",
     day: "numeric",
   });
-  const lines: string[] = [`# Dayflow — ${label}`, ""];
+  const lines: string[] = [`# Focus Triad — ${label}`, ""];
 
   const sleep = sleepForDay(data.events, dateKey);
   if (sleep) {

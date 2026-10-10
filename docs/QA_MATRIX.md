@@ -1,4 +1,4 @@
-# Dayflow AI — QA Matrix (Phase 6, T1)
+# Focus Triad — QA Matrix (Phase 6, T1)
 
 **Scope:** every clickable / interactive element in the authenticated app, tested against a production build (`next build && next start`) at a mobile viewport of 375×812 with a real Supabase session.
 **Test account:** `mk510@atomicmail.io` (authenticated). Second and third accounts provisioned for Team Mode and sign-up flows.
@@ -26,7 +26,7 @@
 | F-6 | Low | Weekly-view day cells are non-interactive (heatmap cells are plain `div`s with `title` tooltips); the originally-spec'd "tap today's cell → log dialog" was never implemented. Retroactive logging happens on the Timeline via the date picker. | Documented; STARTER_GUIDE describes the actual flow. |
 | F-7 | Low | Light-theme contrast failures (see ACCESSIBILITY_AUDIT.md): `--df-text-muted` 2.82:1, `--df-accent-text` 1.89:1, primary CTA white-on-peach 2.01:1. | Documented with remediation values; palette decision deferred to owner. |
 | F-8 | Info | Auth `aria-current` on dock items is `true`/`false` instead of the more semantic `"page"`. | Documented. |
-| F-9 | Info | Test-account hygiene: Phase 2/3 E2E left ~20 `dayflow.t2.*` Gmail users and 7 duplicate "E2E probe habit" rows + 5 duplicate sleep events on the test account. | No action required (test data only); noted for anyone re-running QA. |
+| F-9 | Info | Test-account hygiene: Phase 2/3 E2E left ~20 `dayflow.t2.*` Gmail users (pre-rename test prefix) and 7 duplicate "E2E probe habit" rows + 5 duplicate sleep events on the test account. | No action required (test data only); noted for anyone re-running QA. |
 
 ---
 
@@ -136,7 +136,7 @@
 | Gate on Focus tab | Arm switch + switch to Timeline | Modal blocks Focus | ✅ | gate appeared (screenshot `morning-triad-gate.png`); requires hydration ≥250ml + light confirmation |
 | Hydration step | Water already logged today | Auto-satisfied | ✅ | "Hydration logged 1750 ml today — anchor complete" (disabled button state) |
 | "I've seen morning light" | Tap | Step confirms | ✅ | step marked done |
-| "Unlock Focus" | Tap (enabled once both steps done) | Gate dismissed | ✅ | gate closes, Timeline interactive; `localStorage['dayflow-morning-triad-v1'] = {"dateKey":"2026-09-11","lightConfirmed":true}` |
+| "Unlock Focus" | Tap (enabled once both steps done) | Gate dismissed | ✅ | gate closes, Timeline interactive; `localStorage['ft-morning-triad-v1'] = {"dateKey":"2026-09-11","lightConfirmed":true}` |
 | "Dismiss morning check-in" | Tap | Escape hatch | ✅ | stays out of Focus (lands on Daily) per design |
 
 ## 10. Team (`/team`)

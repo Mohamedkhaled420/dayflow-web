@@ -1,5 +1,5 @@
 // ============================================================
-// Dayflow — date helpers + the fixed system category set
+// Focus Triad — date helpers + the fixed system category set
 //
 // The mock data provider (makeSeed / eventsForKey / waterForKey)
 // was deleted with the legacy local-only store in Phase 5 T0:

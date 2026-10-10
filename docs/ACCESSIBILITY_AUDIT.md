@@ -1,4 +1,4 @@
-# Dayflow AI — Accessibility Audit (Phase 6, T3)
+# Focus Triad — Accessibility Audit (Phase 6, T3)
 
 **Baseline:** WCAG 2.1 AA. **Method mix:** manual keyboard passes (Chromium, 375×812), DOM/DevTools inspection (`agent-browser` accessibility-tree snapshots + computed styles), token-level contrast math, and a Lighthouse 12 accessibility pass.
 **Lighthouse (Accessibility category):** **95/100** on `/auth` — 18 audits passed, 1 flagged (`color-contrast`, consistent with the token math in §2).

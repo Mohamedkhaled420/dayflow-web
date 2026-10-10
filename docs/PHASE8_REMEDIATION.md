@@ -46,7 +46,7 @@ atomically with zero view-code color edits.
 Grep evidence (run on this branch):
 
 ```
-$ rg -c 'var\(--df-' src/components/dayflow/
+$ rg -c 'var\(--df-' src/components/focus-triad/
   TimelineView.tsx   86      HabitsView.tsx     51      MorningTriadGate.tsx  13
   DailyView.tsx      29      ChatView.tsx       29      ShortcutsSetupCard.tsx 28
   WeeklyView.tsx     38      SettingsView.tsx   81      InstallAppCard.tsx    13
@@ -55,7 +55,7 @@ $ rg -c 'var\(--df-' src/components/dayflow/
 $ node scripts/check-raw-colors.mjs
   ✓ drift guard: no raw colors in CSS outside theme.css
 
-$ pnpm lint   (dayflow/no-raw-colors: error)   → 0 problems
+$ pnpm lint   (focus-triad/no-raw-colors: error)   → 0 problems
 ```
 
 The only `rgba(` strings outside theme.css/palette.ts live in

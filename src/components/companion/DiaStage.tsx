@@ -1,7 +1,7 @@
 "use client";
 
 // ============================================================
-// Dayflow — DiaStage (the visual half of the companion)
+// Focus Triad — DiaStage (the visual half of the companion)
 // ------------------------------------------------------------
 // Dia's home is the AI chat now (user decision, Oct 2026): a
 // glass terrarium inside the Coach hero where the 3D white
@@ -22,8 +22,8 @@ import dynamic from "next/dynamic";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useCompanionStore } from "@/store/companionStore";
 import { useCompanionProgress } from "@/store/companionProgress";
-import { useDayflowStore } from "@/store/useDayflowStore";
-import { useDayflowData, localDateKey } from "@/lib/viewmodel";
+import { useFocusTriadStore } from "@/store/useFocusTriadStore";
+import { useFocusTriadData, localDateKey } from "@/lib/viewmodel";
 import {
   activityStreak,
   levelFromXp,
@@ -120,8 +120,8 @@ export function DiaStage() {
   const reducedMotion = useReducedMotion();
 
   // ---- real data for the mood (same derivation as the engine) ----
-  const data = useDayflowData();
-  const journalEntries = useDayflowStore((s) => s.journalEntries);
+  const data = useFocusTriadData();
+  const journalEntries = useFocusTriadStore((s) => s.journalEntries);
 
   // ---- live signals ----
   const thinking = useCompanionStore((s) => s.thinking);

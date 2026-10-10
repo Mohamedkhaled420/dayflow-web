@@ -7,7 +7,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // ============================================================
-// Dayflow drift guard — `dayflow/no-raw-colors` (PRD §5.2)
+// Focus Triad drift guard — `focus-triad/no-raw-colors` (PRD §5.2)
 // ------------------------------------------------------------
 // Fails the build on raw hex / rgb() / hsl() string literals in
 // component code. Allowed locations (DESIGN.md §1.3):
@@ -58,10 +58,10 @@ const eslintConfig = [
   {
     files: ["src/**/*.{ts,tsx}"],
     plugins: {
-      dayflow: { rules: { "no-raw-colors": noRawColors } },
+      "focus-triad": { rules: { "no-raw-colors": noRawColors } },
     },
     rules: {
-      "dayflow/no-raw-colors": "error",
+      "focus-triad/no-raw-colors": "error",
     },
   },
   {
@@ -69,7 +69,20 @@ const eslintConfig = [
     // are user-editable DATA, single-sourced there.
     files: ["src/styles/palette.ts"],
     rules: {
-      "dayflow/no-raw-colors": "off",
+      "focus-triad/no-raw-colors": "off",
+    },
+  },
+  {
+    // Orb exemption (same DATA rationale as palette.ts): the
+    // CrystalizedBall presets + voice-stage looks are generative-art
+    // seeds fed into the Oklab palette math in GL — they are not UI
+    // chrome colors and have no token equivalents.
+    files: [
+      "src/components/focus-triad/voice/CrystalizedBall.tsx",
+      "src/components/focus-triad/voice/ball-looks.ts",
+    ],
+    rules: {
+      "focus-triad/no-raw-colors": "off",
     },
   },
   {
@@ -78,7 +91,7 @@ const eslintConfig = [
     // must be fully self-contained, so design tokens cannot be used there.
     files: ["src/app/global-error.tsx"],
     rules: {
-      "dayflow/no-raw-colors": "off",
+      "focus-triad/no-raw-colors": "off",
     },
   },
   {

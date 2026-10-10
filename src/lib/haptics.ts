@@ -11,10 +11,10 @@
 //      visual tick everywhere it is called (PRD §4.3 / §7).
 //
 // Phase 15: the Settings sheet's Haptics switch (localStorage
-// "dayflow-haptics-off" = "1") gates every engine — the master
+// "ft-haptics-off" = "1") gates every engine — the master
 // off-switch users expect.
 
-export const HAPTICS_OFF_KEY = "dayflow-haptics-off";
+export const HAPTICS_OFF_KEY = "ft-haptics-off";
 
 /** The Settings master switch — true unless explicitly disabled. */
 export function hapticsEnabled(): boolean {

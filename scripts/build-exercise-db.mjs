@@ -1,4 +1,4 @@
-// build-exercise-db — one-shot generator for Dayflow's bundled exercise
+// build-exercise-db — one-shot generator for Focus Triad's bundled exercise
 // library, derived from hasaneyldrm/exercises-dataset (MIT, data only).
 //
 //   node scripts/build-exercise-db.mjs [path-to-exercises.json]
@@ -19,7 +19,7 @@
 //
 // Media (images / GIFs) from the source repo are intentionally NOT
 // bundled: the dataset data is MIT, but the media is © Gym visual under
-// separate terms (180px-only, attribution, no sub-license). Dayflow
+// separate terms (180px-only, attribution, no sub-license). Focus Triad
 // ships the text data only.
 
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";

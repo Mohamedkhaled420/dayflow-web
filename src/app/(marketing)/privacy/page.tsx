@@ -3,7 +3,7 @@ import Link from "next/link";
 import "@/styles/legal.css";
 
 // ============================================================
-// Dayflow AI — Privacy Policy (audit P0-2)
+// Focus Triad — Privacy Policy (audit P0-2)
 // ------------------------------------------------------------
 // Public, static, signed-out reachable. Written to match what
 // the app ACTUALLY does (local-first store, Supabase us-east-1,
@@ -12,9 +12,9 @@ import "@/styles/legal.css";
 // ============================================================
 
 export const metadata: Metadata = {
-  title: "Privacy Policy — Dayflow",
+  title: "Privacy Policy — Focus Triad",
   description:
-    "What Dayflow collects, where it lives, who processes it, and how to erase it. Local-first, no ads, no trackers, no data sales.",
+    "What Focus Triad collects, where it lives, who processes it, and how to erase it. Local-first, no ads, no trackers, no data sales.",
   robots: { index: true, follow: true },
 };
 
@@ -33,7 +33,7 @@ export default function PrivacyPage() {
                 strokeLinecap="round"
               />
             </svg>
-            Dayflow
+            Focus Triad
           </Link>
           <Link href="/" className="legal-back">
             <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
@@ -55,7 +55,7 @@ export default function PrivacyPage() {
 
         <h2>The short version</h2>
         <p>
-          Dayflow is a life-tracking app, and its entire design starts from one
+          Focus Triad is a life-tracking app, and its entire design starts from one
           rule: your data is yours. Your logs are written first to your own
           device, then synced privately to your account. There are no ads, no
           analytics trackers embedded in the app, no data sales, and no third
@@ -162,19 +162,19 @@ export default function PrivacyPage() {
 
         <h2>Children</h2>
         <p>
-          Dayflow is not directed at children under 13 (or 16 where required),
+          Focus Triad is not directed at children under 13 (or 16 where required),
           and we do not knowingly collect their data.
         </p>
 
         <h2>Contact</h2>
         <p>
           Questions or requests? Reach us at{" "}
-          <a href="mailto:support@dayflow.app">support@dayflow.app</a>. We
+          <a href="mailto:support@focustriad.app">support@focustriad.app</a>. We
           answer every message about privacy.
         </p>
 
         <p className="legal-note">
-          This policy covers the Dayflow web app at its current deployment. If
+          This policy covers the Focus Triad app at its current deployment. If
           we ever change how data is handled in a way that matters to you, this
           page will say so before the change ships.
         </p>

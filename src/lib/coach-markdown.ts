@@ -1,5 +1,5 @@
 // ============================================================
-// Dayflow AI — coach markdown renderer (zero dependencies)
+// Focus Triad — coach markdown renderer (zero dependencies)
 // ------------------------------------------------------------
 // Coach replies arrive as plain-text markdown (**bold**, lists,
 // headings, `code`). Before this module the chat rendered them

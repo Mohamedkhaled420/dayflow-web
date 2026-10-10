@@ -1,7 +1,7 @@
 "use client";
 
 // ============================================================
-// Dayflow AI — LogoFormation (Phase 6.5 / B2 — 2026-09 fix)
+// Focus Triad — LogoFormation (Phase 6.5 / B2 — 2026-09 fix)
 // ------------------------------------------------------------
 // The mark draws itself ONCE on mount over ~1.8s and the hero
 // copy is always visible (entrance tied to the same timeline):
@@ -91,7 +91,7 @@ export function LogoFormation({
     return (
       <div className="relative">
         <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-10 px-6 py-16">
-          <div style={{ width: "min(64vw, 44vh)" }} aria-label="Dayflow AI mark" role="img">
+          <div style={{ width: "min(64vw, 44vh)" }} aria-label="Focus Triad mark" role="img">
             <LogoMark />
           </div>
           {children}
@@ -108,7 +108,7 @@ export function LogoFormation({
           fill="none"
           style={{ width: "min(64vw, 44vh)", height: "auto" }}
           role="img"
-          aria-label="Dayflow AI mark drawing itself"
+          aria-label="Focus Triad mark drawing itself"
         >
           <defs>
             <linearGradient

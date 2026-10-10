@@ -5,10 +5,10 @@ import path from "node:path";
 import { OG_TEXT_COLORS, PWA_SURFACE_COLORS } from "@/styles/palette";
 
 // ============================================================
-// Dayflow AI — Open Graph image (Phase 6.5 / B4)
+// Focus Triad — Open Graph image (Phase 6.5 / B4)
 // ------------------------------------------------------------
 // 1200x630: the brand mark (public/logo.svg, the single source of
-// truth) beside the "Dayflow AI" wordmark on the PWA surface.
+// truth) beside the "Focus Triad" wordmark on the PWA surface.
 // Satori renders standalone (no CSS custom properties), so colors
 // arrive materialized from palette.ts (the sanctioned home for
 // color values used outside stylesheets).
@@ -16,7 +16,7 @@ import { OG_TEXT_COLORS, PWA_SURFACE_COLORS } from "@/styles/palette";
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
-export const alt = "Dayflow AI — your day, drawn in rhythm";
+export const alt = "Focus Triad — your day, drawn in rhythm";
 
 export default async function OpengraphImage() {
   const svg = await readFile(
@@ -50,7 +50,7 @@ export default async function OpengraphImage() {
               display: "flex",
             }}
           >
-            Dayflow AI
+            Focus Triad
           </div>
           <div
             style={{

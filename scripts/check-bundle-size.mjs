@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // ============================================================
-// Dayflow AI — bundle size guard (audit P2)
+// Focus Triad — bundle size guard (audit P2)
 // ------------------------------------------------------------
 // Runs after `next build` (wired into the build script). Scans
 // the prerendered HTML per route for its /_next/static script

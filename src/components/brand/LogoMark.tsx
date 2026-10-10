@@ -1,7 +1,7 @@
 "use client";
 
 // ============================================================
-// Dayflow AI — LogoMark (Phase 6.5 / B1)
+// Focus Triad — LogoMark (Phase 6.5 / B1)
 // ------------------------------------------------------------
 // The formed brand mark, static. Colors are token-only: the three
 // §9.1 accent tokens as principal gradient stops, color-mix()
@@ -53,7 +53,7 @@ export function LogoMark({
       fill="none"
       className={className}
       role={decorative ? undefined : "img"}
-      aria-label={decorative ? undefined : "Dayflow AI mark"}
+      aria-label={decorative ? undefined : "Focus Triad mark"}
       aria-hidden={decorative ? true : undefined}
     >
       <defs>

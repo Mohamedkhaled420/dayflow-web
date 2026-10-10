@@ -1,5 +1,5 @@
 // ============================================================
-// Dayflow — offline food estimator (Phase 9 Nutrition)
+// Focus Triad — offline food estimator (Phase 9 Nutrition)
 // ------------------------------------------------------------
 // The algorithmic floor for /api/ai/food: when every Groq hop is
 // exhausted (no key, quota, outage), meals described in plain

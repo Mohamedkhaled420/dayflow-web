@@ -1,5 +1,5 @@
 // ============================================================
-// Dayflow AI — server-side error capture (audit P0-4)
+// Focus Triad — server-side error capture (audit P0-4)
 // ------------------------------------------------------------
 // Appends a 'server' row to error_events from route catch
 // blocks. Uses the caller's session when one exists (RLS allows

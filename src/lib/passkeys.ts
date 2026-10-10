@@ -1,7 +1,7 @@
 "use client";
 
 // ============================================================
-// Dayflow AI — passkeys (Amendment #17 / Phase 5 T4)
+// Focus Triad — passkeys (Amendment #17 / Phase 5 T4)
 // ------------------------------------------------------------
 // Raw WebAuthn against Supabase GoTrue's native WebAuthn
 // endpoints — zero SDKs (the installed supabase-js 2.57.4 has no

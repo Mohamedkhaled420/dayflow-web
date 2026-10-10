@@ -1,7 +1,7 @@
 "use client";
 
 // ============================================================
-// Dayflow AI — /auth/reset (new-password form)
+// Focus Triad — /auth/reset (new-password form)
 // ------------------------------------------------------------
 // The recovery email link lands on /auth/callback?next=/auth/reset
 // with a fresh session (exchanged from the recovery code). This
@@ -13,8 +13,8 @@ import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-import { DayflowLogo } from "@/components/brand/DayflowLogo";
-import { SkySync } from "@/components/dayflow/SkySync";
+import { FocusTriadLogo } from "@/components/brand/FocusTriadLogo";
+import { SkySync } from "@/components/focus-triad/SkySync";
 import { haptic } from "@/lib/haptics";
 
 function pwScore(p: string) {
@@ -87,7 +87,7 @@ export default function ResetPage() {
           <Link className="dfl-back" href="/" aria-label="Back">
             ‹
           </Link>
-          <DayflowLogo live className="dfl-lgs" />
+          <FocusTriadLogo live className="dfl-lgs" />
           <span style={{ width: 44 }} />
         </div>
 

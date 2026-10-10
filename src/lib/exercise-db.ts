@@ -1,4 +1,4 @@
-// exercise-db — typed access to Dayflow's bundled exercise library.
+// exercise-db — typed access to Focus Triad's bundled exercise library.
 //
 // Source: hasaneyldrm/exercises-dataset (MIT — data only, no media).
 // Regenerate with `node scripts/build-exercise-db.mjs`.

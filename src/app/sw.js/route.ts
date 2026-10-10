@@ -5,7 +5,7 @@
 // WHY A ROUTE (the Phase-4 original lived in public/sw.js):
 // a service worker only updates when its script BYTES change.
 // The hand-rolled file carried a constant VERSION string
-// ("dayflow-shell-v1") across every deploy since Phase 4, so
+// ("ft-shell-v1") across every deploy since Phase 4, so
 // browsers kept running + caching under the SAME cache names
 // forever — one failed navigation fetch (flaky cell moment,
 // mid-deploy hit, offline wake) and the runtime cache served a
@@ -61,10 +61,10 @@ function buildStamp(): string {
   return stampCache;
 }
 
-const WORKER_SOURCE = (buildId: string) => `/* Dayflow app-shell service worker — build ${buildId} */
+const WORKER_SOURCE = (buildId: string) => `/* Focus Triad app-shell service worker — build ${buildId} */
 const VERSION = "${buildId}";
-const SHELL_CACHE = "dayflow-shell-" + VERSION;
-const RUNTIME_CACHE = "dayflow-runtime-" + VERSION;
+const SHELL_CACHE = "ft-shell-" + VERSION;
+const RUNTIME_CACHE = "ft-runtime-" + VERSION;
 
 /* Immutable, same-origin app-shell assets (content-hashed by Next). */
 const SHELL_ASSETS = [
@@ -191,7 +191,7 @@ async function networkFirst(request, cacheName) {
     // Nothing cached and no network: a navigable JSON error beats a
     // browser dinosaur for the PWA.
     return new Response(
-      JSON.stringify({ error: "offline", message: "Dayflow is offline and this resource was never cached." }),
+      JSON.stringify({ error: "offline", message: "Focus Triad is offline and this resource was never cached." }),
       { status: 503, headers: { "Content-Type": "application/json" } }
     );
   }

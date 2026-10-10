@@ -1,5 +1,5 @@
 // ============================================================
-// Dayflow AI — brand mark geometry (Phase 6.5 / B1)
+// Focus Triad — brand mark geometry (Phase 6.5 / B1)
 // ------------------------------------------------------------
 // Single source of truth for the mark's path data, shared by
 // LogoMark (static), LogoFormation (scroll draw-on) and

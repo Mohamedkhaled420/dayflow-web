@@ -1,5 +1,5 @@
 -- ============================================================
--- Dayflow web — Supabase schema (for the future hosted version)
+-- Focus Triad — Supabase schema (for the future hosted version)
 --
 -- The shapes map 1:1 onto the TypeScript types in src/lib/types.ts
 -- so the localStorage mock provider in src/lib/store.ts can be

@@ -1,5 +1,5 @@
 // ============================================================
-// Dayflow AI — coach reply protocol (notes + log actions)
+// Focus Triad — coach reply protocol (notes + log actions)
 // ------------------------------------------------------------
 // Conversational coach replies (modes journal/coaching) end with
 // machine-readable lines the ROUTE strips from the visible chat
@@ -13,7 +13,7 @@
 //
 // The NOTE line feeds the Coach Notes panel (the actionable
 // takeaway lives OUTSIDE the chat box); the LOG lines become
-// one-tap actions that write through the real Dayflow stores.
+// one-tap actions that write through the real Focus Triad stores.
 //
 // This module is PURE (no DOM, no imports) so the SAME line
 // classifier powers the non-streaming parser, the streaming

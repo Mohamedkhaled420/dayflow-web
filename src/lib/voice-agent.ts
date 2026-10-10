@@ -1,5 +1,5 @@
 // ============================================================
-// Dayflow AI — browser voice session (talk mode engine)
+// Focus Triad — browser voice session (talk mode engine)
 // ------------------------------------------------------------
 // One class owning the WHOLE browser side of a voice turn:
 //   • the same-origin WebSocket to /api/ai/voice-agent (the

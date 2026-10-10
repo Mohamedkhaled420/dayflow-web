@@ -48,7 +48,7 @@ export default function GlobalError({
   return (
     <html lang="en">
       <head>
-        <title>Something went wrong — Dayflow</title>
+        <title>Something went wrong — Focus Triad</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </head>
       <body
@@ -81,7 +81,7 @@ export default function GlobalError({
               color: "#3F4668",
             }}
           >
-            Dayflow
+            Focus Triad
           </p>
           <h1
             style={{

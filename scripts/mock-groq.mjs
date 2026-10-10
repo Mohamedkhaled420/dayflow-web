@@ -3,7 +3,7 @@
 // Sandbox-only mock Groq server (NOT part of the product)
 // ------------------------------------------------------------
 // Serves just enough of the OpenAI-compatible chat-completions
-// API for the Dayflow coach cascade to run end-to-end inside the
+// API for the Focus Triad coach cascade to run end-to-end inside the
 // preview sandbox: SSE streaming when body.stream=true, plain
 // JSON otherwise. Canned replies exercise the exact failure
 // modes the app must handle — think blocks split across deltas,

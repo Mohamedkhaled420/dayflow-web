@@ -1,7 +1,7 @@
 "use client";
 
 // ============================================================
-// Dayflow AI — the seal system (reference mockup SIG / PER / ic)
+// Focus Triad — the seal system (reference mockup SIG / PER / ic)
 // ------------------------------------------------------------
 // The reference HTML never uses emoji characters anywhere.
 // Identity, rhythms and meal types are all hand-drawn SVG

@@ -1,5 +1,5 @@
 // ============================================================
-// Dayflow AI — /api/billing/status (audit P0-6)
+// Focus Triad — /api/billing/status (audit P0-6)
 // ------------------------------------------------------------
 // The client's source of truth for "what plan am I on".
 // Reads the caller's own subscriptions row through RLS (select-

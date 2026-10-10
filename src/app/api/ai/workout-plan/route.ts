@@ -1,5 +1,5 @@
 // ============================================================
-// Dayflow AI — workout routine route (Phase 10 Workouts)
+// Focus Triad — workout routine route (Phase 10 Workouts)
 // ------------------------------------------------------------
 // Generates ONE complete, science-based training session,
 // picking exercises ONLY from the bundled 1,324-exercise library
@@ -158,7 +158,7 @@ const FOCUS_HINT: Record<RoutineFocus, string> = {
 
 function scienceSystemPrompt(brief: RoutineBrief): string {
   return [
-    "You are Dayflow's strength & conditioning coach. You write ONE complete, science-based training session as pure JSON, choosing exercises ONLY from the catalog in the user message.",
+    "You are Focus Triad's strength & conditioning coach. You write ONE complete, science-based training session as pure JSON, choosing exercises ONLY from the catalog in the user message.",
     "",
     "Programming rules you MUST follow (evidence-based, ACSM/NSCA-aligned):",
     "- Exercise order: multi-joint compounds first while fresh; single-joint isolation later.",

@@ -5,7 +5,7 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ============================================================
-   Dayflow component layer — tokens only.
+   Focus Triad component layer — tokens only.
    All colors/radii/shadows resolve from src/styles/theme.css.
    Spacing follows the 4pt grid (multiples of 4px).
    Every backdrop-filter element is promoted to its own GPU
@@ -469,7 +469,7 @@ h4 {
   }
 }
 
-/* ---------- Dayflow component primitives ---------- */
+/* ---------- Focus Triad component primitives ---------- */
 
 .df-window {
   background: var(--df-window-bg);
@@ -670,7 +670,7 @@ h4 {
   box-shadow: inset 0 0 0 2px var(--df-card-glow), var(--df-lift-shadow);
 }
 
-/* Subtle press animation like DayflowPressScaleButtonStyle.
+/* Subtle press animation like Focus TriadPressScaleButtonStyle.
    100ms ease-out — feedback on pointer-DOWN, instant (skill §1).
    The brightness+saturate bump gives pressed controls the liquid
    "light trapped in glass" read (callstack interactive parity). */
@@ -2204,7 +2204,7 @@ select {
 
 /* ============================================================
    dfm — the meal sheet (Phase 12c)
-   Faithful translation of the "Dayflow — Log a meal" reference:
+   Faithful translation of the "Focus Triad — Log a meal" reference:
    a compose → estimating → review flow inside the dff shell.
    Colors resolve from --df-f-* tokens + the runtime accent
    --dff-c (meals amber, set by React) — never a raw literal.
@@ -2796,7 +2796,7 @@ select {
 
 /* ============================================================
    dfn — the Nutrition card (Phase 12c)
-   The "Dayflow — Log a meal" reference's today card: glass over
+   The "Focus Triad — Log a meal" reference's today card: glass over
    drifting aurora blobs, gradient-shine title, a spinning-border
    Log-meal pill, the 176px kcal ring, animated macro bars and a
    swipe-to-delete meals list. Colors come from --df-* tokens +
@@ -3298,7 +3298,7 @@ select {
 }
 
 /* ============================================================
-   Phase 13 — the Editorial Cream shell ("Dayflow (1).html")
+   Phase 13 — the Editorial Cream shell ("Focus Triad (1).html")
    ------------------------------------------------------------
    The four-tab glass pill + plus FAB chrome, the pane crossfade
    system, and the shared editorial primitives (display headers,
@@ -4825,7 +4825,7 @@ select {
 
 /* ============================================================
    Phase 13 — TrainingView (the workout builder + session flow,
-   reference "Dayflow (1).html" frame 2, "Editorial Cream")
+   reference "Focus Triad (1).html" frame 2, "Editorial Cream")
    ------------------------------------------------------------
    All screens of the Training pane: hero "Picked for you" card,
    focus tiles, the duration range slider, the generating orb,
@@ -6690,7 +6690,7 @@ select {
 
 /* ============================================================
    Phase 15 — Coach pane (.dfc-*) + Settings sheet (.dfset-*)
-   Reference "Dayflow (4).html" (#cp + #set), Oct 2026.
+   Reference "Focus Triad (4).html" (#cp + #set), Oct 2026.
    ============================================================ */
 
 .dfc-root {
@@ -7299,7 +7299,7 @@ select {
 }
 
 /* ============================================================
-   The voice update — Talk view (.dfc-vs)  [reference "Dayflow
+   The voice update — Talk view (.dfc-vs)  [reference "Focus Triad
    (5).html" #vs / #ow / #wv2 / #vl / #cap / #try / #cmp / #trs]
    Dia's soul orb + live waveform + word-lit captions + the
    voice dock + the transcript sheet. All state lookups key off
@@ -7336,7 +7336,7 @@ select {
   display: none;
 }
 /* (state/mood --dfc-sl overrides removed — reference keeps --sl
-   constant; SoulOrb handles state colors inside the shader) */
+   constant; the crystal ball handles state colors inside the GL) */
 /* dark-mode soul colors are --df-vc-soul-* overrides in
    theme.css (.dark), so no per-state dark rules needed here. */
 
@@ -7387,7 +7387,7 @@ select {
   user-select: none;
 }
 /* the flowing-light ball's layer (reference #bw) — the canvas
-   SoulOrb appends here bleeds 10% past the glass so the glow
+   the crystal ball renders here bleeds 10% past the glass so the glow
    halos out like the reference */
 .dfc-bw {
   position: absolute;
@@ -8735,7 +8735,7 @@ select {
 
 /* ============================================================
    WELCOME SUITE — landing / auth / onboarding
-   (reference mockup "Dayflow (6)" welcome flow, ported into the
+   (reference mockup "Focus Triad (6)" welcome flow, ported into the
    dfw- namespace; the mockup's light/dark token set is bridged
    on .dfl, page background carries the time-of-day sky wash)
    ============================================================ */

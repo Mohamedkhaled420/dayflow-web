@@ -1,5 +1,5 @@
 // ============================================================
-// Dayflow AI — /api/client-errors (audit P0-4, in-house monitor)
+// Focus Triad — /api/client-errors (audit P0-4, in-house monitor)
 // ------------------------------------------------------------
 // Client-side errors (window.onerror, unhandledrejections, React
 // error boundaries) land here and are appended to error_events

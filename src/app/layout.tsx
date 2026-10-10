@@ -3,10 +3,10 @@ import { Nunito, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { DeferredToaster } from "@/components/ui/deferred-toaster";
 import { ThemeProvider } from "@/components/theme-provider";
-import { ServiceWorkerRegistrar } from "@/components/dayflow/ServiceWorkerRegistrar";
-import { ChromeThemeSync } from "@/components/dayflow/ChromeThemeSync";
-import { CircadianThemeSync } from "@/components/dayflow/CircadianThemeSync";
-import { ErrorReporter } from "@/components/dayflow/ErrorReporter";
+import { ServiceWorkerRegistrar } from "@/components/focus-triad/ServiceWorkerRegistrar";
+import { ChromeThemeSync } from "@/components/focus-triad/ChromeThemeSync";
+import { CircadianThemeSync } from "@/components/focus-triad/CircadianThemeSync";
+import { ErrorReporter } from "@/components/focus-triad/ErrorReporter";
 import { THEME_META_COLORS } from "@/styles/palette";
 
 const nunito = Nunito({
@@ -21,11 +21,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Dayflow — Your personal life tracker",
+  title: "Focus Triad — Your personal life tracker",
   description:
-    "Dayflow tracks what matters to you — workouts, work time, personal projects, sleep, water, and meals — as a clear daily timeline with habit streaks, weekly reviews, and a grounded chat. Local-first and privacy-focused.",
+    "Focus Triad tracks what matters to you — workouts, work time, personal projects, sleep, water, and meals — as a clear daily timeline with habit streaks, weekly reviews, and a grounded chat. Local-first and privacy-focused.",
   keywords: [
-    "Dayflow",
+    "Focus Triad",
     "habit tracker",
     "life tracker",
     "fitness log",
@@ -34,10 +34,10 @@ export const metadata: Metadata = {
     "time tracking",
     "weekly review",
   ],
-  authors: [{ name: "Dayflow" }],
+  authors: [{ name: "Focus Triad" }],
   appleWebApp: {
     capable: true,
-    title: "Dayflow",
+    title: "Focus Triad",
     // black-translucent: the installed app paints edge-to-edge (under the
     // notch / Dynamic Island); the mobile header already pads
     // var(--safe-area-top). ChromeThemeSync swaps this to "default"
@@ -52,10 +52,10 @@ export const metadata: Metadata = {
     apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
   },
   openGraph: {
-    title: "Dayflow — Your personal life tracker",
+    title: "Focus Triad — Your personal life tracker",
     description:
       "Workouts, work, sleep, water, and meals on one timeline. Habit streaks, weekly reviews, and chat with your data.",
-    siteName: "Dayflow",
+    siteName: "Focus Triad",
     type: "website",
   },
 };
@@ -95,7 +95,7 @@ export default function RootLayout({
             it owns the theme. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(()=>{try{var p=localStorage.getItem("dayflow-theme-pref");var s=localStorage.getItem("theme");if(p==="auto"||(!p&&!s)){var d=new Date();var h=d.getHours()+d.getMinutes()/60;var k=(h>=17||h<5)?"dark":"light";try{localStorage.setItem("theme",k);localStorage.setItem("dayflow-theme-pref","auto")}catch(e){}}}catch(e){}})();`,
+            __html: `(()=>{try{var M={"dayflow-theme-pref":"ft-theme-pref","dayflow-morning-triad-v1":"ft-morning-triad-v1","dayflow-sky-off":"ft-sky-off","dayflow-sky-preview":"ft-sky-preview","dayflow-haptics-off":"ft-haptics-off","dayflow-companion-progress-v1":"ft-companion-progress-v1","dayflow-sync-v1":"ft-sync-v1","dayflow.coach.turns.v1":"ft.coach.turns.v1","dayflow.coach.notes.v1":"ft.coach.notes.v1","dayflow:recent-blocks":"ft:recent-blocks","dayflow:meal-recents":"ft:meal-recents"};for(var k in M){var v=localStorage.getItem(k);if(v!==null&&localStorage.getItem(M[k])===null)localStorage.setItem(M[k],v);localStorage.removeItem(k)}}catch(e){}try{var p=localStorage.getItem("ft-theme-pref");var s=localStorage.getItem("theme");if(p==="auto"||(!p&&!s)){var d=new Date();var h=d.getHours()+d.getMinutes()/60;var k=(h>=17||h<5)?"dark":"light";try{localStorage.setItem("theme",k);localStorage.setItem("ft-theme-pref","auto")}catch(e){}}}catch(e){}})();`,
           }}
         />
         <ThemeProvider

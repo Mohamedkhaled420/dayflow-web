@@ -1,5 +1,5 @@
 // ============================================================
-// Dayflow AI — /api/health (audit P2: uptime monitoring target)
+// Focus Triad — /api/health (audit P2: uptime monitoring target)
 // ------------------------------------------------------------
 // Zero-auth liveness + readiness probe for uptime monitors
 // (UptimeRobot, Better Stack, Vercel cron …). Never leaks

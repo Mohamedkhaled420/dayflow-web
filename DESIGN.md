@@ -1,4 +1,4 @@
-# Dayflow AI — Design Contract (DESIGN.md)
+# Focus Triad — Design Contract (DESIGN.md)
 
 Phase 0 (Codify) deliverable. This document is binding for every agent session alongside the PRD (v6.2). Where the PRD speaks, the PRD wins; this file records how the PRD maps onto the codebase as it exists today, plus the extraction decisions that keep the shipped app pixel-stable during the transformation.
 
@@ -35,9 +35,9 @@ All visual decisions are semantic tokens (PRD §5.2). Raw hex/rgb values live in
 | `--ease-spring-critical` | Critically-damped spring easing (CSS approximation) |
 | `--duration-press` | Press feedback duration (120ms — see §4) |
 
-### 1.2 Legacy Dayflow tokens (`--df-*`, extraction-preserved)
+### 1.2 Legacy design tokens (`--df-*`, extraction-preserved — ported from the upstream Dayflow design system)
 
-The six shipped views still render the original Dayflow look. Their values were ported 1:1 from `globals.css` into `theme.css` — same names, same values, both themes. Groups: window background/border (`--df-window-*`), panel fills/borders/shadows (`--df-panel-*`), sidebar selection (`--df-sidebar-*`), text ramp (`--df-text-primary/secondary/tertiary/muted`), accent (`--df-accent`, `--df-accent-text`), controls (`--df-control-*`), segments (`--df-segment-*`), cards (`--df-card-*`), hour grid (`--df-hour-*`), right panel, summary cards, donut, buttons, chips, inputs, daily grid, chat surfaces, mobile nav, floating materials (`--df-material-*`, `--df-dock-*`).
+The six shipped views still render the original upstream Dayflow look. Their values were ported 1:1 from `globals.css` into `theme.css` — same names, same values, both themes. Groups: window background/border (`--df-window-*`), panel fills/borders/shadows (`--df-panel-*`), sidebar selection (`--df-sidebar-*`), text ramp (`--df-text-primary/secondary/tertiary/muted`), accent (`--df-accent`, `--df-accent-text`), controls (`--df-control-*`), segments (`--df-segment-*`), cards (`--df-card-*`), hour grid (`--df-hour-*`), right panel, summary cards, donut, buttons, chips, inputs, daily grid, chat surfaces, mobile nav, floating materials (`--df-material-*`, `--df-dock-*`).
 
 Phase 0 additions (values extracted verbatim from view code, now tokenized): `--df-white` (ink on accent fills), `--df-scrim` (dialog overlay), `--df-water-ink` (deep hydration accent), `--df-destructive` / `--df-destructive-text` / `--df-destructive-soft` (danger ramp), `--df-streak` / `--df-streak-fill` (habit-flame accents), radii (`--df-radius-panel/card/card-lg/control/btn/focus`), shadows (`--df-primary-btn-glow`, `--df-lift-shadow`, `--df-dock-shadow`), `--df-generating-bg` (shimmer gradient), and the brand mark set (`--df-logo-gradient/shadow/border/dot`).
 
@@ -51,11 +51,11 @@ Phase 0 additions (values extracted verbatim from view code, now tokenized): `--
 
 ### 1.4 Dual system & convergence plan
 
-The app currently ships a warm light-first Dayflow theme (`--df-*`, light default) while the PRD's §9.1 tokens are dark-first. Phase 0 is extraction-only: both systems coexist, zero visual drift. Convergence (later phase, human-approved): map legacy views onto §9.1 tokens (work→`accent-focus`, personal→`accent-craft`, fitness→`accent-fitness`, sleep→`accent-recovery`, water→`accent-hydration`) and add a light variant of the §9.1 ramp. "Meals" has no §9.1 accent yet — pending a PRD amendment.
+The app currently ships a warm light-first legacy theme (`--df-*`, light default, from the upstream Dayflow design system) while the PRD's §9.1 tokens are dark-first. Phase 0 is extraction-only: both systems coexist, zero visual drift. Convergence (later phase, human-approved): map legacy views onto §9.1 tokens (work→`accent-focus`, personal→`accent-craft`, fitness→`accent-fitness`, sleep→`accent-recovery`, water→`accent-hydration`) and add a light variant of the §9.1 ramp. "Meals" has no §9.1 accent yet — pending a PRD amendment.
 
 ### 1.5 Drift guards (CI-enforced)
 
-- **ESLint rule `dayflow/no-raw-colors`** (inline plugin in `eslint.config.mjs`): errors on any hex / `rgb()` / `hsl()` literal in `src/**/*.{ts,tsx}` string or template literals, except the files in §1.3.
+- **ESLint rule `focus-triad/no-raw-colors`** (inline plugin in `eslint.config.mjs`): errors on any hex / `rgb()` / `hsl()` literal in `src/**/*.{ts,tsx}` string or template literals, except the files in §1.3.
 - **`scripts/check-raw-colors.mjs`**: scans every `.css` under `src/` except `theme.css` for raw color literals.
 - Both are chained into `pnpm build` (`check-raw-colors && eslint . && next build`), so Vercel builds fail on drift.
 
@@ -277,7 +277,7 @@ reference them — so the rebrand landed atomically across all surfaces without
 touching view code. This is the "legacy convergence" conclusion (S3): every
 legacy surface resolves through tokens; zero raw color literals outside
 `theme.css` (enforced by `scripts/check-raw-colors.mjs` + ESLint
-`dayflow/no-raw-colors`; evidence in `docs/PHASE8_REMEDIATION.md`).
+`focus-triad/no-raw-colors`; evidence in `docs/PHASE8_REMEDIATION.md`).
 
 ### 7.1 Palette (light / dark)
 

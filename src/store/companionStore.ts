@@ -1,5 +1,5 @@
 // ============================================================
-// Dayflow — companion store (Dia's presence layer)
+// Focus Triad — companion store (Dia's presence layer)
 // ------------------------------------------------------------
 // Cross-component signal bus for the 3D companion: views push
 // events (coach streaming, PRs, goal rings closing) and the

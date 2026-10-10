@@ -1,5 +1,5 @@
 // ============================================================
-// Dayflow AI — circadian math (PRD §4.2, Phase 5 T1c)
+// Focus Triad — circadian math (PRD §4.2, Phase 5 T1c)
 // ------------------------------------------------------------
 // MCTQ-style heuristics over the profile's chronobiology
 // section. Given the natural wake time and the target sleep

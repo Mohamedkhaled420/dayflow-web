@@ -1,5 +1,5 @@
 // ============================================================
-// Dayflow AI — z.ai text client (Phase 10 Workouts)
+// Focus Triad — z.ai text client (Phase 10 Workouts)
 // ------------------------------------------------------------
 // Raw-fetch client for Z.ai's OpenAI-compatible chat endpoint,
 // used as the PRIMARY hop by /api/ai/workout-plan. Mirrors

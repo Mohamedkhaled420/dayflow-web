@@ -1,5 +1,5 @@
 // ============================================================
-// Dayflow — client quip engine (Dia's LLM personality)
+// Focus Triad — client quip engine (Dia's LLM personality)
 // ------------------------------------------------------------
 // Two-tier quips: an instant static line (from moods.ts) so the
 // bubble NEVER feels dead, upgraded in-place by an LLM line from

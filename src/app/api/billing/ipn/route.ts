@@ -1,5 +1,5 @@
 // ============================================================
-// Dayflow AI — /api/billing/ipn (audit P0-6)
+// Focus Triad — /api/billing/ipn (audit P0-6)
 // ------------------------------------------------------------
 // The NOWPayments webhook. Verifies the x-nowpayments-sig header
 // (HMAC-SHA512 with the IPN secret) with a timing-safe compare,

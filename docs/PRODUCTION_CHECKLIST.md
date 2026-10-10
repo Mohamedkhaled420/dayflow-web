@@ -1,4 +1,4 @@
-# Dayflow AI — Production Readiness Checklist (Phase 6, T4)
+# Focus Triad — Production Readiness Checklist (Phase 6, T4)
 
 **Verification environment:** production build (`next build && next start`) on Node 22, live Supabase project `fqxahjzdlowadjmjfsey.supabase.co` (ACTIVE_HEALTHY, us-east-1), real authenticated sessions, Management-API (PAT) inspection for RLS/server-side state. Every checkbox below cites its evidence.
 
@@ -24,7 +24,7 @@
 - [x] Empty state (new user, no habits/logs) — Timeline shows "Nothing tracked yet — Tap Log above to add sleep or a workout."; goals render zeroed rings with CTAs ("Add glass"); Habits grid renders only the inline add row; verified with a freshly onboarded account (screenshot `empty-state-new-user.png`).
 - [x] Offline mode boots from the SW cache — network disabled at the browser level, reload still renders the app shell + Timeline from the service worker (app-shell precache from Phase 4). Writes queue as optimistic local state and sync when back online (delta sync pulls on boot; `last_sync_timestamp` updated).
 - [x] Slow network / optimistic writes — hydration, habit completion, journal saves, and workout logs render immediately (local IndexedDB store) with Supabase confirming afterward (201/204 observed after the UI update); the profiles PATCH updating `last_sync_timestamp` observed on every write.
-- [x] Concurrent edits / Delta Sync — boot sequence rehydrates the IndexedDB snapshot, then pulls server deltas (`bootDayflowSync`); every write path updates `last_sync_timestamp` (PATCH 204 verified on all writes). Last-writer-wins per row is the shipped model; no data loss observed in single-user and two-user team testing.
+- [x] Concurrent edits / Delta Sync — boot sequence rehydrates the IndexedDB snapshot, then pulls server deltas (`bootFocus TriadSync`); every write path updates `last_sync_timestamp` (PATCH 204 verified on all writes). Last-writer-wins per row is the shipped model; no data loss observed in single-user and two-user team testing.
 
 ## 4. Performance
 
@@ -52,7 +52,7 @@
 ## 6. Remaining pre-ship actions (owner)
 
 1. **Set `GROQ_API_KEY` in Vercel** (Production + Preview) — unlocks live-model journal/coaching/workout/recap; re-run `AI_TEST_LOG.md` prompts afterward (harness: `scripts/ai_test.mjs`, QA-side).
-2. **Enable the WebAuthn factor in Supabase Auth** (RP ID = `dayflow-web.vercel.app`) so "Continue with Face ID" completes instead of falling back (the fallback chain itself is verified and safe).
+2. **Enable the WebAuthn factor in Supabase Auth** (RP ID = `focus-triad-web.vercel.app`) so "Continue with Face ID" completes instead of falling back (the fallback chain itself is verified and safe).
 3. **Palette decision for light-theme AA contrast** (A-1…A-3 in `ACCESSIBILITY_AUDIT.md`) — dark theme already conforms.
 4. Optional follow-ups: add sign-out (F-3), fix the sign-up error-message order (F-4), weekly heatmap interactivity + labels (A-4), `aria-busy` on Ask Coach (A-5), `aria-current="page"` (A-6).
 5. **Rotate credentials exposed during development** (GitHub PAT, Supabase PAT) per the rotation ledger.

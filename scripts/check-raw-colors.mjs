@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // ============================================================
-// check-raw-colors.mjs — Dayflow drift guard (PRD §5.2 / DESIGN.md §1.5)
+// check-raw-colors.mjs — Focus Triad drift guard (PRD §5.2 / DESIGN.md §1.5)
 // Fails the build when any stylesheet under src/ contains raw
 // hex / rgb() / hsl() literals outside src/styles/theme.css.
 // Chained into `pnpm build` before eslint and next build.
@@ -40,7 +40,7 @@ for (const file of walk(SRC)) {
 
 if (violations.length > 0) {
   console.error(
-    "✗ dayflow drift guard: raw color literals found outside src/styles/theme.css"
+    "✗ focus-triad drift guard: raw color literals found outside src/styles/theme.css"
   );
   console.error(
     "  (category DATA colors belong in src/styles/palette.ts — see DESIGN.md §1.3)\n"

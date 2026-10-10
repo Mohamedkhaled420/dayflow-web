@@ -1,5 +1,5 @@
 // ============================================================
-// Dayflow Coach Text Utilities — Render-time sanitization
+// Focus Triad Coach Text Utilities — Render-time sanitization
 // ------------------------------------------------------------
 // Strips reasoning/think blocks from AI coach responses at render time.
 // This provides a safety net for:

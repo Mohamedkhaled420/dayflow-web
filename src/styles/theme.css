@@ -1,11 +1,11 @@
 /* ============================================================
-   Dayflow AI — design tokens (PRD §9.1 + legacy extraction)
+   Focus Triad — design tokens (PRD §9.1 + legacy extraction)
    ------------------------------------------------------------
    Structure:
    1. PRD v6.2 §9.1 @theme block — VERBATIM, do not edit.
       These are the product's semantic tokens (dark-first).
    2. shadcn utility mapping (@theme inline) — var() refs only.
-   3. Legacy Dayflow tokens (:root / .dark) — every raw color
+   3. Legacy Focus Triad tokens (:root / .dark) — every raw color
       extracted from globals.css so it is the ONLY stylesheet
       allowed to hold literal color values (PRD §5.2).
 
@@ -107,7 +107,7 @@
 }
 
 /* ============================================================
-   3. Dayflow tokens — Phase 10 "Lively Pastel" values
+   3. Focus Triad tokens — Phase 10 "Lively Pastel" values
    Light values in :root, dark values in .dark.
    Every literal color used by the app lives HERE.
    ============================================================ */
@@ -144,7 +144,7 @@
   --sidebar-border: rgba(255, 255, 255, 0.45);
   --sidebar-ring: #6366f1;
 
-  /* --- Dayflow light theme (Lively Pastel — periwinkle day) --- */
+  /* --- Focus Triad light theme (Lively Pastel — periwinkle day) --- */
   --df-window-bg: #a5b4fc;
   --df-window-border: #8b93f2;
   /* Color-only shadow tints — composed with offsets at the call
@@ -455,7 +455,7 @@
 
   /* ============================================================
      Phase 14 — "Living Pastel Sky" value remap (reference
-     "Dayflow (4).html", 2026-10). Same frozen-token discipline:
+     "Focus Triad (4).html", 2026-10). Same frozen-token discipline:
      only VALUES change. Direction: warm ivory window (#FFFBF3)
      under a DYNAMIC time-of-day gradient (see --df-sky-* below),
      translucent white-glass cards (.68), violet-neutral hairlines,
@@ -676,7 +676,7 @@
      SkySync sets <html data-sky="morning|day|evening|night"> from
      the user's clock (re-checked on every interval tick + app
      resume); the bucket blocks below retune the four stops.
-     Buckets follow the reference (Dayflow (4).html):
+     Buckets follow the reference (Focus Triad (4).html):
        morning  5–11   lemon → powder → rose → orchid
        day     11–17   frosted-blue → aqua → aquamarine → celadon
        evening 17–21   powder → rose → orchid → mauve
@@ -713,7 +713,7 @@
   --df-p-celadon: #b9fbc0;
   --df-p-slate: #9a98aa;
 
-  /* Phase 16: the voice/Talk view — soul-orb state colors
+  /* Phase 16: the voice/Talk view — crystal ball state colors
      (reference CBC), orb glass composites, and mic glyph inks.
      Raw literals live HERE only; globals.css stays guard-clean. */
   --df-vc-soul-idle: #9477d4;
@@ -781,7 +781,7 @@
 }
 
 /* ---- Phase 14 sky buckets (hour-of-day palettes, reference
-     “Dayflow (4).html” frame scripts) ---- */
+     “Focus Triad (4).html” frame scripts) ---- */
 :root[data-sky="morning"] {
   --df-sky-g1: #fbf8cc; /* lemon chiffon */
   --df-sky-g2: #fde4cf; /* powder petal */
@@ -837,7 +837,7 @@
   --sidebar-border: #3a3360;
   --sidebar-ring: #a5b4fc;
 
-  /* --- Dayflow dark theme (deep plum, pastel accents) --- */
+  /* --- Focus Triad dark theme (deep plum, pastel accents) --- */
   --df-window-bg: #1e1b2e;
   --df-window-border: #3a3360;
   --df-panel-fill: #2a2547;
@@ -1335,7 +1335,7 @@
 
 /* ============================================================
    Welcome suite (landing / auth / onboarding / reset) —
-   reference "Dayflow (6)" welcome flow, ported verbatim.
+   reference "Focus Triad (6)" welcome flow, ported verbatim.
    The .dfw scope in globals.css reads ONLY these tokens
    (drift-guard clean); light values are the reference's :root,
    dark values its [data-theme="dark"] block.

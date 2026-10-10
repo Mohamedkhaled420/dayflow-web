@@ -1,5 +1,5 @@
 // ============================================================
-// Dayflow AI — food estimation route (Phase 9 Nutrition, PRD §4.6)
+// Focus Triad — food estimation route (Phase 9 Nutrition, PRD §4.6)
 // ------------------------------------------------------------
 // Cal AI-style calorie + macro estimation. Accepts EITHER a food
 // photo (base64) OR a free-text description, and returns one

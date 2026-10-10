@@ -1,7 +1,7 @@
 "use client";
 
 // ============================================================
-// Dayflow AI — LogoLoop (Phase 6.5 / B3)
+// Focus Triad — LogoLoop (Phase 6.5 / B3)
 // ------------------------------------------------------------
 // Indeterminate loader built from the brand mark: a 69% arc of
 // the ring rotating 360deg every 1.4s (transform-only) plus the

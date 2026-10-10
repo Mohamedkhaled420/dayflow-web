@@ -1,6 +1,6 @@
-# Dayflow Media Asset Manifest
+# Focus Triad Media Asset Manifest
 
-Everything needed to fill Dayflow with beautiful, consistent visuals —
+Everything needed to fill Focus Triad with beautiful, consistent visuals —
 designed for generation with **Nano Banana Pro 2** (or any image model).
 Drop finished files into `public/media/…`, run one command, and they
 appear across the app. Nothing ships until its file exists, so partial
@@ -300,7 +300,7 @@ Used as the fallback tile + filter headers. Prompt = **STYLE PREFIX**
 
 | Filename | Size | Subject |
 |---|---|---|
-| `coach-avatar` | 768×768 | friendly clay owl with headphones (the Dayflow coach), periwinkle + accent blue |
+| `coach-avatar` | 768×768 | friendly clay owl with headphones (the Focus Triad coach), periwinkle + accent blue |
 | `coach-thinking` | 768×768 | owl with floating gears/sparkles — "generating" state |
 | `coach-insight` | 900×700 | clay lightbulb over a tiny progress chart |
 | `routine-generated` | 900×700 | clay clipboard with checkmarks + dumbbell, coral confetti |

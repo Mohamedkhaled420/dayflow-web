@@ -1,0 +1,9 @@
+/* CrystalizedBall — layout only (colors are generated in GLSL from
+ * the preset DATA in CrystalizedBall.tsx; the drift guard exempts
+ * that file for the same reason it exempts palette.ts). */
+.crystalized-ball {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}

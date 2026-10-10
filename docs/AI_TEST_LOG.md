@@ -1,4 +1,4 @@
-# Dayflow AI — AI Feature Test Log (Phase 6, T2)
+# Focus Triad — AI Feature Test Log (Phase 6, T2)
 
 **Endpoint under test:** `POST /api/ai/coach` (JWT-gated, Zod-validated request body, Groq cascade per Amendment #16, algorithmic floor as last resort).
 **Runner:** `/home/z/my-project/scripts/ai_test.mjs` (repository-external QA harness; prompts sent verbatim from the Phase 6 brief).

@@ -1,5 +1,5 @@
 // ============================================================
-// Dayflow — companion progression (Dia's XP & evolution math)
+// Focus Triad — companion progression (Dia's XP & evolution math)
 // ------------------------------------------------------------
 // Pure functions for the companion's growth system. No React, no
 // three.js, no store — the persisted state lives in

@@ -1,10 +1,10 @@
 // ============================================================
-// Dayflow AI — view-model adapter (Phase 5 T0)
+// Focus Triad — view-model adapter (Phase 5 T0)
 // ------------------------------------------------------------
 // The legacy mock store (src/lib/store.ts — deleted in this
-// phase) fed the six views a local-only DayflowData shape.
+// phase) fed the six views a local-only FocusTriadData shape.
 // This module derives the SAME shapes from the Delta Sync store
-// (src/store/useDayflowStore.ts), which mirrors the Supabase
+// (src/store/useFocusTriadStore.ts), which mirrors the Supabase
 // schema, so every view keeps its selectors while reading and
 // writing through the server-backed store:
 //
@@ -15,7 +15,7 @@
 //   water     <- hydration_logs as timeline markers
 //   categories<- the fixed system category set (palette data)
 //
-// Every write path goes through useDayflowStore actions
+// Every write path goes through useFocusTriadStore actions
 // (optimistic IndexedDB append -> Supabase insert -> cursor bump).
 // ============================================================
 
@@ -23,15 +23,15 @@
 
 import { useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { useDayflowStore } from "@/store/useDayflowStore";
+import { useFocusTriadStore } from "@/store/useFocusTriadStore";
 import type {
   ActivityLogRow,
   HydrationLogRow,
   ProfileRow,
   SleepLogRow,
   WorkoutLogRow,
-} from "@/store/useDayflowStore";
-import type { Category, DayflowData, Goals, Profile, TrackEvent, WaterEntry } from "./types";
+} from "@/store/useFocusTriadStore";
+import type { Category, FocusTriadData, Goals, Profile, TrackEvent, WaterEntry } from "./types";
 import { DEFAULT_CATEGORIES } from "./seed";
 import { CATEGORY_COLORS } from "@/styles/palette";
 import { parseExercises, summarizeWorkout } from "./workout";
@@ -221,16 +221,16 @@ export function hydrationToWater(row: HydrationLogRow): WaterEntry {
 // ---------- hooks (drop-in replacements for the legacy store's) ----------
 
 /**
- * The full derived data slice, in the exact legacy DayflowData
+ * The full derived data slice, in the exact legacy FocusTriadData
  * shape every view + compute.ts already consume. Recomputed only
  * when one of the mirrored row arrays changes (useShallow).
  */
-export function useDayflowData(): DayflowData {
-  const profileRow = useDayflowStore((s) => s.profile);
-  const sleepLogs = useDayflowStore((s) => s.sleepLogs);
-  const workoutLogs = useDayflowStore((s) => s.workoutLogs);
-  const hydrationLogs = useDayflowStore((s) => s.hydrationLogs);
-  const activityLogs = useDayflowStore((s) => s.activityLogs);
+export function useFocusTriadData(): FocusTriadData {
+  const profileRow = useFocusTriadStore((s) => s.profile);
+  const sleepLogs = useFocusTriadStore((s) => s.sleepLogs);
+  const workoutLogs = useFocusTriadStore((s) => s.workoutLogs);
+  const hydrationLogs = useFocusTriadStore((s) => s.hydrationLogs);
+  const activityLogs = useFocusTriadStore((s) => s.activityLogs);
 
   return useMemo(() => {
     const events = [

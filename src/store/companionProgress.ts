@@ -1,5 +1,5 @@
 // ============================================================
-// Dayflow — companion progress store (Dia's XP, unlocks, memory)
+// Focus Triad — companion progress store (Dia's XP, unlocks, memory)
 // ------------------------------------------------------------
 // Persisted to localStorage (zustand persist) — companion
 // progression is a PRESENCE-layer concern, not health data, so it
@@ -198,7 +198,7 @@ export const useCompanionProgress = create<CompanionProgressState>()(
         }),
     }),
     {
-      name: "dayflow-companion-progress-v1",
+      name: "ft-companion-progress-v1",
       version: 1,
     }
   )

@@ -1,12 +1,12 @@
 // ============================================================
-// Dayflow AI — category & brand DATA colors
+// Focus Triad — category & brand DATA colors
 // ------------------------------------------------------------
 // These are NOT design tokens (PRD §5.2 / DESIGN.md §1):
 // category colors are user-editable DATA — they are persisted
 // in the store, rendered into SVG fills, and picked from the
 // Settings palette popover. Raw hex is therefore allowed HERE
 // and nowhere else outside src/styles/theme.css (enforced by
-// the `dayflow/no-raw-colors` ESLint rule + check-raw-colors
+// the `focus-triad/no-raw-colors` ESLint rule + check-raw-colors
 // build script, both of which exempt this file).
 //
 // Single source of truth: seed defaults, compute fallbacks,
@@ -17,7 +17,7 @@
 import type { GoalProgress } from "@/lib/types";
 
 /** Default colors for the six goal categories + leisure.
- *  Living Pastel Sky family (Phase 14, reference "Dayflow (4).html"):
+ *  Living Pastel Sky family (Phase 14, reference "Focus Triad (4).html"):
  *  the reference CAT palette — soft pastels that read as timeline
  *  EVENT fills on the ivory window (#FFFBF3). Text/dot art on top
  *  of these uses the 60/40 ink mix (see components) so nothing

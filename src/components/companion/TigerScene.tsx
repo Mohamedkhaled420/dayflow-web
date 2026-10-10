@@ -1,7 +1,7 @@
 "use client";
 
 // ============================================================
-// Dayflow — TigerScene (Dia's 3D body, Phase: Companion)
+// Focus Triad — TigerScene (Dia's 3D body, Phase: Companion)
 // ------------------------------------------------------------
 // Renders the white-tiger GLB (860KB, meshopt-compressed, 67k
 // tris) inside a small transparent R3F canvas. The source model
@@ -222,7 +222,7 @@ export default function TigerScene({
   stage: CompanionStage;
 }) {
   // Warm key light (theme ivory) + cool rim (the app's water blue) —
-  // palette-sourced so she always feels part of Dayflow.
+  // palette-sourced so she always feels part of Focus Triad.
   const keyColor = useMemo(() => new THREE.Color(COMPANION_LIGHTS.keyLight), []);
   const rimColor = useMemo(() => new THREE.Color(COMPANION_LIGHTS.rimLight), []);
 

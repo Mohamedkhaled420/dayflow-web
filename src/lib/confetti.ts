@@ -1,6 +1,6 @@
 // confetti — the meal flow's save flourish (Phase 12c).
 // A 22-particle burst from the kcal ring's center, matching the
-// "Dayflow — Log a meal" reference. Colors are palette DATA (never
+// "Focus Triad — Log a meal" reference. Colors are palette DATA (never
 // literals); reduced-motion users get a clean no-op.
 
 import { CATEGORY_COLORS, MACRO_COLORS } from "@/styles/palette";

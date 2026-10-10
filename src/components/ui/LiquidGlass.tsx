@@ -1,7 +1,7 @@
 "use client";
 
 // ============================================================
-// Dayflow AI — Liquid Glass v2 (T1 primitive, PRD §6.2)
+// Focus Triad — Liquid Glass v2 (T1 primitive, PRD §6.2)
 // ------------------------------------------------------------
 // Web port of the iOS 26 "Liquid Glass" material. The component
 // API is modeled on @callstack/liquid-glass (the React Native

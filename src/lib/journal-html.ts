@@ -1,5 +1,5 @@
 // ============================================================
-// Dayflow AI — journal rich-text helpers (Phase 8, decision 1)
+// Focus Triad — journal rich-text helpers (Phase 8, decision 1)
 // ------------------------------------------------------------
 // Journal entries are authored in a contentEditable composer
 // (document.execCommand — deprecated but dependency-free and

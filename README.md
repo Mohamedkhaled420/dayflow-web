@@ -1,10 +1,10 @@
-# Dayflow Web — Personal Life Tracker
+# Focus Triad — Personal Life Tracker
 
 A private, customizable life tracker — on the web.
 
-This is a web edition of [Dayflow](https://github.com/JerryZLiu/Dayflow), rebuilt with its UI design system (warm light palette, dusk dark palette, glass panels, category donut) using Next.js 16, TypeScript, and Tailwind CSS 4 — and tailored to personal goals instead of screen capture: **fitness, work time, personal project time, sleep, water, and food**.
+Focus Triad (formerly Dayflow Web) is built on the UI design system of the open-source [Dayflow](https://github.com/JerryZLiu/Dayflow) macOS app (warm light palette, dusk dark palette, glass panels, category donut) using Next.js 16, TypeScript, and Tailwind CSS 4 — and tailored to personal goals instead of screen capture: **fitness, work time, personal project time, sleep, water, and food**.
 
-![Dayflow Web](https://github.com/JerryZLiu/Dayflow/raw/main/docs/images/dayflow_header.png)
+![Focus Triad](https://github.com/JerryZLiu/Dayflow/raw/main/docs/images/dayflow_header.png)
 
 ## What's included
 
@@ -97,9 +97,9 @@ src/
   app/
     page.tsx              # AppShell entry
     layout.tsx            # Figtree font, theme provider, metadata
-    globals.css           # Dayflow design tokens (light + dark), ported 1:1 from DayflowTheme.swift
+    globals.css           # Design tokens (light + dark), ported 1:1 from the upstream DayflowTheme.swift
     api/chat/route.ts     # Tracker-grounded chat + optional OpenAI/Gemini passthrough
-  components/dayflow/     # Views: Timeline, Daily, Weekly, Habits, Chat, Settings, EventDialog, DonutChart
+  components/focus-triad/ # Views: Timeline, Daily, Weekly, Habits, Chat, Settings, EventDialog, DonutChart
   lib/
     types.ts              # Domain types (map 1:1 to supabase/schema.sql)
     seed.ts               # Deterministic 7-day mock data provider
@@ -112,8 +112,8 @@ supabase/
 
 - **No database required** — mock data persists locally via zustand.
 - **Chat** answers locally from your tracker context. Add an OpenAI or Gemini key in Settings for live LLM answers; the key stays in your browser and is only sent to the provider.
-- **Design tokens** are CSS variables (`--df-*`) generated from the native app's `DayflowTheme.swift`, so both appearances match the Mac app exactly.
+- **Design tokens** are CSS variables (`--df-*`) generated from the upstream app's `DayflowTheme.swift`, so both appearances match the original design exactly.
 
 ## License & attribution
 
-The original Dayflow Mac app is MIT-licensed, © Jerry Liu. This web port keeps the same spirit — all design tokens and copy are derived from the upstream project.
+The original Dayflow Mac app is MIT-licensed, © Jerry Liu. Focus Triad keeps the same spirit — the design tokens are derived from the upstream project; Focus Triad is an independent app.

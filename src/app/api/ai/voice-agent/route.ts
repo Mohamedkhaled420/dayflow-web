@@ -1,5 +1,5 @@
 // ============================================================
-// Dayflow AI — Voice agent WebSocket relay (Deepgram v1/converse)
+// Focus Triad — Voice agent WebSocket relay (Deepgram v1/converse)
 // ------------------------------------------------------------
 // WHY A RELAY: the live Deepgram Voice Agent endpoint
 // (wss://agent.deepgram.com/v1/agent/converse) authenticates via
@@ -154,7 +154,7 @@ async function verifyRequester(): Promise<string | null> {
 function diaPrompt(name: string, ctx: string): string {
   const lines = [
     "# Role",
-    "You are Dia, the warm voice companion inside Dayflow — a calm, private life-tracking app.",
+    "You are Dia, the warm voice companion inside Focus Triad — a calm, private life-tracking app.",
     "You are speaking ALOUD over a phone-like voice call with the user. Everything you say is synthesized to speech.",
     "",
     "# Voice rules",

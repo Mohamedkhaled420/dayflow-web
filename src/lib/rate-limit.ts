@@ -1,5 +1,5 @@
 // ============================================================
-// Dayflow AI — durable per-user rate limiting (audit P0-5)
+// Focus Triad — durable per-user rate limiting (audit P0-5)
 // ------------------------------------------------------------
 // Serverless-safe replacement for the old in-memory Map (which
 // reset on every lambda cold start). The counter lives in

@@ -1,5 +1,5 @@
 // ============================================================
-// Dayflow AI — mic capture AudioWorklet processor
+// Focus Triad — mic capture AudioWorklet processor
 // ------------------------------------------------------------
 // Loaded same-origin by src/lib/voice-agent.ts via
 // audioWorklet.addModule("/voice-capture-worklet.js").

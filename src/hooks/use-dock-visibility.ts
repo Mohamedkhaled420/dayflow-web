@@ -1,7 +1,7 @@
 "use client";
 
 // ============================================================
-// Dayflow AI — dock visibility (Phase 8 / S2, WS4)
+// Focus Triad — dock visibility (Phase 8 / S2, WS4)
 // ------------------------------------------------------------
 // Rule A (overlay floats): sheets/dialogs paint ABOVE the dock
 //   (z-60 overlays, z-100 toasts — F-1 hotfix, unchanged).

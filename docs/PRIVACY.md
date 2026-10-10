@@ -1,4 +1,4 @@
-# Dayflow AI — Privacy Suite (Phase 8 / S5)
+# Focus Triad — Privacy Suite (Phase 8 / S5)
 
 **Status:** export = shipped (verified in Phase 6 QA). Delete-account = RPC
 proposal below, awaiting the schema owner (Claude + Supabase MCP) to land it
@@ -12,9 +12,9 @@ as a migration. Nothing in this doc grants the client any privileged path —
 | Store | Contents | Scope |
 |---|---|---|
 | Supabase Postgres (`Mohamedkhaled420` project) | profiles, habits, habit_logs, hydration_logs, workout_logs, sleep_logs, journal_entries, teams, team_invites, team_activities | per-user rows, **owner-only RLS** on every table (migration `0002`); journal additionally never enters team_activities (privacy wall, PRD §2) |
-| Browser IndexedDB (`dayflow-sync-v1`) | the local mirror of the rows above (zustand persist + idb-keyval) | this browser only; wiped by Sign out or Reset local cache |
+| Browser IndexedDB (`ft-sync-v1`) | the local mirror of the rows above (zustand persist + idb-keyval) | this browser only; wiped by Sign out or Reset local cache |
 | localStorage | morning-triad day-record, theme preference | this browser only |
-| Groq API | transient request bodies (journal context / prompts) — no accounts, no storage we control | never persisted by Dayflow |
+| Groq API | transient request bodies (journal context / prompts) — no accounts, no storage we control | never persisted by Focus Triad |
 
 ## 2. Export coverage (shipped)
 

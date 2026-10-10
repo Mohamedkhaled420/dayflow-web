@@ -1,5 +1,5 @@
 // ============================================================
-// Dayflow — Dia's cosmetics & evolution auras (three.js)
+// Focus Triad — Dia's cosmetics & evolution auras (three.js)
 // ------------------------------------------------------------
 // Procedural accessories worn by the white tiger. The GLB has no
 // rig, so everything here is built from primitives and parented

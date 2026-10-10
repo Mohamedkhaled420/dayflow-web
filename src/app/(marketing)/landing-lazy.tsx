@@ -8,7 +8,7 @@ import dynamic from "next/dynamic";
 // app shell's initial JS (Phase 6.5 bundle budget, kept).
 // ssr:true keeps the copy server-rendered for crawlers.
 const LandingView = dynamic(
-  () => import("@/components/dayflow/landing/LandingView").then((m) => m.LandingView),
+  () => import("@/components/focus-triad/landing/LandingView").then((m) => m.LandingView),
 );
 
 export function LandingLazy() {

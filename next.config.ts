@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 // ============================================================
-// Dayflow AI — security headers (audit P0-3)
+// Focus Triad — security headers (audit P0-3)
 // ------------------------------------------------------------
 // Belt-and-braces baseline: HSTS, nosniff, frame denial,
 // referrer trimming, a permissions policy that only ever

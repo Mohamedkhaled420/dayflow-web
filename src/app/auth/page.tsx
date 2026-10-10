@@ -1,7 +1,7 @@
 "use client";
 
 // ============================================================
-// Dayflow AI — auth page (reference mockup "Dayflow (6)"
+// Focus Triad — auth page (reference mockup "Focus Triad (6)"
 // authHTML, ported 1:1 + real Supabase wiring)
 // ------------------------------------------------------------
 // Email + password only (Google OAuth dropped — not configured
@@ -25,8 +25,8 @@ import { FormEvent, Suspense, useEffect, useMemo, useRef, useState } from "react
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
-import { DayflowLogo } from "@/components/brand/DayflowLogo";
-import { SkySync } from "@/components/dayflow/SkySync";
+import { FocusTriadLogo } from "@/components/brand/FocusTriadLogo";
+import { SkySync } from "@/components/focus-triad/SkySync";
 import { passkeysServerEnabled, signInWithPasskey } from "@/lib/passkeys";
 import { haptic } from "@/lib/haptics";
 
@@ -259,7 +259,7 @@ function AuthView() {
           <Link className="dfl-back" href="/" aria-label="Back">
             ‹
           </Link>
-          <DayflowLogo
+          <FocusTriadLogo
             live
             spin={logoSpin}
             jump={logoJump > 0}

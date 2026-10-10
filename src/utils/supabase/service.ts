@@ -1,5 +1,5 @@
 // ============================================================
-// Dayflow AI — service-role Supabase client (server only)
+// Focus Triad — service-role Supabase client (server only)
 // ------------------------------------------------------------
 // Used exclusively by serverless routes that MUST write past
 // RLS (the NOWPayments IPN webhook). Returns null when the key

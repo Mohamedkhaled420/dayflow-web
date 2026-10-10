@@ -1,7 +1,7 @@
 "use client";
 
 // ============================================================
-// Dayflow AI — onboarding (reference mockup "Dayflow (6)" obHTML,
+// Focus Triad — onboarding (reference mockup "Focus Triad (6)" obHTML,
 // ported 1:1 + the app's profile data contract)
 // ------------------------------------------------------------
 // The reference's 4-step flow:
@@ -21,8 +21,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { DayflowLogo } from "@/components/brand/DayflowLogo";
-import { SkySync } from "@/components/dayflow/SkySync";
+import { FocusTriadLogo } from "@/components/brand/FocusTriadLogo";
+import { SkySync } from "@/components/focus-triad/SkySync";
 import { computeCircadianZones, deriveChronotype } from "@/lib/circadian";
 import { haptic } from "@/lib/haptics";
 
@@ -146,7 +146,7 @@ export default function OnboardingPage() {
 
       const identity = {
         ...((existing?.identity as Record<string, unknown> | null) ?? {}),
-        displayName: name.trim() || user.email?.split("@")[0] || "Dayflow user",
+        displayName: name.trim() || user.email?.split("@")[0] || "Focus Triad user",
         timezone: timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
         createdAt:
           (existing?.identity as { createdAt?: string } | null)?.createdAt ?? now,
@@ -310,7 +310,7 @@ export default function OnboardingPage() {
         {step === 3 ? (
           /* ---------- the build screen ---------- */
           <div className="dfl-bd">
-            <DayflowLogo spin className="dfl-lgx" />
+            <FocusTriadLogo spin className="dfl-lgx" />
             <h1>Building your day</h1>
             <p className="dfl-bt">
               {buildLine === 4
@@ -337,7 +337,7 @@ export default function OnboardingPage() {
               <button type="button" className="dfl-back" onClick={back} aria-label="Back">
                 ‹
               </button>
-              <DayflowLogo progress={step + 1} className="dfl-lgp" />
+              <FocusTriadLogo progress={step + 1} className="dfl-lgp" />
               <span style={{ width: 44 }} />
             </div>
 

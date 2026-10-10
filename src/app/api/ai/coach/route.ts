@@ -1,5 +1,5 @@
 // ============================================================
-// Dayflow AI — JWT-gated coach route (PRD §10.3 / Amendment #12)
+// Focus Triad — JWT-gated coach route (PRD §10.3 / Amendment #12)
 // ------------------------------------------------------------
 // Auth, in order:
 //   1. Authorization: Bearer <token> when present (401 only if

@@ -1,5 +1,5 @@
 // ============================================================
-// Dayflow AI — Groq core client (PRD §10.2, raw fetch, zero SDK)
+// Focus Triad — Groq core client (PRD §10.2, raw fetch, zero SDK)
 // ------------------------------------------------------------
 // Raw fetch only: no SDK imports, no Vercel AI Gateway. Model IDs
 // come exclusively from src/lib/groq-models.ts (Amendment #13).

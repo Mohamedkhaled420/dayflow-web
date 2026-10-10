@@ -1,5 +1,5 @@
 // ============================================================
-// Dayflow AI — Apple Shortcuts ingest webhook (PRD §10.4)
+// Focus Triad — Apple Shortcuts ingest webhook (PRD §10.4)
 // ------------------------------------------------------------
 // Edge runtime (zero cold starts), native Request/Response objects
 // only — NO node-fetch import. Auth is the Supabase Auth JWT the

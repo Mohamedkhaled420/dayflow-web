@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // ============================================================
-// Dayflow AI — Liquid Glass map generator v2 (SDF optics)
+// Focus Triad — Liquid Glass map generator v2 (SDF optics)
 // ------------------------------------------------------------
 // Emits per-pixel optics maps as inline PNG data-URLs for the
 // LiquidGlassView component (web port of the iOS 26 Liquid

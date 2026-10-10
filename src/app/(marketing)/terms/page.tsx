@@ -3,7 +3,7 @@ import Link from "next/link";
 import "@/styles/legal.css";
 
 // ============================================================
-// Dayflow AI — Terms of Service (audit P0-2)
+// Focus Triad — Terms of Service (audit P0-2)
 // ------------------------------------------------------------
 // Public, static, signed-out reachable. Plain-language terms
 // that match the product: a self-tracking tool, not a medical
@@ -11,9 +11,9 @@ import "@/styles/legal.css";
 // ============================================================
 
 export const metadata: Metadata = {
-  title: "Terms of Service — Dayflow",
+  title: "Terms of Service — Focus Triad",
   description:
-    "The terms for using Dayflow: what the service is, what you agree to, how billing works, and the limits of liability.",
+    "The terms for using Focus Triad: what the service is, what you agree to, how billing works, and the limits of liability.",
   robots: { index: true, follow: true },
 };
 
@@ -32,7 +32,7 @@ export default function TermsPage() {
                 strokeLinecap="round"
               />
             </svg>
-            Dayflow
+            Focus Triad
           </Link>
           <Link href="/" className="legal-back">
             <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
@@ -52,9 +52,9 @@ export default function TermsPage() {
         <h1>Terms of Service</h1>
         <p className="legal-updated">Last updated: October 10, 2026</p>
 
-        <h2>1. What Dayflow is</h2>
+        <h2>1. What Focus Triad is</h2>
         <p>
-          Dayflow is a personal life-tracking application: timelines, logs,
+          Focus Triad is a personal life-tracking application: timelines, logs,
           habit streaks, reviews, and an AI coach grounded in what you record.
           By creating an account (or continuing as a guest) you agree to these
           terms. If you don&rsquo;t agree, please don&rsquo;t use the service —
@@ -73,7 +73,7 @@ export default function TermsPage() {
 
         <h2>3. Acceptable use</h2>
         <ul>
-          <li>Use Dayflow lawfully and only for your own tracking.</li>
+          <li>Use Focus Triad lawfully and only for your own tracking.</li>
           <li>
             Don&rsquo;t attempt to access other users&rsquo; data, probe or
             break the service, or automate abuse of the AI coach or voice
@@ -102,7 +102,7 @@ export default function TermsPage() {
 
         <h2>5. Billing</h2>
         <p>
-          The core of Dayflow is free. If you choose a paid plan (Dayflow
+          The core of Focus Triad is free. If you choose a paid plan (Focus Triad
           Plus), payments are processed by our payment provider (NOWPayments);
           we never see or store your card details or wallet keys. Paid features
           are granted while your payment stands; if a payment fails or is
@@ -121,7 +121,7 @@ export default function TermsPage() {
 
         <h2>7. Liability</h2>
         <p>
-          To the maximum extent permitted by law, Dayflow&rsquo;s makers are
+          To the maximum extent permitted by law, Focus Triad&rsquo;s makers are
           not liable for indirect or consequential damages, lost data beyond
           what backups can restore, or outcomes of decisions you made based on
           app content (including AI coaching). Where liability cannot be
@@ -133,13 +133,13 @@ export default function TermsPage() {
         <p>
           The service evolves, and so may these terms. If a change is material
           we will surface it in the app before it takes effect. Continuing to
-          use Dayflow after a change means you accept it.
+          use Focus Triad after a change means you accept it.
         </p>
 
         <h2>9. Contact</h2>
         <p>
           Questions about these terms:{" "}
-          <a href="mailto:support@dayflow.app">support@dayflow.app</a>.
+          <a href="mailto:support@focustriad.app">support@focustriad.app</a>.
         </p>
       </div>
     </main>

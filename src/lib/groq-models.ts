@@ -1,5 +1,5 @@
 // ============================================================
-// Dayflow AI — Groq model registry (Amendment #16)
+// Focus Triad — Groq model registry (Amendment #16)
 // ------------------------------------------------------------
 // The ONLY place model IDs live. Catalog verified 2026-09-11 by a
 // human-run probe: the four chat/reasoning IDs below are on the

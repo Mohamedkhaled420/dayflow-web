@@ -1,7 +1,7 @@
 "use client";
 
 // ============================================================
-// Dayflow AI — Background Paths (Phase 8 — 2026-09 perf fix)
+// Focus Triad — Background Paths (Phase 8 — 2026-09 perf fix)
 // ------------------------------------------------------------
 // Decorative flowing-path backdrop for the auth surface,
 // layered behind the GlassPanel (absolute inset-0,

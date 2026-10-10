@@ -1,7 +1,7 @@
 // ============================================================
-// Dayflow — companion moods (Dia's emotional model)
+// Focus Triad — companion moods (Dia's emotional model)
 // ------------------------------------------------------------
-// Derives the companion's current mood from real Dayflow data
+// Derives the companion's current mood from real Focus Triad data
 // (hydration, sleep goal, goal rings, local hour) plus live
 // signals from the companion store (coach streaming, PR
 // celebrations). Pure functions — no React, no three.js.

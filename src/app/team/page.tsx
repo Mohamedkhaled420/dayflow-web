@@ -1,7 +1,7 @@
 "use client";
 
 // ============================================================
-// Dayflow AI — Team Mode (Phase 3 / PRD §2 Team Mode)
+// Focus Triad — Team Mode (Phase 3 / PRD §2 Team Mode)
 // ------------------------------------------------------------
 // One teammate, zero audience. This page is the whole Team Mode
 // surface:
@@ -41,9 +41,9 @@ import { LogoMark } from "@/components/brand/LogoMark";
 import { GlassPanel } from "@/components/ui/GlassPanel";
 import {
   syncClient,
-  useDayflowStore,
+  useFocusTriadStore,
   type TeamActivityRow,
-} from "@/store/useDayflowStore";
+} from "@/store/useFocusTriadStore";
 
 // ---------- payload helpers ----------
 
@@ -131,16 +131,16 @@ const PRAISE_PRESETS = [
 // ---------- page ----------
 
 export default function TeamPage() {
-  const team = useDayflowStore((s) => s.team);
-  const teamActivities = useDayflowStore((s) => s.teamActivities);
-  const incomingInvites = useDayflowStore((s) => s.incomingInvites);
-  const sentInvites = useDayflowStore((s) => s.sentInvites);
-  const teamLoaded = useDayflowStore((s) => s.teamLoaded);
-  const loadTeam = useDayflowStore((s) => s.loadTeam);
-  const createTeamInvite = useDayflowStore((s) => s.createTeamInvite);
-  const acceptTeamInvite = useDayflowStore((s) => s.acceptTeamInvite);
-  const sendTeamPraise = useDayflowStore((s) => s.sendTeamPraise);
-  const pulseTeamPresence = useDayflowStore((s) => s.pulseTeamPresence);
+  const team = useFocusTriadStore((s) => s.team);
+  const teamActivities = useFocusTriadStore((s) => s.teamActivities);
+  const incomingInvites = useFocusTriadStore((s) => s.incomingInvites);
+  const sentInvites = useFocusTriadStore((s) => s.sentInvites);
+  const teamLoaded = useFocusTriadStore((s) => s.teamLoaded);
+  const loadTeam = useFocusTriadStore((s) => s.loadTeam);
+  const createTeamInvite = useFocusTriadStore((s) => s.createTeamInvite);
+  const acceptTeamInvite = useFocusTriadStore((s) => s.acceptTeamInvite);
+  const sendTeamPraise = useFocusTriadStore((s) => s.sendTeamPraise);
+  const pulseTeamPresence = useFocusTriadStore((s) => s.pulseTeamPresence);
 
   const [myId, setMyId] = useState<string | null>(null);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -182,7 +182,7 @@ export default function TeamPage() {
       if (!row?.id) return;
       // Merge into the in-memory feed (id-deduped; presence upserts
       // UPDATE the same row).
-      useDayflowStore.setState((s) => {
+      useFocusTriadStore.setState((s) => {
         if (s.teamActivities.some((a) => a.id === row.id)) {
           return {
             teamActivities: s.teamActivities.map((a) => (a.id === row.id ? row : a)),
@@ -376,7 +376,7 @@ export default function TeamPage() {
         >
           <ArrowLeft className="size-4" aria-hidden />
           <LogoMark size={20} className="-my-1.5" />
-          Dayflow
+          Focus Triad
         </Link>
 
         {/* ---------- incoming invite ---------- */}
@@ -398,7 +398,7 @@ export default function TeamPage() {
               You&apos;ve got a teammate request
             </h1>
             <p className="mt-1 text-sm text-(--df-text-secondary)">
-              Someone thinks you&apos;ll actually show up. Teams in Dayflow
+              Someone thinks you&apos;ll actually show up. Teams in Focus Triad
               are pairs — one teammate, zero audience.
             </p>
             <button
@@ -431,7 +431,7 @@ export default function TeamPage() {
               No teammate yet
             </h1>
             <p className="mt-1 text-sm text-(--df-text-secondary)">
-              Dayflow teams are pairs. Share habit status, streaks, and a
+              Focus Triad teams are pairs. Share habit status, streaks, and a
               little thunder — never your journal. Invite someone who&apos;ll
               actually show up.
             </p>

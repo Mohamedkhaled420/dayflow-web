@@ -1,7 +1,7 @@
 "use client";
 
 // ============================================================
-// Dayflow — DiaEngine (the headless half of the companion)
+// Focus Triad — DiaEngine (the headless half of the companion)
 // ------------------------------------------------------------
 // Dia now lives in the AI chat only (user decision, Oct 2026):
 // her 3D body moved into the Coach hero (see DiaStage.tsx).
@@ -18,8 +18,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useCompanionStore } from "@/store/companionStore";
 import { useCompanionProgress } from "@/store/companionProgress";
-import { useDayflowStore } from "@/store/useDayflowStore";
-import { useDayflowData, localDateKey } from "@/lib/viewmodel";
+import { useFocusTriadStore } from "@/store/useFocusTriadStore";
+import { useFocusTriadData, localDateKey } from "@/lib/viewmodel";
 import {
   activityStreak,
   CROWN_STREAK_DAYS,
@@ -56,8 +56,8 @@ void POKE_QUIPS; // poke quips are spoken by DiaStage now; kept imported for fut
 
 export function DiaEngine() {
   // ---- real data for the mood + progression engines ----
-  const data = useDayflowData();
-  const journalEntries = useDayflowStore((s) => s.journalEntries);
+  const data = useFocusTriadData();
+  const journalEntries = useFocusTriadStore((s) => s.journalEntries);
 
   // ---- live signals ----
   const thinking = useCompanionStore((s) => s.thinking);

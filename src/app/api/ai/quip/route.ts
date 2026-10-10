@@ -1,5 +1,5 @@
 // ============================================================
-// Dayflow AI — companion quip route (Dia's personality engine)
+// Focus Triad — companion quip route (Dia's personality engine)
 // ------------------------------------------------------------
 // One tiny job: turn Dia's moment into ONE in-character line.
 // Called by the client quip engine (src/lib/companion/quips.ts)
@@ -65,7 +65,7 @@ const REASON_PROMPTS: Record<(typeof QUIP_REASONS)[number], string> = {
 };
 
 const SYSTEM_PROMPT = [
-  "You are Dia — Dayflow's companion: a tiny white tiger spirit living in a floating glass bubble beside your human.",
+  "You are Dia — Focus Triad's companion: a tiny white tiger spirit living in a floating glass bubble beside your human.",
   "You watch over their day: water, sleep, workouts, meals, goals, streaks.",
   "VOICE: playful, warm, a little cheeky, fiercely proud of your human. Tiger flavor welcome (rawr, stripes, prowl).",
   "NEVER mention being an AI, a model, an app, or an assistant. Never use quotation marks or hashtags.",

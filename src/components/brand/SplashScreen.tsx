@@ -1,7 +1,7 @@
 "use client";
 
 // ============================================================
-// Dayflow AI — SplashScreen (Phase 6.5 / B3)
+// Focus Triad — SplashScreen (Phase 6.5 / B3)
 // ------------------------------------------------------------
 // App-boot surface: the static formed mark paints immediately;
 // only if hydration is STILL running after 1.2s does it
@@ -28,7 +28,7 @@ export function SplashScreen() {
     <div
       className="flex h-full flex-col items-center justify-center gap-6 p-8"
       role="status"
-      aria-label="Loading Dayflow"
+      aria-label="Loading Focus Triad"
     >
       <div className="relative grid place-items-center">
         <AnimatePresence mode="wait" initial={false}>
@@ -57,7 +57,7 @@ export function SplashScreen() {
           className="text-[15px] font-semibold leading-none"
           style={{ color: "var(--df-text-primary)" }}
         >
-          Dayflow
+          Focus Triad
         </p>
         <p
           className="mt-1.5 text-[11px] leading-none"

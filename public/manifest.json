@@ -1,15 +1,20 @@
 {
-  "name": "Dayflow AI",
-  "short_name": "Dayflow",
-  "description": "Dayflow tracks what matters to you — workouts, work time, personal projects, sleep, water, and meals — as a clear daily timeline with habit streaks, weekly reviews, and a grounded chat.",
+  "name": "Focus Triad — Your personal life tracker",
+  "short_name": "Focus Triad",
+  "description": "Focus Triad tracks what matters to you — workouts, work time, personal projects, sleep, water, and meals — as a clear daily timeline with habit streaks, weekly reviews, and a grounded chat.",
   "id": "/",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "launch_handler": { "clientMode": "navigate-existing" },
   "orientation": "portrait",
+  "dir": "ltr",
+  "lang": "en-US",
   "theme_color": "#FFFBF3",
   "background_color": "#FFFBF3",
   "categories": ["health", "fitness", "productivity", "lifestyle"],
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/icons/icon-192.png",
@@ -28,6 +33,45 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Talk to Dia",
+      "short_name": "Dia",
+      "description": "Open the Coach and start talking",
+      "url": "/?tab=coach",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Write in the journal",
+      "short_name": "Journal",
+      "description": "Capture a thought right now",
+      "url": "/?tab=journal",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Weekly review",
+      "short_name": "Weekly",
+      "description": "See how the week went",
+      "url": "/?tab=weekly",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/media/screenshots/home-narrow.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Your day as a living timeline"
+    },
+    {
+      "src": "/media/screenshots/coach-narrow.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Talk to Dia, your coach"
     }
   ]
 }

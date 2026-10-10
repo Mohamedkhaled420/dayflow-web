@@ -1,5 +1,5 @@
 // ============================================================
-// Dayflow — domain types for the personal life tracker
+// Focus Triad — domain types for the personal life tracker
 // (fitness · work · personal work · sleep · water · food)
 //
 // Everything here is storage-agnostic on purpose: the app
@@ -85,7 +85,7 @@ export interface GoalProgress {
   met: boolean;
 }
 
-export interface DayflowData {
+export interface FocusTriadData {
   profile: Profile;
   goals: Goals;
   categories: Category[];
