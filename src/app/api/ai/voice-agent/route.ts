@@ -115,9 +115,31 @@ const AGENT_FUNCTIONS = [
     },
   },
   {
+    name: "log_sleep",
+    description:
+      "Log sleep the user had — last night, a nap, or a planned night they confirm. Call whenever the user mentions sleeping, bedtime, waking up, or asks to log sleep. NEVER log sleep with log_activity.",
+    parameters: {
+      type: "object",
+      properties: {
+        duration_minutes: {
+          type: "number",
+          description: "Sleep length in minutes (7 hours = 420, 8 hours = 480). Use when the user gives a duration or a from-to range.",
+        },
+        bedtime: {
+          type: "string",
+          description: "Bedtime as 24-hour HH:MM, e.g. '03:00' for 3 AM. Only when the user says when they fell asleep.",
+        },
+        wake_time: {
+          type: "string",
+          description: "Wake time as 24-hour HH:MM, e.g. '10:00' for 10 AM. Only when the user says when they woke up.",
+        },
+      },
+    },
+  },
+  {
     name: "log_activity",
     description:
-      "Log a time block that is not water, food, or exercise: work, study, chores, hobbies, leisure, socializing.",
+      "Log a time block that is not sleep, water, food, or exercise: work, study, chores, hobbies, leisure, socializing.",
     parameters: {
       type: "object",
       properties: {
@@ -169,8 +191,9 @@ function diaPrompt(name: string, ctx: string): string {
     ctx.trim() ? ctx : "(no entries logged yet — ask how things are going)",
     "",
     "# Actions",
-    "You can log things FOR the user by calling your functions: log_water, log_workout, log_meal, and log_activity for any other time block.",
-    "- When the user mentions something they drank, ate, or did — call the matching function instead of just talking about it, then confirm in one short warm sentence.",
+    "You can log things FOR the user by calling your functions: log_water, log_workout, log_meal, log_sleep, and log_activity for any other time block.",
+    "- When the user mentions something they drank, ate, did, or slept — call the matching function instead of just talking about it, then confirm in one short warm sentence.",
+    "- SLEEP ALWAYS GOES TO log_sleep. When the user gives a range like 'slept from 3 AM to 10 AM', pass bedtime='03:00', wake_time='10:00' and duration_minutes=420. When they only give a duration, pass duration_minutes alone.",
     "- For meals, estimate calories yourself from the description; mention your estimate when confirming so they can correct you.",
     "- If a needed detail is truly missing (like what they ate), ask ONE short question first instead of guessing.",
     "- Never call a function for something the user is only asking ABOUT; only when they want it logged.",

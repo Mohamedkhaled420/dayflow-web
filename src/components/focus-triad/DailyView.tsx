@@ -35,10 +35,12 @@ import { useToast } from "@/hooks/use-toast";
 import { CATEGORY_COLORS } from "@/styles/palette";
 import { targetsFromProfile, type NutritionTargets } from "@/lib/food-db";
 
-const GRID_START = 5 * 60; // 5 AM
-const GRID_END = 23 * 60 + 30; // 11:30 PM
+const GRID_START = 0; // midnight — a 3 AM → 10 AM sleeper used to
+// lose everything before 5 AM, and overnight sleep's evening half
+// never rendered at all (the old branch added a phantom "slot 0")
+const GRID_END = 24 * 60;
 const SLOT = 30;
-const SLOTS = (GRID_END - GRID_START) / SLOT; // 37
+const SLOTS = (GRID_END - GRID_START) / SLOT; // 48
 
 export function DailyView() {
   const data = useFocusTriadData();
@@ -77,17 +79,21 @@ export function DailyView() {
     return timeCats.map((c) => {
       const acts = eventsForDay(data.events, dateKey).filter((e) => e.categoryId === c.id);
       const slots = new Set<number>();
+      const mark = (from: number, to: number) => {
+        // any slot the block TOUCHES lights up (floor on the way in)
+        for (let m = Math.floor(from / SLOT) * SLOT; m < to; m += SLOT) slots.add(m);
+      };
       for (const e of acts) {
-        let s = toMinutes(e.start);
-        let t = toMinutes(e.end);
+        const s = toMinutes(e.start);
+        const t = toMinutes(e.end);
         if (t <= s) {
-          // overnight (sleep): morning part 0–end and evening part start–24h
-          slots.add(0);
-          s = GRID_START;
+          // overnight (sleep): morning part 0→end AND evening part
+          // start→24h — both halves belong to this day's picture
+          mark(0, t);
+          mark(s, 24 * 60);
+        } else {
+          mark(s, t);
         }
-        const from = Math.max(s, GRID_START);
-        const to = Math.min(t, GRID_END);
-        for (let m = Math.ceil(from / SLOT) * SLOT; m < to; m += SLOT) slots.add(m);
       }
       return { category: c, slots };
     });
@@ -235,18 +241,18 @@ export function DailyView() {
             Your day by category
           </h2>
           <p className="text-[11.5px] mt-0.5" style={{ color: "var(--df-text-muted)" }}>
-            30-minute slots, 5 AM – 11:30 PM
+            30-minute slots, midnight to midnight
           </p>
           <div className="mt-3 overflow-x-auto df-scroll">
-            <div className="min-w-[480px]">
-              {/* hour header: label every 2 hours = 4 slots */}
+            <div className="min-w-[940px]">
+              {/* hour header: label every 3 hours = 6 slots */}
               <div
                 className="grid mb-1.5 pl-[110px] text-[10px] font-semibold"
                 style={{ gridTemplateColumns: `repeat(${SLOTS}, 16px)`, gap: "3px" }}
               >
-                {Array.from({ length: Math.ceil(SLOTS / 4) }, (_, i) => {
-                  const h = GRID_START / 60 + i * 2;
-                  const span = Math.min(4, SLOTS - i * 4);
+                {Array.from({ length: Math.ceil(SLOTS / 6) }, (_, i) => {
+                  const h = GRID_START / 60 + i * 3;
+                  const span = Math.min(6, SLOTS - i * 6);
                   return (
                     <span
                       key={i}
@@ -256,7 +262,7 @@ export function DailyView() {
                         color: "var(--df-hour-label)",
                       }}
                     >
-                      {h >= 24 ? "" : h > 12 ? `${h - 12}p` : `${h}a`}
+                      {h >= 24 ? "" : h === 0 ? "12a" : h > 12 ? `${h - 12}p` : `${h}a`}
                     </span>
                   );
                 })}

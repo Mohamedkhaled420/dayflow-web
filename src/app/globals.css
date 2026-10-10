@@ -3987,6 +3987,7 @@ select {
 
 /* the liquid rings */
 .dft-ob {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -3999,6 +4000,53 @@ select {
   cursor: ns-resize;
   user-select: none;
   -webkit-user-select: none;
+  transition: box-shadow 0.35s;
+}
+.dft-ob.drag {
+  box-shadow:
+    var(--df-card-shadow),
+    inset 0 0 0 1px var(--df-card-border),
+    0 0 0 1px color-mix(in srgb, var(--dft-c) 35%, transparent),
+    0 12px 32px -14px color-mix(in srgb, var(--dft-c) 55%, transparent);
+  z-index: 5;
+}
+/* live drag bubble — the value + range, floating above the orb */
+.dft-bub {
+  position: absolute;
+  top: -46px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 6px 12px;
+  border-radius: 14px;
+  background: var(--df-card-fill);
+  box-shadow:
+    var(--df-card-shadow),
+    inset 0 0 0 1px color-mix(in srgb, var(--dft-c) 40%, transparent);
+  white-space: nowrap;
+  z-index: 6;
+  animation: dft-bub-in 0.18s cubic-bezier(0.2, 0.8, 0.3, 1);
+  pointer-events: none;
+}
+.dft-bub b {
+  font-size: 15px;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--dft-c) 72%, var(--df-text-primary));
+}
+.dft-bub span {
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--df-text-secondary);
+}
+@keyframes dft-bub-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(6px) scale(0.9);
+  }
 }
 .dft-orb {
   width: min(100%, 104px);
@@ -4015,6 +4063,30 @@ select {
   opacity: 0.85;
   transition: stroke-width 0.4s;
 }
+/* Phase 24 progress arc — fills clockwise from 12 o'clock with the
+   ring's fraction; sits on r=48 outside the base ring. */
+.dft-orb .dft-arc {
+  fill: none;
+  stroke: var(--dft-c);
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: 50px 50px;
+  transition: stroke-dasharray 0.45s cubic-bezier(0.2, 0.8, 0.3, 1);
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--dft-c) 45%, transparent));
+}
+.dft-ob.drag .dft-arc {
+  transition: none;
+}
+/* quarter dots on the arc — dark beads until the liquid passes */
+.dft-orb .dft-qd {
+  fill: color-mix(in srgb, var(--df-text-primary) 22%, transparent);
+  transition: r 0.25s, fill 0.25s;
+}
+.dft-orb .dft-qd.on {
+  fill: var(--dft-c);
+  filter: drop-shadow(0 0 2.5px color-mix(in srgb, var(--dft-c) 60%, transparent));
+}
 .dft-level {
   transition: transform 0.9s var(--dfx-ease-out);
 }
@@ -4025,6 +4097,12 @@ select {
   fill: var(--dft-c);
   fill-opacity: 0.62;
   animation: dft-wave 2.4s linear infinite;
+}
+/* Phase 24: while dragging, the liquid is brighter and the wave
+   races — the ring feels ALIVE under the finger. */
+.dft-ob.drag .dft-wave {
+  fill-opacity: 0.92;
+  animation-duration: 0.85s;
 }
 @keyframes dft-wave {
   to {
@@ -4045,6 +4123,9 @@ select {
 .dft-ob.full .dft-rg {
   stroke-width: 5;
   filter: drop-shadow(0 0 7px var(--dft-c));
+}
+.dft-ob.full .dft-arc {
+  stroke-width: 4;
 }
 .dft-ob b {
   font-size: 16px;

@@ -17,7 +17,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { useReducedMotion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import { useFocusTriadData } from "@/lib/viewmodel";
 import { localDateKey } from "@/lib/viewmodel";
 import {
@@ -28,9 +28,14 @@ import {
   waterTotal,
 } from "@/lib/compute";
 import { useFocusTriadStore } from "@/store/useFocusTriadStore";
+import {
+  sleepWakeAnchor,
+  sleepRangeLabel,
+} from "@/lib/sleep-anchor";
 import { EventDialog } from "@/components/focus-triad/EventDialog";
 import { CategoryIcon } from "@/components/focus-triad/category-icons";
 import { haptic } from "@/lib/haptics";
+import { useToast } from "@/hooks/use-toast";
 import {
   CATEGORY_COLORS,
   HILL_COLORS,
@@ -140,6 +145,8 @@ function burstAt(el: Element | null, color: string, reduced: boolean) {
 export function TodayView({ blockNonce = 0 }: { blockNonce?: number }) {
   const reducedMotion = useReducedMotion();
   const data = useFocusTriadData();
+  const { toast } = useToast();
+  const profileRow = useFocusTriadStore((s) => s.profile);
   const addHydrationLog = useFocusTriadStore((s) => s.addHydrationLog);
   const deleteHydrationLog = useFocusTriadStore((s) => s.deleteHydrationLog);
   const addSleepLog = useFocusTriadStore((s) => s.addSleepLog);
@@ -273,12 +280,30 @@ export function TodayView({ blockNonce = 0 }: { blockNonce?: number }) {
   }, [sleepRows, todayKey]);
 
   const waterMl = waterTotal(data.water, todayKey);
-  const waterGoalMl = 2000;
+  // Ring targets come from the PROFILE (Phase 24): the rings used to
+  // hardcode 2000 ml / 440 min while the Daily + Sleep cards read
+  // the profile — the sleep ring could never reach its own goal
+  // (round(440/15)*15 = 435 → liquid stuck at 98.9%).
+  const waterGoalMl = useMemo(() => {
+    const metabolism = (profileRow?.metabolism ?? {}) as Record<string, unknown>;
+    const ml = metabolism.dailyWaterBaseMl;
+    return typeof ml === "number" && ml >= 500 ? Math.round(ml) : 2000;
+  }, [profileRow]);
   const sleepMin = useMemo(() => {
     const ev = dayEvents.find((e) => e.source === "sleep");
     return ev ? eventDuration(ev) : 0;
   }, [dayEvents]);
-  const sleepGoalMin = 440;
+  const sleepGoalMin = Math.max(240, data.goals.sleepMinutes); // ≥ 4 h sanity
+  // chronobiology → typed wake source for the sleep anchor
+  const chronoSrc = useMemo(() => {
+    const c = (profileRow?.chronobiology ?? {}) as Record<string, unknown>;
+    return {
+      targetWakeMinutes:
+        typeof c.targetWakeMinutes === "number" ? (c.targetWakeMinutes as number) : null,
+      naturalWakeTime:
+        typeof c.naturalWakeTime === "string" ? (c.naturalWakeTime as string) : null,
+    };
+  }, [profileRow]);
 
   const [lightDone, setLightDone] = useState(false);
   const [lightKey, setLightKey] = useState(todayKey);
@@ -371,10 +396,18 @@ export function TodayView({ blockNonce = 0 }: { blockNonce?: number }) {
       if (goals.sleepRow) {
         void updateSleepLog(goals.sleepRow.id, { sleep_minutes: clamped });
       } else if (clamped > 0) {
-        void addSleepLog({ sleep_minutes: clamped });
+        // Anchor the new night to its plausible WAKE moment — not
+        // "now". An afternoon drag used to paint sleep across the
+        // day (wake = drag time); the smart anchor puts it back on
+        // last night, ending at the profile's target wake.
+        const wake = sleepWakeAnchor(new Date(), chronoSrc);
+        void addSleepLog({
+          sleep_minutes: clamped,
+          logged_at: wake.toISOString(),
+        });
       }
     },
-    [goals.sleepRow, updateSleepLog, addSleepLog]
+    [goals.sleepRow, updateSleepLog, addSleepLog, chronoSrc]
   );
 
   const onRingDown = (key: "w" | "s" | "l") => (e: React.PointerEvent) => {
@@ -384,20 +417,34 @@ export function TodayView({ blockNonce = 0 }: { blockNonce?: number }) {
     const startValue =
       key === "w" ? waterNow : key === "s" ? sleepNow : 0;
     const startY = e.clientY;
-    const rect = orb.getBoundingClientRect();
+    // Map the finger to the liquid against the SVG orb's own box —
+    // finger at the circle's top = full, at its bottom = empty
+    // (the old element-rect math included the labels, so "full"
+    // sat above the visible circle).
+    const svgBox = (orb.querySelector(".dft-orb") as SVGSVGElement | null)?.getBoundingClientRect();
+    const box = svgBox ?? orb.getBoundingClientRect();
     let moved = false;
+    let lastQuarter = 0;
 
     const move = (ev: PointerEvent) => {
       if (Math.abs(ev.clientY - startY) > 6) moved = true;
       if (!moved || key === "l") return;
-      const f = Math.max(
-        0,
-        Math.min(1, 1 - (ev.clientY - rect.top - 6) / (rect.height * 0.88))
-      );
+      const f = Math.max(0, Math.min(1, 1 - (ev.clientY - box.top) / box.height));
       if (key === "w") {
-        setDragRing({ key, value: Math.round((f * waterGoalMl) / 50) * 50 });
+        setDragRing({ key, value: Math.min(waterGoalMl, Math.round((f * waterGoalMl) / 50) * 50) });
       } else {
-        setDragRing({ key, value: Math.round((f * sleepGoalMin) / 15) * 15 });
+        setDragRing({
+          key,
+          value: Math.min(sleepGoalMin, Math.round((f * sleepGoalMin) / 15) * 15),
+        });
+      }
+      // quarter ticks — a tiny pulse as the liquid passes 25 / 50 / 75 / 100 %
+      const q = Math.floor(f * 4.0001);
+      if (q > lastQuarter) {
+        haptic(4);
+        lastQuarter = q;
+      } else if (q < lastQuarter) {
+        lastQuarter = q;
       }
     };
     const up = () => {
@@ -407,9 +454,13 @@ export function TodayView({ blockNonce = 0 }: { blockNonce?: number }) {
       if (!moved) {
         // tap: quick increment / toggle
         haptic(8);
-        if (key === "w") commitWater(waterMl + 250);
-        else if (key === "s") commitSleep(Math.min(840, sleepMin + 30));
-        else {
+        if (key === "w") {
+          commitWater(waterMl + 250);
+          setPop((p) => ({ k: "w", n: p.n + 1 }));
+        } else if (key === "s") {
+          commitSleep(Math.min(840, sleepMin + 30));
+          setPop((p) => ({ k: "s", n: p.n + 1 }));
+        } else {
           const next = !lightDone;
           setLightDone(next);
           try {
@@ -430,8 +481,19 @@ export function TodayView({ blockNonce = 0 }: { blockNonce?: number }) {
       haptic(6);
       const d = dragRingRef.current;
       if (d) {
-        if (d.key === "w") commitWater(d.value);
-        else commitSleep(d.value);
+        if (d.key === "w") {
+          commitWater(d.value);
+          toast({ title: "Water set", description: fmtMl(d.value) });
+        } else {
+          commitSleep(d.value);
+          const wake = goals.sleepRow
+            ? new Date(goals.sleepRow.logged_at)
+            : sleepWakeAnchor(new Date(), chronoSrc);
+          toast({
+            title: "Sleep set",
+            description: `${fd(d.value)} · ${sleepRangeLabel(wake, d.value)}`,
+          });
+        }
       }
       setDragRing(null);
     };
@@ -442,6 +504,9 @@ export function TodayView({ blockNonce = 0 }: { blockNonce?: number }) {
     orb.addEventListener("pointercancel", up);
   };
   const dragRingRef = useRef<{ key: "w" | "s"; value: number } | null>(null);
+
+  // tap value-pop nonce (water / sleep quick adds)
+  const [pop, setPop] = useState<{ k: "w" | "s"; n: number }>({ k: "w", n: 0 });
 
   // keep the ref synced with state during drags
   useEffect(() => {
@@ -495,6 +560,13 @@ export function TodayView({ blockNonce = 0 }: { blockNonce?: number }) {
 
   // ---- render ----
 
+  // ARC geometry: progress arc rides r=48 (outside the base ring's
+  // r=44), quarter dots sit ON that arc. 2π × 48 = 301.6.
+  const ARC_LEN = 2 * Math.PI * 48;
+  const sleepPreviewWake = goals.sleepRow
+    ? new Date(goals.sleepRow.logged_at)
+    : sleepWakeAnchor(new Date(), chronoSrc);
+
   const orbs = [
     {
       k: "w" as const,
@@ -503,6 +575,7 @@ export function TodayView({ blockNonce = 0 }: { blockNonce?: number }) {
       value: fmtMl(waterNow),
       icon: "M50 28c9 10 15 17 15 25a15 15 0 0 1-30 0c0-8 6-15 15-25z",
       full: fractions.w >= 1,
+      bubble: `${Math.round((waterNow / waterGoalMl) * 100)}% of ${fmtMl(waterGoalMl)}`,
     },
     {
       k: "s" as const,
@@ -511,6 +584,7 @@ export function TodayView({ blockNonce = 0 }: { blockNonce?: number }) {
       value: fd(sleepNow),
       icon: "M66 58A19 19 0 0 1 44 34a19 19 0 1 0 22 24z",
       full: fractions.s >= 1,
+      bubble: sleepRangeLabel(sleepPreviewWake, sleepNow),
     },
     {
       k: "l" as const,
@@ -519,6 +593,7 @@ export function TodayView({ blockNonce = 0 }: { blockNonce?: number }) {
       value: lightDone ? "Done" : "10 min",
       icon: "",
       full: fractions.l >= 1,
+      bubble: "",
     },
   ];
 
@@ -707,9 +782,13 @@ export function TodayView({ blockNonce = 0 }: { blockNonce?: number }) {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
                   haptic(8);
-                  if (o.k === "w") commitWater(waterMl + 250);
-                  else if (o.k === "s") commitSleep(Math.min(840, sleepMin + 30));
-                  else {
+                  if (o.k === "w") {
+                    commitWater(waterMl + 250);
+                    setPop((p) => ({ k: "w", n: p.n + 1 }));
+                  } else if (o.k === "s") {
+                    commitSleep(Math.min(840, sleepMin + 30));
+                    setPop((p) => ({ k: "s", n: p.n + 1 }));
+                  } else {
                     const next = !lightDone;
                     setLightDone(next);
                     try {
@@ -722,18 +801,36 @@ export function TodayView({ blockNonce = 0 }: { blockNonce?: number }) {
                 }
               }}
             >
+              {/* live drag bubble — value + range / % of goal */}
+              {dragRing?.key === o.k && (
+                <div className="dft-bub" role="status">
+                  <b>{o.k === "w" ? fmtMl(dragRing.value) : fd(dragRing.value)}</b>
+                  <span>
+                    {o.k === "w"
+                      ? `${Math.round((dragRing.value / waterGoalMl) * 100)}% of ${fmtMl(waterGoalMl)}`
+                      : sleepRangeLabel(sleepPreviewWake, dragRing.value)}
+                  </span>
+                </div>
+              )}
               <svg className="dft-orb" viewBox="0 0 100 100">
                 <defs>
                   <clipPath id={`dft-c-${o.k}`}>
                     <circle cx="50" cy="50" r="44" />
                   </clipPath>
+                  <linearGradient id={`dft-lg-${o.k}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stopColor={o.color} stopOpacity="0.9" />
+                    <stop offset="1" stopColor={o.color} stopOpacity="0.42" />
+                  </linearGradient>
                 </defs>
+                {/* halo + tinted fill */}
+                <circle cx="50" cy="50" r="48" fill={`color-mix(in srgb, ${o.color} 6%, transparent)`} />
                 <circle
                   cx="50"
                   cy="50"
                   r="44"
-                  fill={`color-mix(in srgb, ${o.color} 8%, transparent)`}
+                  fill={`color-mix(in srgb, ${o.color} 9%, transparent)`}
                 />
+                {/* the liquid — gradient fill, wave animated */}
                 <g clipPath={`url(#dft-c-${o.k})`}>
                   <g
                     className="dft-level"
@@ -741,9 +838,28 @@ export function TodayView({ blockNonce = 0 }: { blockNonce?: number }) {
                       transform: `translateY(${fractions[o.k] <= 0 ? 106 : 94 - fractions[o.k] * 88}px)`,
                     }}
                   >
-                    <path className={reducedMotion ? "" : "dft-wave"} d={WAVE_PATH} />
+                    <path
+                      className={reducedMotion ? "" : "dft-wave"}
+                      d={WAVE_PATH}
+                      fill={`url(#dft-lg-${o.k})`}
+                    />
                   </g>
                 </g>
+                {/* quarter dots on the progress arc — light up as the
+                    liquid passes 25 / 50 / 75 % */}
+                {[0.25, 0.5, 0.75].map((q) => {
+                  const a = -Math.PI / 2 + q * 2 * Math.PI;
+                  const passed = fractions[o.k] >= q;
+                  return (
+                    <circle
+                      key={q}
+                      className={passed ? "dft-qd on" : "dft-qd"}
+                      cx={50 + 48 * Math.cos(a)}
+                      cy={50 + 48 * Math.sin(a)}
+                      r={passed ? 2.4 : 1.6}
+                    />
+                  );
+                })}
                 {o.icon ? (
                   <path className="dft-ic" d={o.icon} />
                 ) : (
@@ -755,9 +871,24 @@ export function TodayView({ blockNonce = 0 }: { blockNonce?: number }) {
                     />
                   </>
                 )}
+                {/* progress arc — fills clockwise from 12 o'clock */}
+                <circle
+                  className="dft-arc"
+                  cx="50"
+                  cy="50"
+                  r="48"
+                  strokeDasharray={`${Math.min(1, fractions[o.k]) * ARC_LEN} ${ARC_LEN}`}
+                />
                 <circle className="dft-rg" cx="50" cy="50" r="44" />
               </svg>
-              <b>{o.value}</b>
+              <motion.b
+                key={`${o.k}-${o.k === pop.k ? pop.n : 0}`}
+                initial={o.k === pop.k ? { scale: 1.32 } : false}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", stiffness: 480, damping: 22 }}
+              >
+                {o.value}
+              </motion.b>
               <span>{o.label}</span>
             </div>
           ))}

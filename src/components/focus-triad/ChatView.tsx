@@ -34,7 +34,13 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "motion/react";
 import { StickyNote } from "lucide-react";
 import { useFocusTriadStore } from "@/store/useFocusTriadStore";
-import { useFocusTriadData } from "@/lib/viewmodel";
+import { useFocusTriadData, localDateKey } from "@/lib/viewmodel";
+import {
+  clockToMinutes as sleepClockToMinutes,
+  sleepWakeAnchor,
+  sleepRangeLabel,
+  type WakeSource,
+} from "@/lib/sleep-anchor";
 import { useCompanionStore } from "@/store/companionStore";
 import { useToast } from "@/hooks/use-toast";
 import { triggerHaptic, hapticSelect } from "@/lib/haptics";
@@ -243,9 +249,28 @@ function reviveCoachNote(raw: unknown): CoachNote | null {
   };
 }
 
+/** Chronobiology JSONB section → typed wake source for the sleep
+ *  anchor (targetWakeMinutes from onboarding wins, then the
+ *  chronotype quiz's naturalWakeTime). */
+function chronoSection(row: unknown): WakeSource {
+  const c = (row as { chronobiology?: unknown } | null)?.chronobiology as
+    | Record<string, unknown>
+    | null
+    | undefined;
+  return {
+    targetWakeMinutes:
+      c && typeof c.targetWakeMinutes === "number" ? c.targetWakeMinutes : null,
+    naturalWakeTime:
+      c && typeof c.naturalWakeTime === "string" ? c.naturalWakeTime : null,
+  };
+}
+
 export function ChatView({ active = true }: { active?: boolean }) {
   const journalEntries = useFocusTriadStore((s) => s.journalEntries);
   const workoutLogs = useFocusTriadStore((s) => s.workoutLogs);
+  const sleepRows = useFocusTriadStore((s) => s.sleepLogs);
+  const profileRow = useFocusTriadStore((s) => s.profile);
+  const updateSleepLog = useFocusTriadStore((s) => s.updateSleepLog);
   const addJournalEntry = useFocusTriadStore((s) => s.addJournalEntry);
   const addHydrationLog = useFocusTriadStore((s) => s.addHydrationLog);
   const addWorkoutLog = useFocusTriadStore((s) => s.addWorkoutLog);
@@ -522,8 +547,14 @@ export function ChatView({ active = true }: { active?: boolean }) {
         }
         case "sleep": {
           const mins = action.durationMinutes ?? 480;
-          id = await addSleepLog({ sleep_minutes: mins });
-          description = `${Math.floor(mins / 60)}h ${mins % 60}m of sleep logged`;
+          // anchor to the plausible wake moment — NOT "now" (a
+          // 6 PM tap used to paint sleep across the afternoon)
+          const wake = sleepWakeAnchor(new Date(), chronoSection(profileRow));
+          id = await addSleepLog({
+            sleep_minutes: mins,
+            logged_at: wake.toISOString(),
+          });
+          description = `${Math.floor(mins / 60)}h ${mins % 60}m of sleep logged · ${sleepRangeLabel(wake, mins)}`;
           break;
         }
         case "journal": {
@@ -695,6 +726,68 @@ export function ChatView({ active = true }: { active?: boolean }) {
                 source: "voice",
               });
               description = `${name} · ~${kcal} kcal logged`;
+              break;
+            }
+            case "log_sleep": {
+              // Sleep is anchored by its WAKE time. The model passes
+              // a from-to range, a duration, or both — the range
+              // wins when both are present.
+              const bed = sleepClockToMinutes(str(fn.args.bedtime));
+              const wakeMin = sleepClockToMinutes(str(fn.args.wake_time));
+              let mins = num(fn.args.duration_minutes);
+              if (bed != null && wakeMin != null) {
+                const span = (wakeMin - bed + 1440) % 1440;
+                if (span > 0) mins = span;
+              }
+              if (mins == null || mins <= 0) {
+                session.respondFunctionCall(
+                  fn.id,
+                  fn.name,
+                  JSON.stringify({
+                    ok: false,
+                    message:
+                      "Sleep length unknown — ask the user how long they slept, then log it.",
+                  })
+                );
+                return;
+              }
+              mins = Math.max(15, Math.min(840, Math.round(mins)));
+
+              // Wake anchor: the stated wake clock when given (today,
+              // or yesterday if that clock is still ahead of us),
+              // else the smart anchor from the profile.
+              const now = new Date();
+              let wakeDate: Date;
+              if (wakeMin != null) {
+                wakeDate = new Date(now);
+                wakeDate.setHours(Math.floor(wakeMin / 60), wakeMin % 60, 0, 0);
+                if (wakeDate.getTime() > now.getTime())
+                  wakeDate.setDate(wakeDate.getDate() - 1);
+              } else {
+                wakeDate = sleepWakeAnchor(now, chronoSection(profileRow));
+              }
+              const loggedAt = wakeDate.toISOString();
+
+              // One sleep row per wake-day: updating the existing
+              // night instead of stacking a second one on top.
+              const wakeDay = localDateKey(loggedAt);
+              const existing = sleepRows.find(
+                (r) => localDateKey(r.logged_at) === wakeDay
+              );
+              if (existing) {
+                const ok = await updateSleepLog(existing.id, {
+                  sleep_minutes: mins,
+                  logged_at: loggedAt,
+                });
+                id = ok ? existing.id : null;
+              } else {
+                id = await addSleepLog({
+                  sleep_minutes: mins,
+                  logged_at: loggedAt,
+                });
+              }
+              const hrs = Math.floor(mins / 60);
+              description = `${hrs}h${mins % 60 ? ` ${mins % 60}m` : ""} of sleep logged · ${sleepRangeLabel(wakeDate, mins)}`;
               break;
             }
             case "log_activity": {
