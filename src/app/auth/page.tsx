@@ -1,127 +1,223 @@
 "use client";
 
 // ============================================================
-// Dayflow AI — auth page (Phase 2 restyle, Phase 5 passkeys
-// — 2026-09 UX fix)
+// Dayflow AI — auth page (reference mockup "Dayflow (6)"
+// authHTML, ported 1:1 + real Supabase wiring)
 // ------------------------------------------------------------
-// v0's logic is preserved 1:1 (mode state machine, Supabase
-// sign-in / sign-up / Google OAuth, signup profile bootstrap,
-// pending + error + message states). Phase 5 T4 adds the
-// passkey path (Amendment #17).
+// Email + password only (Google OAuth dropped — not configured
+// on the Supabase project). "Continue with Face ID" keeps the
+// real passkey path and renders only when the server supports
+// WebAuthn (it 404s on this project today, so the email form is
+// the primary surface). "Try it first" enters as an anonymous
+// guest (Supabase anonymous users — data upgrades when they
+// create an account later in Settings).
 //
-// 2026-09 fix: the password form is now ALWAYS visible.
-// Previously it hid itself whenever the server-side passkey
-// probe succeeded — a first-time visitor with no enrolled
-// passkey landed on a page whose only primary action was
-// "Continue with Face ID", with the actual form tucked behind
-// a fallback link. The passkey button still sits ABOVE the
-// form when available, and the fallback chain (cancelled /
-// failed ceremony reveals an inline error) still applies —
-// but there is never a dead end, and no form flash on load.
+// Behavior notes:
+// - mailer_autoconfirm is ON server-side, so signUp returns a
+//   session instantly and the middleware routes to /onboarding.
+// - Forgot password sends a REAL recovery email whose link
+//   lands on /auth/callback?next=/auth/reset (new-password form).
+// - ?mode=up|in preselects the segment (landing CTAs); ?guest=1
+//   auto-starts the guest flow.
 // ============================================================
 
-import { FormEvent, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Fingerprint } from "lucide-react";
-import { GlassPanel } from "@/components/ui/GlassPanel";
-import { LogoMark } from "@/components/brand/LogoMark";
-import { BackgroundPaths } from "@/components/brand/BackgroundPaths";
-import {
-  DoodleCloud,
-  DoodleHeart,
-  DoodleSparkle,
-  DoodleStar,
-  Marker,
-} from "@/components/dayflow/doodles";
-import { Segmented } from "@/components/ui/Segmented";
-import { passkeysServerEnabled, signInWithPasskey } from "@/lib/passkeys";
-import { triggerHaptic } from "@/lib/haptics";
+import { FormEvent, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 
-export default function AuthPage() {
+import { DayflowLogo } from "@/components/brand/DayflowLogo";
+import { SkySync } from "@/components/dayflow/SkySync";
+import { passkeysServerEnabled, signInWithPasskey } from "@/lib/passkeys";
+import { haptic } from "@/lib/haptics";
+
+const EMAIL_RE = /^\S+@\S+\.\S+$/;
+
+const FI_ICON = (
+  <svg viewBox="0 0 24 24">
+    <path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2M9 10v1.5M15 10v1.5M12 10v3.5h-1M9 16c1.7 1.2 4.3 1.2 6 0" />
+  </svg>
+);
+
+/* the reference's pwScore: 0..4 */
+function pwScore(p: string) {
+  let n = 0;
+  if (p.length >= 8) n++;
+  if (p.length >= 12) n++;
+  if (/[a-z]/.test(p) && /[A-Z]/.test(p) && /\d/.test(p)) n++;
+  if (/[^A-Za-z0-9]/.test(p)) n++;
+  return Math.min(4, p ? Math.max(n, 1) : 0);
+}
+const PW_LABELS = ["", "Weak", "Okay", "Good", "Strong"];
+
+function friendlyError(message: string) {
+  const m = message.toLowerCase();
+  if (m.includes("invalid login credentials"))
+    return "That email and password don't match. Try again.";
+  if (m.includes("already registered") || m.includes("already been registered"))
+    return "An account with this email already exists. Sign in instead.";
+  if (m.includes("rate limit") || m.includes("too many"))
+    return "Too many tries — take a breath and try again in a minute.";
+  if (m.includes("password should be"))
+    return "Use at least 8 characters.";
+  if (m.includes("unable to validate email") || m.includes("invalid email"))
+    return "Enter a valid email address.";
+  if (m.includes("anonymous"))
+    return "Guest mode is unavailable right now — create an account instead.";
+  return message;
+}
+
+function AuthView() {
   const router = useRouter();
-  const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-in");
+  const params = useSearchParams();
+
+  const [mode, setMode] = useState<"in" | "up">(
+    params.get("mode") === "up" ? "up" : "in",
+  );
+  const up = mode === "up";
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [pending, setPending] = useState(false);
+  const [guestBusy, setGuestBusy] = useState(false);
 
-  // Passkey surface state (T4): the password form is ALWAYS
-  // visible (2026-09 fix); the passkey button renders above it
-  // only on capable browsers when the server feature is on.
+  /* logo life: spin while typing (reference .lgs.spin), jump on error */
+  const [logoSpin, setLogoSpin] = useState(false);
+  const [logoJump, setLogoJump] = useState(0);
+  const spinTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const nudgeLogo = () => {
+    setLogoSpin(true);
+    if (spinTimer.current) clearTimeout(spinTimer.current);
+    spinTimer.current = setTimeout(() => setLogoSpin(false), 700);
+  };
+
+  /* passkey surface (renders only when the server supports it) */
   const [passkeyAvailable, setPasskeyAvailable] = useState(false);
   const [passkeyBusy, setPasskeyBusy] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     void passkeysServerEnabled().then((enabled) => {
-      if (cancelled) return;
-      setPasskeyAvailable(enabled);
+      if (!cancelled) setPasskeyAvailable(enabled);
     });
     return () => {
       cancelled = true;
     };
   }, []);
 
+  const emailOk = EMAIL_RE.test(email.trim());
+  const score = useMemo(() => pwScore(password), [password]);
+
+  function showError(m: string) {
+    setError(m);
+    setMessage("");
+    setLogoJump((n) => n + 1);
+    haptic(30);
+  }
+
+  /* ---- the real flows ---- */
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (pending) return;
     setError("");
     setMessage("");
+
+    const em = email.trim();
+    if (!EMAIL_RE.test(em)) return showError("Enter a valid email address.");
+    if (password.length < 8) return showError("Use at least 8 characters.");
+
     setPending(true);
-    // Phase 4 bundle diet: the supabase-js chunk is imported on the
-    // first submit instead of riding the initial payload — the login
-    // form renders and hydrates without it.
     const { createClient } = await import("@/utils/supabase/client");
     const supabase = createClient();
 
-    const result = mode === "sign-in"
-      ? await supabase.auth.signInWithPassword({ email, password })
-      : await supabase.auth.signUp({
-          email,
+    const result = up
+      ? await supabase.auth.signUp({
+          email: em,
           password,
           options: {
             emailRedirectTo:
-              process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ?? `${window.location.origin}/auth/callback`,
+              process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ??
+              `${window.location.origin}/auth/callback`,
           },
-        });
+        })
+      : await supabase.auth.signInWithPassword({ email: em, password });
 
     if (result.error) {
-      setError(result.error.message.toLowerCase().includes("confirm") ? result.error.message : "Invalid email or password");
+      showError(friendlyError(result.error.message));
       setPending(false);
       return;
     }
 
-    if (mode === "sign-up" && result.data.user) {
-      // F-4 (Phase 8 / S1): no session means email confirmation is
-      // pending. The pre-confirmation profile bootstrap upsert is
-      // RLS-blocked by design (401), so it must NOT run before this
-      // branch — show the intended "check your email" message first
-      // and skip the bootstrap entirely; onboarding creates the
-      // profile after the confirmed sign-in.
+    /* Sign-up with an instant session (autoconfirm is on):
+       bootstrap the profile row, then let the middleware route
+       to /onboarding for the wake-time survey. If email
+       confirmation ever gets re-enabled, the no-session branch
+       keeps the "check your email" message. */
+    if (up && result.data.user) {
       if (!result.data.session) {
         setMessage("Check your email to confirm your account, then sign in.");
         setPending(false);
         return;
       }
-      const { error: profileError } = await supabase.from("profiles").upsert({
+      await supabase.from("profiles").upsert({
         id: result.data.user.id,
         identity: {
-          displayName: email.split("@")[0],
+          displayName: em.split("@")[0],
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           createdAt: new Date().toISOString(),
         },
         integrations: { browserExtensionLinked: false },
       });
-
-      if (profileError) {
-        setError("Your account was created, but profile setup could not be completed.");
-        setPending(false);
-        return;
-      }
     }
 
     router.replace("/");
     router.refresh();
+  }
+
+  async function enterAsGuest() {
+    if (guestBusy || pending) return;
+    setGuestBusy(true);
+    setError("");
+    try {
+      const { createClient } = await import("@/utils/supabase/client");
+      const supabase = createClient();
+      const { error: anonError } = await supabase.auth.signInAnonymously();
+      if (anonError) throw anonError;
+      haptic([10, 40, 10]);
+      router.replace("/");
+      router.refresh();
+    } catch (e) {
+      showError(
+        e instanceof Error ? friendlyError(e.message) : "Could not start guest mode.",
+      );
+      setGuestBusy(false);
+    }
+  }
+
+  async function sendReset() {
+    setError("");
+    const em = email.trim();
+    if (!EMAIL_RE.test(em)) {
+      showError("Enter your email first.");
+      return;
+    }
+    setPending(true);
+    try {
+      const { createClient } = await import("@/utils/supabase/client");
+      const supabase = createClient();
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(em, {
+        redirectTo: `${window.location.origin}/auth/callback?next=/auth/reset`,
+      });
+      if (resetError) throw resetError;
+      setMessage(`Reset link sent to ${em}`);
+    } catch (e) {
+      showError(e instanceof Error ? friendlyError(e.message) : "Could not send the reset email.");
+    } finally {
+      setPending(false);
+    }
   }
 
   async function signInWithPasskeyFlow() {
@@ -136,168 +232,207 @@ export default function AuthPage() {
         refresh_token: refreshToken,
       });
       if (sessionError) throw new Error(sessionError.message);
-      triggerHaptic();
+      haptic();
       router.replace("/");
       router.refresh();
     } catch (e) {
-      // Fallback chain (Amendment #17): cancelled ceremony, no
-      // credential, or server refusal — the password form is
-      // already on screen; surface an inline error instead.
-      setError(
+      showError(
         e instanceof Error && e.message === "Passkey cancelled"
           ? ""
-          : "Passkey sign-in didn't complete — use your email and password below."
+          : "Passkey sign-in didn't complete — use your email and password below.",
       );
     } finally {
       setPasskeyBusy(false);
     }
   }
 
-  async function signInWithGoogle() {
-    setError("");
-    const { createClient } = await import("@/utils/supabase/client");
-    const supabase = createClient();
-    const { error: authError } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ?? `${window.location.origin}/auth/callback`,
-      },
-    });
-    if (authError) setError("Google sign in is unavailable right now.");
-  }
+  /* ?guest=1 no longer auto-runs here — the landing's "Try it
+     first" enters guest mode in place; this page keeps its own
+     manual "Try it first" button in the dock. */
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden p-4">
-      {/* Phase 8: flowing-path backdrop — /auth ONLY (the
-          authenticated app bans infinite path animations). */}
-      <BackgroundPaths />
-      {/* Hand-made pass: doodles scattered on the periwinkle day —
-          sticker-tilted, decorative only. */}
-      <DoodleStar className="pointer-events-none absolute left-[7%] top-[13%] hidden h-10 w-10 -rotate-12 opacity-80 sm:block" />
-      <DoodleSparkle className="pointer-events-none absolute right-[9%] top-[19%] hidden h-8 w-8 rotate-12 opacity-80 sm:block" />
-      <DoodleHeart className="pointer-events-none absolute bottom-[15%] left-[13%] hidden h-9 w-9 rotate-6 opacity-70 sm:block" />
-      <DoodleCloud className="pointer-events-none absolute bottom-[17%] right-[11%] hidden h-14 w-20 -rotate-3 opacity-80 sm:block" />
-      {/* Phase 10: the auth card is a CREAM glass panel on the
-          periwinkle day — the app's own material. */}
-      <GlassPanel
-        hairline="none"
-        className="relative w-full max-w-md p-6 sm:p-8"
-        style={{
-          background: "color-mix(in srgb, var(--df-panel-fill) 90%, transparent)",
-          border: "0.5px solid var(--df-panel-border)",
-          borderRadius: "var(--df-radius-panel)",
-          boxShadow: "var(--df-hero-panel-shadow)",
-        }}
-      >
-        <div>
-          <LogoMark size={36} />
-          <p className="mt-3 text-xs font-bold tracking-[0.22em] text-(--df-accent-text)">
-            DAYFLOW AI
-          </p>
-          <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-(--df-text-primary)">
-            Your day, in <Marker>flow.</Marker>
-          </h1>
-          <p className="mt-2 text-sm leading-6 text-(--df-text-secondary)">
-            A calm home for your timeline, habits, and weekly rhythm.
-          </p>
-        </div>
-
-        <div className="mt-6">
-          <Segmented
-            label="Authentication mode"
-            options={[
-              { id: "sign-in", label: "Sign In" },
-              { id: "sign-up", label: "Sign Up" },
-            ]}
-            value={mode}
-            onChange={(value) => {
-              setMode(value as "sign-in" | "sign-up");
-              setError("");
-              setMessage("");
-            }}
+    <main className="dfl">
+      <SkySync />
+      <div className="dfl-body">
+        {/* header: back + the live logo */}
+        <div className="dfl-head">
+          <Link className="dfl-back" href="/" aria-label="Back">
+            ‹
+          </Link>
+          <DayflowLogo
+            live
+            spin={logoSpin}
+            jump={logoJump > 0}
+            key={`lgs-${logoJump}`}
+            className="dfl-lgs"
           />
+          <span style={{ width: 44 }} />
         </div>
 
-        {/* Passkey first (Amendment #17): above the form when available. */}
-        {passkeyAvailable && (
+        <div className="dfl-title">
+          <h1>{up ? "Create your account" : "Welcome back"}</h1>
+          <p className="dfl-sub">
+            {up
+              ? "Two fields and you are in. Your coach gets to know you next."
+              : "Pick up where your day left off."}
+          </p>
+        </div>
+
+        <div className="dfl-seg" role="tablist" aria-label="Authentication mode">
           <button
             type="button"
-            onClick={signInWithPasskeyFlow}
-            disabled={passkeyBusy || pending}
-            className="df-press df-btn-primary mt-6 min-h-12 w-full px-4 text-base font-bold disabled:cursor-not-allowed disabled:opacity-60"
+            className={up ? "" : "on"}
+            onClick={() => {
+              setMode("in");
+              setError("");
+              setMessage("");
+              haptic(4);
+            }}
           >
-            <span className="flex items-center justify-center gap-2">
-              <Fingerprint className="h-5 w-5" aria-hidden="true" />
-              {passkeyBusy ? "Waiting for your passkey…" : "Continue with Face ID"}
-            </span>
+            Sign in
           </button>
-        )}
+          <button
+            type="button"
+            className={up ? "on" : ""}
+            onClick={() => {
+              setMode("up");
+              setError("");
+              setMessage("");
+              haptic(4);
+            }}
+          >
+            Create account
+          </button>
+        </div>
 
-        {passkeyAvailable && (
-          <div className="my-5 flex items-center gap-3 text-xs text-(--df-text-muted)">
-            <span className="h-px flex-1 bg-(--df-input-border)" />
-            or with email
-            <span className="h-px flex-1 bg-(--df-input-border)" />
-          </div>
-        )}
+        {up ? null : passkeyAvailable ? (
+          <>
+            <button
+              type="button"
+              className="dfl-fid"
+              onClick={() => void signInWithPasskeyFlow()}
+              disabled={passkeyBusy || pending}
+            >
+              {FI_ICON}
+              <span>{passkeyBusy ? "Waiting for your passkey…" : "Continue with Face ID"}</span>
+            </button>
+            <div className="dfl-or">or use email</div>
+          </>
+        ) : null}
 
-        <form className={passkeyAvailable ? "flex flex-col gap-4" : "mt-6 flex flex-col gap-4"} onSubmit={submit}>
-          <label className="flex flex-col gap-2">
-            <span className="text-sm font-semibold text-(--df-text-secondary)">Email</span>
+        <form id="dfl-go" onSubmit={submit} noValidate>
+          <div className={`dfl-fw${emailOk ? " ok" : ""}`}>
             <input
-              required
+              className="dfl-in"
+              id="dfl-email"
               type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              inputMode="email"
+              placeholder="Email"
               autoComplete="email"
-              className="df-input-glass min-h-12 px-4 text-base text-(--df-text-primary) outline-none transition-colors placeholder:text-(--df-text-muted)"
+              aria-label="Email"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                nudgeLogo();
+              }}
             />
-          </label>
-          <label className="flex flex-col gap-2">
-            <span className="text-sm font-semibold text-(--df-text-secondary)">Password</span>
+            <svg className="dfl-ck" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 12.5l4.5 4.5L19 7.5" />
+            </svg>
+          </div>
+
+          <div className="dfl-pw" style={{ marginTop: 12 }}>
             <input
-              required
-              minLength={6}
-              type="password"
+              className="dfl-in"
+              id="dfl-password"
+              type={showPw ? "text" : "password"}
+              placeholder="Password (8+ characters)"
+              autoComplete={up ? "new-password" : "current-password"}
+              aria-label="Password"
               value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              autoComplete={mode === "sign-in" ? "current-password" : "new-password"}
-              className="df-input-glass min-h-12 px-4 text-base text-(--df-text-primary) outline-none transition-colors placeholder:text-(--df-text-muted)"
+              onChange={(e) => {
+                setPassword(e.target.value);
+                nudgeLogo();
+              }}
             />
-          </label>
-          {error ? (
-            <p role="alert" className="text-sm text-(--df-destructive-text)">
-              {error}
-            </p>
-          ) : null}
+            <button
+              type="button"
+              onClick={() => {
+                setShowPw((s) => !s);
+                haptic(4);
+              }}
+            >
+              {showPw ? "Hide" : "Show"}
+            </button>
+          </div>
+
+          {up ? (
+            <div className="dfl-meter" style={{ marginTop: 12 }} aria-hidden="true">
+              <div className="dfl-mb">
+                {[0, 1, 2, 3].map((i) => (
+                  <i key={i} className={i < score ? `on l${score}` : ""} />
+                ))}
+              </div>
+              <span className="dfl-ml">{PW_LABELS[score]}</span>
+            </div>
+          ) : (
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <button type="button" className="dfl-forgot" onClick={() => void sendReset()}>
+                Forgot password?
+              </button>
+            </div>
+          )}
+
+          <div className="dfl-err sh" role="alert" key={`err-${error}`}>
+            {error}
+          </div>
           {message ? (
-            <p role="status" className="text-sm text-(--df-accent-text)">
+            <p className="dfl-sub" role="status" style={{ marginTop: -6, marginBottom: 4 }}>
               {message}
             </p>
           ) : null}
-          <button
-            disabled={pending}
-            type="submit"
-            className="df-press df-btn-primary min-h-12 px-4 text-base font-bold disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {pending ? "Please wait…" : mode === "sign-in" ? "Continue" : "Create account"}
-          </button>
         </form>
 
-        <div className="my-6 flex items-center gap-3 text-xs text-(--df-text-muted)">
-          <span className="h-px flex-1 bg-(--df-input-border)" />
-          OR
-          <span className="h-px flex-1 bg-(--df-input-border)" />
+        {/* dock */}
+        <div className="dfl-dock">
+          <div className="dfl-dockc">
+            <button
+              type="submit"
+              form="dfl-go"
+              className={`dfl-btn${pending ? " ld" : ""}`}
+              disabled={pending}
+            >
+              <span>
+                {pending
+                  ? up
+                    ? "Creating your account…"
+                    : "Signing you in…"
+                  : up
+                    ? "Create account"
+                    : "Sign in"}
+              </span>
+            </button>
+            <div className="dfl-dock2">
+              <button type="button" onClick={() => void enterAsGuest()} disabled={guestBusy}>
+                {guestBusy ? "Setting you up…" : up ? "Try it first, no account" : "Try it first"}
+              </button>
+            </div>
+            <p className="dfl-tos">
+              {up
+                ? "By continuing you agree to the Terms and Privacy Policy."
+                : "Your data is private to your account."}
+            </p>
+          </div>
         </div>
-
-        <button
-          type="button"
-          onClick={signInWithGoogle}
-          className="df-press df-btn-secondary min-h-12 w-full px-4 text-base font-semibold"
-        >
-          Continue with Google
-        </button>
-      </GlassPanel>
+      </div>
     </main>
+  );
+}
+
+export default function AuthPage() {
+  return (
+    <Suspense>
+      <AuthView />
+    </Suspense>
   );
 }

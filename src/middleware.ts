@@ -12,8 +12,13 @@ import { NextResponse, type NextRequest } from "next/server";
 //   `naturalWakeTime`, a key written ONLY by the survey — the
 //   initialize_profile trigger's default { chronotype, timezone }
 //   never contains it, and Phase 1's backfill kept that shape.
+//   EXCEPTION (welcome suite): ANONYMOUS guests ("Try it first")
+//   skip the gate — they explore the app on defaults and can
+//   create an account later in Settings (data upgrades in place).
 // - Authenticated users who try to re-visit /onboarding (or /auth)
-//   after completing it are bounced to the app.
+//   after completing it are bounced to the app. EXCEPTION:
+//   /auth/reset stays reachable for a signed-in session arriving
+//   from a password-recovery link.
 // ============================================================
 
 export async function middleware(request: NextRequest) {
@@ -60,6 +65,24 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
+  // Anonymous guests ("Try it first"): straight into the app on
+  // defaults — the onboarding gate below does not apply, and the
+  // auth/onboarding routes bounce them home like any other
+  // signed-in user. /auth/reset stays open (recovery sessions).
+  if (user.is_anonymous) {
+    if (isAuthRoute && pathname !== "/auth/reset") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/";
+      return NextResponse.redirect(url);
+    }
+    if (isOnboardingRoute) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/";
+      return NextResponse.redirect(url);
+    }
+    return response;
+  }
+
   // Authenticated: check onboarding completion (PK lookup, RLS-scoped).
   const { data: profile } = await supabase
     .from("profiles")
@@ -71,6 +94,10 @@ export async function middleware(request: NextRequest) {
     !!chrono &&
     typeof chrono === "object" &&
     "naturalWakeTime" in (chrono as Record<string, unknown>);
+
+  // /auth/reset is valid for ANY signed-in session (recovery link
+  // may land before onboarding was ever completed).
+  if (pathname === "/auth/reset") return response;
 
   if (isAuthRoute) {
     const url = request.nextUrl.clone();

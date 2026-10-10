@@ -1332,3 +1332,55 @@
   --df-scene-shadow: 0 14px 36px -22px rgba(0, 0, 0, 0.6);
   --df-orb-mid: #7c86c9;
 }
+
+/* ============================================================
+   Welcome suite (landing / auth / onboarding / reset) —
+   reference "Dayflow (6)" welcome flow, ported verbatim.
+   The .dfw scope in globals.css reads ONLY these tokens
+   (drift-guard clean); light values are the reference's :root,
+   dark values its [data-theme="dark"] block.
+   ============================================================ */
+:root {
+  --dfl-bg: #fffbf3;
+  --dfl-glass: rgba(255, 255, 255, 0.62);
+  --dfl-ink: #2b2940;
+  --dfl-mute: #77748c;
+  --dfl-line: rgba(60, 40, 30, 0.1);
+  --dfl-chipc: rgba(120, 100, 90, 0.12);
+  --dfl-dip: #e4e2ec;
+  /* sky defaults before SkySync paints <html data-sky> — "day" bucket */
+  --dfl-sky-d1: #90dbf4;
+  --dfl-sky-d2: #8eecf5;
+  --dfl-sky-d3: #98f5e1;
+  --dfl-sky-d4: #b9fbc0;
+  /* primary button (the welcome CTA) */
+  --dfl-btn-a: #2b9be8;
+  --dfl-btn-b: #1a73e8;
+  --dfl-btn-ink: #ffffff;
+  --dfl-btn-ring: rgba(26, 115, 232, 0.75);
+  --dfl-btn-top: rgba(255, 255, 255, 0.35);
+  --dfl-shine: rgba(255, 255, 255, 0.45);
+  --dfl-spin-track: rgba(255, 255, 255, 0.4);
+  /* surfaces */
+  --dfl-card-shadow: rgba(0, 0, 0, 0.3);
+  --dfl-dock-shadow: rgba(60, 40, 120, 0.45);
+  --dfl-seg-shadow: rgba(0, 0, 0, 0.15);
+  --dfl-thumb: #ffffff;
+  --dfl-thumb-shadow: rgba(60, 40, 120, 0.35);
+  --dfl-ic-a: rgba(255, 255, 255, 0.95);
+  /* form semantics */
+  --dfl-ok: #3fae74;
+  --dfl-l1: #ef6f7c;
+  --dfl-l2: #e8913f;
+  --dfl-l3: #4c82d8;
+  --dfl-err: #c0455a;
+}
+.dark {
+  --dfl-bg: #17151f;
+  --dfl-glass: rgba(34, 37, 43, 0.7);
+  --dfl-ink: #f6f3fc;
+  --dfl-mute: #a9a6bc;
+  --dfl-line: rgba(255, 255, 255, 0.12);
+  --dfl-chipc: rgba(255, 255, 255, 0.1);
+  --dfl-dip: #3a3746;
+}

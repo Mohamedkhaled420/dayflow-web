@@ -251,6 +251,15 @@ export function SettingsView({ onNavigate }: { onNavigate: (t: TabId) => void })
   const [skyHour, setSkyHour] = useState<number | null>(null);
   const [hapOff, setHapOff] = useState(false);
   const [stampNonce, setStampNonce] = useState(0);
+
+  // ---- guest → account upgrade ("Try it first" users) ----
+  const [isGuest, setIsGuest] = useState(false);
+  const [guestEmail, setGuestEmail] = useState("");
+  const [guestPassword, setGuestPassword] = useState("");
+  const [guestShowPw, setGuestShowPw] = useState(false);
+  const [guestBusy, setGuestBusy] = useState(false);
+  const [guestError, setGuestError] = useState("");
+  const [guestDone, setGuestDone] = useState(false);
   const router = useRouter();
 
   // Read the localStorage flags once on mount (SSR-safe) — deferred
@@ -399,6 +408,90 @@ export function SettingsView({ onNavigate }: { onNavigate: (t: TabId) => void })
       router.refresh();
     } finally {
       setSigningOut(false);
+    }
+  };
+
+  // ---- guest → account: detect the anonymous session once ----
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { createClient } = await import("@/utils/supabase/client");
+        const supabase = createClient();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!cancelled) setIsGuest(!!user?.is_anonymous);
+      } catch {
+        /* no session — leave hidden */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // ---- guest → account: convert in place (data upgrades with it) ----
+  const upgradeGuest = async () => {
+    if (guestBusy) return;
+    setGuestError("");
+    const em = guestEmail.trim();
+    if (!/^\S+@\S+\.\S+$/.test(em)) {
+      setGuestError("Enter a valid email address.");
+      haptic(30);
+      return;
+    }
+    if (guestPassword.length < 8) {
+      setGuestError("Use at least 8 characters.");
+      haptic(30);
+      return;
+    }
+    setGuestBusy(true);
+    try {
+      const { createClient } = await import("@/utils/supabase/client");
+      const supabase = createClient();
+      const { error: upgradeError } = await supabase.auth.updateUser({
+        email: em,
+        password: guestPassword,
+      });
+      if (upgradeError) throw upgradeError;
+      // give the converted profile a display name (like sign-up's
+      // bootstrap does) so the greeting stops saying "Friend"
+      const {
+        data: { user: fresh },
+      } = await supabase.auth.getUser();
+      if (fresh) {
+        const { data: row } = await supabase
+          .from("profiles")
+          .select("identity")
+          .eq("id", fresh.id)
+          .maybeSingle();
+        await supabase.from("profiles").upsert({
+          id: fresh.id,
+          identity: {
+            ...((row?.identity as Record<string, unknown> | null) ?? {}),
+            displayName: em.split("@")[0],
+            createdAt: new Date().toISOString(),
+          },
+        });
+      }
+      setGuestDone(true);
+      setIsGuest(false);
+      haptic([12, 40, 24]);
+      toast({
+        title: "Account created",
+        description: "Everything you logged came with you.",
+      });
+    } catch (e) {
+      setGuestError(
+        e instanceof Error && e.message.toLowerCase().includes("already")
+          ? "An account with this email already exists."
+          : e instanceof Error
+            ? e.message
+            : "Could not create your account."
+      );
+    } finally {
+      setGuestBusy(false);
     }
   };
 
@@ -791,6 +884,78 @@ export function SettingsView({ onNavigate }: { onNavigate: (t: TabId) => void })
             </div>
           </div>
         </section>
+
+        {/* ---------- guest → account ---------- */}
+        {(isGuest || guestDone) && (
+          <>
+            <Label>Guest</Label>
+            <section className="dfset-card dfset-st" aria-label="Save your data">
+              {guestDone ? (
+                <div className="dfset-row">
+                  <RowIcon name="team" tint="var(--df-p-celadon)" />
+                  <div>
+                    <b>Account created</b>
+                    <small>Your day now travels with you across devices</small>
+                  </div>
+                </div>
+              ) : (
+                <div className="dfset-gst">
+                  <div className="dfset-row">
+                    <RowIcon name="team" tint="var(--df-p-blue)" />
+                    <div>
+                      <b>Save your data</b>
+                      <small>
+                        You are exploring as a guest — create an account and everything you logged
+                        comes with you
+                      </small>
+                    </div>
+                  </div>
+                  <input
+                    className="dfset-gin"
+                    type="email"
+                    inputMode="email"
+                    autoComplete="email"
+                    placeholder="Email"
+                    aria-label="Email"
+                    value={guestEmail}
+                    onChange={(e) => setGuestEmail(e.target.value)}
+                  />
+                  <div className="dfset-gpw">
+                    <input
+                      className="dfset-gin"
+                      type={guestShowPw ? "text" : "password"}
+                      autoComplete="new-password"
+                      placeholder="Password (8+ characters)"
+                      aria-label="Password"
+                      value={guestPassword}
+                      onChange={(e) => setGuestPassword(e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setGuestShowPw((s) => !s)}
+                      aria-label={guestShowPw ? "Hide password" : "Show password"}
+                    >
+                      {guestShowPw ? "Hide" : "Show"}
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    className="dfset-gbtn df-press"
+                    onClick={() => void upgradeGuest()}
+                    disabled={guestBusy}
+                  >
+                    {guestBusy ? "Creating…" : "Create my account"}
+                  </button>
+                  {guestError ? (
+                    <p className="dfset-gerr" role="alert">
+                      {guestError}
+                    </p>
+                  ) : null}
+                </div>
+              )}
+            </section>
+          </>
+        )}
 
         {/* ---------- data ---------- */}
         <Label>Data</Label>
