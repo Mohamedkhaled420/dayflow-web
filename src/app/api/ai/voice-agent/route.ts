@@ -214,10 +214,14 @@ export async function GET(req: Request) {
   }
 
   // 3. Session shaping inputs from the client (its own data,
-  //    over its own authenticated connection).
+  //    over its own authenticated connection). `resume=1` marks
+  //    a seamless RECONNECT after an unexpected drop — the
+  //    greeting is then skipped so a call that hit the platform
+  //    cap (maxDuration) or a network blip FEELS continuous.
   const url = new URL(req.url);
   const ctx = (url.searchParams.get("ctx") ?? "").slice(0, MAX_CTX_CHARS);
   const name = (url.searchParams.get("name") ?? "").replace(/[^A-Za-z '\-]/g, "").slice(0, 24);
+  const resume = url.searchParams.get("resume") === "1";
   const hour = new Date().getUTCHours();
 
   return experimental_upgradeWebSocket(
@@ -292,11 +296,17 @@ export async function GET(req: Request) {
               speak: {
                 provider: { type: "deepgram", version: "v2", model: SPEAK_MODEL },
               },
-              // Spoken the moment the session is configured.
-              greeting:
-                hour >= 21 || hour < 5
-                  ? `Hey ${name || "there"}. It's late — I'm here if you want to talk.`
-                  : `Hey ${name || "there"}, I'm Dia. What's on your mind?`,
+              // Spoken the moment the session is configured —
+              // unless this is a resume (see above): a mid-call
+              // reconnect greeting would step on the user.
+              ...(resume
+                ? {}
+                : {
+                    greeting:
+                      hour >= 21 || hour < 5
+                        ? `Hey ${name || "there"}. It's late — I'm here if you want to talk.`
+                        : `Hey ${name || "there"}, I'm Dia. What's on your mind?`,
+                  }),
             },
           })
         );

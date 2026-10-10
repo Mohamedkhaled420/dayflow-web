@@ -18,6 +18,13 @@ import type { NextConfig } from "next";
 //     external-script block (only 'self' + inline) plus
 //     connect-src/img-src locks still kill the practical XSS
 //     exfil paths. Nonce-based CSP is the documented upgrade.
+//   * blob: is deliberately NOT granted to script-src. That
+//     means AudioWorklet modules MUST load from a same-origin
+//     static file (public/voice-capture-worklet.js) — worklet
+//     fetches match against script-src, NOT worker-src, and a
+//     blob: worklet here was silently killing the mic pipeline
+//     (Dia could speak but never hear). Keep the worklet a
+//     static file or add (and justify) blob: here.
 //   * 'unsafe-eval' ONLY in dev (React Refresh); production
 //     ships without it.
 //   * The Supabase project URL is read from the env the config

@@ -313,6 +313,10 @@ export function ChatView({ active = true }: { active?: boolean }) {
   const levelsRef = useRef<VoiceLevels>({ input: 0, output: 0 });
   const sessionRef = useRef<VoiceSession | null>(null);
   const happyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // --- unexpected-drop bookkeeping (seamless voice resume) ---
+  const voiceDropsRef = useRef<number[]>([]);
+  const voiceResumeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const voiceFailedRef = useRef(false);
 
   useEffect(() => {
     const mq = matchMedia("(prefers-reduced-motion: reduce)");
@@ -626,8 +630,13 @@ export function ChatView({ active = true }: { active?: boolean }) {
   };
 
   /** Open a voice session (mic + relay + Deepgram). Returns the
-   *  live session, or null when it couldn't start. */
-  const startVoice = async (): Promise<VoiceSession | null> => {
+   *  live session, or null when it couldn't start. `resume` marks
+   *  a seamless reconnect after an unexpected drop — the relay
+   *  then skips Dia's greeting and the failure toast is honest
+   *  about what happened. */
+  const startVoice = async (opts?: {
+    resume?: boolean;
+  }): Promise<VoiceSession | null> => {
     if (sessionRef.current || connecting) return sessionRef.current;
     setConnecting(true);
     setCoachError(null);
@@ -748,16 +757,33 @@ export function ChatView({ active = true }: { active?: boolean }) {
           description: "Dia can still answer typed questions.",
         });
       },
-      onClose: () => {
+      onClose: (unexpected) => {
         setVoiceLive(false);
         setVoiceState("idle");
         sessionRef.current = null;
+        // The session died without the user asking: server cap
+        // (maxDuration 300), a network blip, or an upstream
+        // error. Before this, the UI went SILENTLY dead — Dia
+        // just stopped listening mid-call with zero feedback.
+        // Now: one seamless resume attempt, then honest toast.
+        if (unexpected && !voiceFailedRef.current) scheduleVoiceResume();
       },
     });
     sessionRef.current = session;
     try {
-      await session.start({ ctx: voiceContext, name: firstName, mic: true });
+      await session.start({
+        ctx: voiceContext,
+        name: firstName,
+        mic: true,
+        resume: opts?.resume,
+      });
       setVoiceLive(true);
+      if (opts?.resume) {
+        toast({
+          title: "Dia reconnected",
+          description: "Still here — go ahead.",
+        });
+      }
       return session;
     } catch {
       sessionRef.current = null;
@@ -765,17 +791,64 @@ export function ChatView({ active = true }: { active?: boolean }) {
       setDock("type");
       setVoiceState("idle");
       setVoiceLive(false);
-      toast({
-        title: "Couldn't start voice",
-        description: "Check the mic permission — typing still works.",
-      });
+      toast(
+        opts?.resume
+          ? {
+              title: "Dia lost the connection",
+              description: "Tap the mic when you're ready to keep talking.",
+            }
+          : {
+              title: "Couldn't start voice",
+              description: "Check the mic permission — typing still works.",
+            }
+      );
       return null;
     } finally {
       setConnecting(false);
     }
   };
 
+  /** After an unexpected drop: try ONE seamless resume (relay
+   *  skips the greeting). Two drops in five minutes, a hidden
+   *  tab, or a failed resume → honest toast + manual restart.
+   *  Without this, every voice call died silently at the
+   *  platform cap (maxDuration 300s). */
+  const scheduleVoiceResume = () => {
+    if (document.visibilityState !== "visible") {
+      toast({
+        title: "Dia lost the connection",
+        description: "Tap the mic when you're back.",
+      });
+      return;
+    }
+    const now = Date.now();
+    const drops = (voiceDropsRef.current = voiceDropsRef.current.filter(
+      (t) => now - t < 5 * 60_000
+    ));
+    if (drops.length >= 2) {
+      toast({
+        title: "Dia lost the connection",
+        description: "Tap the mic to keep talking.",
+      });
+      return;
+    }
+    drops.push(now);
+    if (voiceResumeTimer.current) clearTimeout(voiceResumeTimer.current);
+    voiceResumeTimer.current = setTimeout(() => {
+      voiceResumeTimer.current = null;
+      if (sessionRef.current || voiceFailedRef.current) return;
+      if (document.visibilityState !== "visible") return;
+      void startVoice({ resume: true });
+    }, 800);
+  };
+
   const endVoice = () => {
+    // A user-initiated end cancels any pending auto-resume —
+    // their intent is to STOP, not to be called back.
+    if (voiceResumeTimer.current) {
+      clearTimeout(voiceResumeTimer.current);
+      voiceResumeTimer.current = null;
+    }
     sessionRef.current?.stop();
     sessionRef.current = null;
     setVoiceLive(false);
@@ -835,10 +908,16 @@ export function ChatView({ active = true }: { active?: boolean }) {
   useEffect(
     () => () => {
       if (happyTimer.current) clearTimeout(happyTimer.current);
+      if (voiceResumeTimer.current) clearTimeout(voiceResumeTimer.current);
       sessionRef.current?.stop();
     },
     []
   );
+
+  // Keep the resume guard in sync with the fallback flag.
+  useEffect(() => {
+    voiceFailedRef.current = voiceFailed;
+  }, [voiceFailed]);
 
   // Word-lit captions while Dia speaks (reference cMark): a
   // steady reveal cadence paced like the mockup's, since the

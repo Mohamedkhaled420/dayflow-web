@@ -66,15 +66,22 @@ export interface VoiceSessionEvents {
   onFunctionCall(fn: VoiceFunctionCall): void;
   /** Fatal session problem — UI falls back to typed mode. */
   onError(message: string): void;
-  /** The socket closed (both graceful and not). */
-  onClose(): void;
+  /** The socket closed. `unexpected` is true when the session
+   *  died without the user asking for it (server cap, network
+   *  drop, upstream error) — the UI may seamlessly reconnect
+   *  via start({ resume: true }). */
+  onClose(unexpected: boolean): void;
 }
 
-/** The AudioWorklet processor source, loaded from a Blob URL so
- *  no extra static asset is needed. Downsamples the input rate
- *  to 16 kHz with a simple averaging filter, converts to Int16,
- *  and posts RMS levels alongside. */
-const CAPTURE_WORKLET = /* js */ `
+/** The capture worklet is served SAME-ORIGIN from
+ *  /voice-capture-worklet.js — a static file is what the
+ *  production CSP allows (AudioWorklet module loads match
+ *  against script-src, and blob: is deliberately NOT granted
+ *  there). The inlined copy below stays as a fallback for
+ *  hosts without a CSP; it MUST stay in sync with
+ *  public/voice-capture-worklet.js. */
+const WORKLET_URL = "/voice-capture-worklet.js";
+const CAPTURE_WORKLET_FALLBACK = /* js */ `
 class DFCapture extends AudioWorkletProcessor {
   constructor() {
     super();
@@ -162,12 +169,40 @@ export class VoiceSession {
    * Open the relay socket + (unless `micless`) the mic. Resolves
    * when the socket is OPEN (not yet SettingsApplied — watch
    * onReady), rejects on connection failure.
+   *
+   * `resume` marks a seamless RECONNECT after an unexpected
+   * drop: the relay then skips Dia's greeting so the call feels
+   * continuous (the upstream conversation context still resets
+   * — that is a per-connection fact of Deepgram's agent API,
+   * not a choice made here).
    */
-  async start(opts: { ctx: string; name: string; mic: boolean }): Promise<void> {
+  async start(opts: {
+    ctx: string;
+    name: string;
+    mic: boolean;
+    resume?: boolean;
+  }): Promise<void> {
     if (this.ws) return;
     this.ended = false;
 
+    // iOS/Safari gesture rule: AudioContexts created OUTSIDE the
+    // tap's task can come up suspended and STAY that way — the
+    // mic then feeds silence and Dia's replies never play. Both
+    // contexts are created + resumed here, synchronously inside
+    // the user-gesture task (start() runs from the mic button's
+    // handler, before the first await below).
+    try {
+      if (!this.micCtx) this.micCtx = new AudioContext({ sampleRate: 48_000 });
+      if (this.micCtx.state === "suspended") void this.micCtx.resume();
+      if (!this.outCtx) this.outCtx = new AudioContext({ sampleRate: OUT_RATE });
+      if (this.outCtx.state === "suspended") void this.outCtx.resume();
+    } catch {
+      // Pre-AudioContext browsers — mic loading below will then
+      // fail VISIBLY instead of silently.
+    }
+
     const qs = new URLSearchParams({ ctx: opts.ctx, name: opts.name });
+    if (opts.resume) qs.set("resume", "1");
     const proto = location.protocol === "https:" ? "wss" : "ws";
     const ws = new WebSocket(`${proto}://${location.host}/api/ai/voice-agent?${qs}`);
     ws.binaryType = "arraybuffer";
@@ -324,35 +359,52 @@ export class VoiceSession {
       },
     });
     this.micStream = stream;
-    const ctx = new AudioContext({ sampleRate: 48_000 });
+    const ctx = this.micCtx ?? new AudioContext({ sampleRate: 48_000 });
     this.micCtx = ctx;
+    if (ctx.state === "suspended") void ctx.resume();
     const src = ctx.createMediaStreamSource(stream);
+
+    // Load the capture processor. Order matters:
+    //   1. the same-origin static file — the only path the
+    //      production CSP permits (script-src 'self'; worklets
+    //      are NOT covered by worker-src — see
+    //      public/voice-capture-worklet.js for the postmortem),
+    //   2. the inline Blob fallback — for hosts without a CSP.
+    // A silent micless session is FORBIDDEN: if both fail the
+    // user would hear Dia but never be heard — the exact
+    // "stopped listening" failure this class must never hide.
+    const loadWorklet = async () => {
+      try {
+        await ctx.audioWorklet.addModule(WORKLET_URL);
+        return;
+      } catch {
+        /* fall through to the blob attempt */
+      }
+      const blob = new Blob([CAPTURE_WORKLET_FALLBACK], { type: "text/javascript" });
+      this.workletUrl = URL.createObjectURL(blob);
+      await ctx.audioWorklet.addModule(this.workletUrl);
+    };
 
     let node: AudioWorkletNode;
     try {
-      const blob = new Blob([CAPTURE_WORKLET], { type: "text/javascript" });
-      this.workletUrl = URL.createObjectURL(blob);
-      await ctx.audioWorklet.addModule(this.workletUrl);
+      await loadWorklet();
       node = new AudioWorkletNode(ctx, "df-capture");
-      node.port.onmessage = (e: MessageEvent) => {
-        const d = e.data as ArrayBuffer | { level: number };
-        if (d instanceof ArrayBuffer) {
-          if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(d);
-        } else {
-          this.inLevel = d.level;
-          this.reportLevels();
-        }
-      };
-    } catch {
-      // No AudioWorklet (very old Safari) — session degrades to
-      // listen-only-by-text; the UI was told micless behavior.
-      node = null as unknown as AudioWorkletNode;
+    } catch (e) {
+      this.ev.onError("Microphone capture could not start — voice is unavailable.");
+      throw e instanceof Error ? e : new Error("worklet failed");
     }
-    if (node) {
-      src.connect(node);
-      // Do NOT connect to destination — no echo.
-      this.worklet = node;
-    }
+    node.port.onmessage = (e: MessageEvent) => {
+      const d = e.data as ArrayBuffer | { level: number };
+      if (d instanceof ArrayBuffer) {
+        if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(d);
+      } else {
+        this.inLevel = d.level;
+        this.reportLevels();
+      }
+    };
+    src.connect(node);
+    // Do NOT connect to destination — no echo.
+    this.worklet = node;
   }
 
   // ---------------- playback ----------------
@@ -432,13 +484,14 @@ export class VoiceSession {
 
   private handleClose() {
     const wasLive = this.ws !== null;
+    const unexpected = wasLive && !this.ended;
     this.ws = null;
     if (!wasLive) return;
     this.teardownAudio();
     this.flushPlayback();
     this.agentDone = false;
     this.setState("idle");
-    this.ev.onClose();
+    this.ev.onClose(unexpected);
   }
 
   private teardownAudio() {
