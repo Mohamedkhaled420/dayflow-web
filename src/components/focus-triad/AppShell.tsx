@@ -356,21 +356,15 @@ export function AppShell({ initialTab }: { initialTab?: string } = {}) {
       className="df-app dfx-root w-full"
       style={{ ["--dfx-accent" as string]: accent }}
     >
-      {/* Shell header — brand + the overflow destinations (Weekly,
+      {/* Shell header — brand mark + the overflow destinations (Weekly,
           Settings) that live outside the five pill tabs; Journal /
-          Coach is now the 5th pill tab per the updated reference. */}
+          Coach is now the 5th pill tab per the updated reference.
+          Wordmark dropped (user scribble): every pane leads with its
+          own title, so the name up top only doubled the headers. */}
       <header className="dfx-header">
         <div className="flex min-w-0 items-center gap-2.5">
           <LogoMark size={26} />
-          <div className="flex items-center gap-1.5">
-            <p
-              className="text-[13px] font-semibold leading-none"
-              style={{ color: "var(--df-text-primary)" }}
-            >
-              Focus Triad
-            </p>
-            {isSyncing && <LogoLoop size="sm" />}
-          </div>
+          {isSyncing && <LogoLoop size="sm" />}
         </div>
         <div className="dfx-header-actions">
           <button

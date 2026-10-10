@@ -32,7 +32,7 @@
 
 import { useEffect } from "react";
 import { useTheme } from "next-themes";
-import { SKY_CHANGE_EVENT, skyPreviewHour } from "@/components/focus-triad/SkySync";
+import { SKY_CHANGE_EVENT } from "@/components/focus-triad/SkySync";
 
 /** The preference key — written by the Settings appearance row. */
 export const THEME_PREF_KEY = "ft-theme-pref";
@@ -77,10 +77,11 @@ export function writeThemePref(pref: ThemePref) {
   }
 }
 
-/** The effective fractional hour: the sky preview slider's
- *  hour when it is set, otherwise the user's real clock. */
+/** The effective fractional hour: the user's real clock (the
+ *  Settings preview slider was retired — the sky always follows
+ *  the actual time of day). */
 function effectiveHour(): number {
-  return skyPreviewHour() ?? new Date().getHours() + new Date().getMinutes() / 60;
+  return new Date().getHours() + new Date().getMinutes() / 60;
 }
 
 /** Smooth the flip: enable the color transitions for ~1s. */

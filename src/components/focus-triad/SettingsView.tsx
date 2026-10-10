@@ -254,7 +254,6 @@ export function SettingsView({ onNavigate }: { onNavigate: (t: TabId) => void })
   const [resetArmed, setResetArmed] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [skyOff, setSkyOff] = useState(false);
-  const [skyHour, setSkyHour] = useState<number | null>(null);
   const [hapOff, setHapOff] = useState(false);
   const [stampNonce, setStampNonce] = useState(0);
 
@@ -286,11 +285,9 @@ export function SettingsView({ onNavigate }: { onNavigate: (t: TabId) => void })
       try {
         setSkyOff(window.localStorage.getItem(SKY_OFF_KEY) === "1");
         setHapOff(window.localStorage.getItem(HAPTICS_OFF_KEY) === "1");
-        const raw = window.localStorage.getItem(SKY_PREVIEW_KEY);
-        if (raw !== null) {
-          const h = Number(raw);
-          if (Number.isFinite(h)) setSkyHour(h);
-        }
+        // The Preview slider is gone — clear any hour a user pinned
+        // with it so the sky follows the clock again.
+        window.localStorage.removeItem(SKY_PREVIEW_KEY);
       } catch {
         /* private mode — switches just won't persist */
       }
@@ -381,17 +378,6 @@ export function SettingsView({ onNavigate }: { onNavigate: (t: TabId) => void })
     try {
       if (next) window.localStorage.setItem(SKY_OFF_KEY, "1");
       else window.localStorage.removeItem(SKY_OFF_KEY);
-    } catch {
-      /* private mode */
-    }
-    applySkyChange();
-  };
-
-  const previewSky = (h: number | null) => {
-    setSkyHour(h);
-    try {
-      if (h === null) window.localStorage.removeItem(SKY_PREVIEW_KEY);
-      else window.localStorage.setItem(SKY_PREVIEW_KEY, String(h));
     } catch {
       /* private mode */
     }
@@ -885,34 +871,6 @@ export function SettingsView({ onNavigate }: { onNavigate: (t: TabId) => void })
               <small>Shifts from morning to night</small>
             </div>
             <Switch on={!skyOff} label="Time-of-day background" onChange={(next) => toggleSky(!next)} />
-          </div>
-
-          <div className="dfset-row">
-            <div>
-              <b>Preview</b>
-              <small>{skyHour === null ? "Now" : t12(skyHour)}</small>
-            </div>
-            <input
-              type="range"
-              min={0}
-              max={24}
-              step={0.25}
-              value={skyHour ?? new Date().getHours() + new Date().getMinutes() / 60}
-              onChange={(e) => previewSky(Number(e.target.value))}
-              aria-label="Preview time of day"
-              className="dfset-skyr"
-              style={{ accentColor: "var(--df-p-blue)" }}
-            />
-            <button
-              type="button"
-              className="dfset-cp df-press"
-              onClick={() => {
-                hapticSelect();
-                previewSky(null);
-              }}
-            >
-              Now
-            </button>
           </div>
 
           <div className="dfset-row">

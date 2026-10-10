@@ -44,7 +44,7 @@ import {
 import { useCompanionStore } from "@/store/companionStore";
 import { useToast } from "@/hooks/use-toast";
 import { triggerHaptic, hapticSelect } from "@/lib/haptics";
-import type { DiaCoachMode, DiaSyncState } from "@/components/focus-triad/DiaChatShell";
+import type { DiaCoachMode } from "@/components/focus-triad/DiaChatShell";
 import { journalHtmlToText, sanitizeJournalHtml } from "@/lib/journal-html";
 import { stripReasoning } from "@/lib/coach-text";
 import { renderCoachMarkdown } from "@/lib/coach-markdown";
@@ -277,8 +277,6 @@ export function ChatView({ active = true }: { active?: boolean }) {
   const addSleepLog = useFocusTriadStore((s) => s.addSleepLog);
   const addMealLog = useFocusTriadStore((s) => s.addMealLog);
   const addActivityLog = useFocusTriadStore((s) => s.addActivityLog);
-  const isSyncing = useFocusTriadStore((s) => s.isSyncing);
-  const syncError = useFocusTriadStore((s) => s.syncError);
   const data = useFocusTriadData();
   const { toast } = useToast();
   /** Dock hidden (keyboard / immersive)? → release the nav band
@@ -303,7 +301,6 @@ export function ChatView({ active = true }: { active?: boolean }) {
   const [mode, setMode] = useState<DiaCoachMode>("journal");
   /** Streaming coach text while it arrives (null = not streaming). */
   const [liveReply, setLiveReply] = useState<string | null>(null);
-  const [online, setOnline] = useState(true);
   /** Coach Notes — the actionable tail of coach replies, surfaced
    *  AWAY from the chat flow (panel + header badge). */
   const [notes, setNotes] = useState<CoachNote[]>([]);
@@ -464,20 +461,6 @@ export function ChatView({ active = true }: { active?: boolean }) {
         .slice(0, 3),
     [workoutLogs]
   );
-
-  // Sync dot: network + delta-sync state.
-  useEffect(() => {
-    const update = () => setOnline(navigator.onLine);
-    update();
-    window.addEventListener("online", update);
-    window.addEventListener("offline", update);
-    return () => {
-      window.removeEventListener("online", update);
-      window.removeEventListener("offline", update);
-    };
-  }, []);
-
-  const sync: DiaSyncState = !online || syncError ? "error" : isSyncing ? "pending" : "ok";
 
   // The journal view parks at the top (its newest entry is right
   // under the composer card); Talk scrolls itself via captions.
@@ -1219,16 +1202,6 @@ export function ChatView({ active = true }: { active?: boolean }) {
       {/* ---------- header (reference .cth) ---------- */}
       <header className="dfc-head">
         <div className="dfc-head-l">
-          <p className="dfc-priv">
-            <span className="dfc-sync-dot" data-sync={sync} aria-hidden="true" />
-            {view === "talk"
-              ? voiceLive
-                ? "Private · voice via Deepgram"
-                : "Private · replies use your last 3 entries"
-              : mode === "journal"
-                ? "Private · replies use your last 3 entries"
-                : "Private · replies use your last 3 workouts"}
-          </p>
           <h1 className="dfc-h1">Coach</h1>
         </div>
         <div className="dfc-head-r">

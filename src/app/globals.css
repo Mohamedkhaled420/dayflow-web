@@ -6805,37 +6805,15 @@ select {
   justify-content: space-between;
   align-items: flex-end;
   gap: 10px;
-  padding: calc(10px + var(--safe-area-top, 0px)) 18px 10px;
+  /* Inside the shell — the shell header already carries the
+     notch safe-area; padding it again here double-counted ~59px
+     and pushed the whole voice stage down (the "dead band" the
+     user scribbled on mobile). */
+  padding: 2px 18px 10px;
   flex: none;
 }
 .dfc-head-l {
   min-width: 0;
-}
-.dfc-priv {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0 0 2px;
-  font-size: 12px;
-  color: var(--df-text-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.dfc-sync-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  flex: none;
-  background: var(--df-streak);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--df-streak) 22%, transparent);
-}
-.dfc-sync-dot[data-sync="pending"] {
-  background: color-mix(in srgb, var(--df-hour-label-future) 60%, var(--df-text-primary));
-}
-.dfc-sync-dot[data-sync="error"] {
-  background: var(--df-destructive);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--df-destructive) 22%, transparent);
 }
 .dfc-h1 {
   margin: 0;
@@ -7447,7 +7425,12 @@ select {
 
 /* ---------- the orb stage ---------- */
 .dfc-vs-stage {
-  flex: none;
+  /* FLEX-FILL: the stage absorbs the free height and the orb
+     sizes from it (max 230px like the reference) — the old
+     100dvh clamp ignored the shell header + nav band and let the
+     chips overflow into the dock's clip zone on notched phones. */
+  flex: 1 1 auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -7455,11 +7438,11 @@ select {
 }
 .dfc-orbw {
   position: relative;
-  flex: none;
-  /* reference FINAL width rule (its own later !important patch wins
-     over the min(54vw,230px) base and the max-height:700px override):
-     clamp(84px, calc(100dvh - 530px), 230px), margin-top 4px */
-  width: clamp(84px, calc(100dvh - 530px), 230px);
+  flex: 1 1 0;
+  min-height: 84px;
+  max-height: 230px;
+  width: auto;
+  max-width: 230px;
   aspect-ratio: 1;
   margin-top: 4px;
   animation: dfc-oflo 6s ease-in-out infinite;
@@ -7793,8 +7776,8 @@ select {
 .dfc-wv2 {
   flex: none;
   width: min(78%, 300px);
-  height: 40px;
-  margin-top: 16px;
+  height: 32px;
+  margin-top: 10px;
   overflow: visible;
 }
 .dfc-wv2 path {
@@ -7831,15 +7814,15 @@ select {
 
 /* ---------- captions (reference .cap) ---------- */
 .dfc-cap {
-  flex: 1 0 auto;
-  min-height: 84px;
+  flex: 0 1 auto;
+  min-height: 60px;
   width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 10px;
   text-align: center;
-  padding: 10px 2px 8px;
+  padding: 8px 2px 6px;
   overflow: visible;
   scrollbar-width: none;
   justify-content: flex-start;
@@ -7881,23 +7864,23 @@ select {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
   width: 100%;
-  padding: 2px 0 8px;
+  padding: 0 0 6px;
 }
 .dfc-try button {
   flex: none;
-  min-height: 44px;
-  padding: 0 16px 0 12px;
+  min-height: 38px;
+  padding: 0 14px 0 11px;
   border-radius: 99px;
   background: var(--df-card-fill);
   box-shadow: inset 0 0 0 1px var(--df-card-border);
   font-weight: 600;
-  font-size: 14px;
+  font-size: 13px;
   white-space: normal;
   line-height: 1.2;
   display: flex;
-  gap: 8px;
+  gap: 7px;
   align-items: center;
   transition: transform 0.3s cubic-bezier(0.34, 1.6, 0.5, 1);
 }
@@ -7905,8 +7888,8 @@ select {
   transform: scale(0.94);
 }
 .dfc-try svg {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   fill: var(--df-p-mauve);
   stroke: var(--df-text-primary);
   stroke-width: 1.6;
@@ -7916,7 +7899,7 @@ select {
 /* ---------- the dock (reference .cmp / .dk) ---------- */
 .dfc-cmp {
   flex: none;
-  padding: 8px 0 12px;
+  padding: 6px 0 10px;
 }
 .dfc-dk {
   display: flex;
@@ -8046,7 +8029,9 @@ select {
   z-index: 5;
   display: flex;
   flex-direction: column;
-  padding-top: calc(22px + var(--safe-area-top, 0px));
+  /* same fix as .dfc-head — the sheet tops out below the shell
+     header, so the notch inset must not be added a second time */
+  padding-top: 14px;
   background: color-mix(in srgb, var(--df-window-bg) 90%, transparent);
   -webkit-backdrop-filter: blur(18px);
   backdrop-filter: blur(18px);
@@ -8706,13 +8691,6 @@ select {
   transform: translateX(20px);
 }
 
-/* the sky preview slider row */
-.dfset-skyr {
-  flex: 1;
-  min-width: 60px;
-  max-width: 118px;
-  margin: 0 6px;
-}
 .dfset-cp {
   height: 44px;
   padding: 0 16px;
