@@ -24,6 +24,7 @@
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { z } from "zod";
+import { allowRequest } from "@/lib/rate-limit";
 import { createClient } from "@/utils/supabase/server";
 import { GROQ_MODELS } from "@/lib/groq-models";
 import {
@@ -57,30 +58,11 @@ const FoodRequestSchema = z
     message: "either an image or a description is required",
   });
 
-// ---------- per-user rate limiting (mirrors the coach route) ----------
+// ---------- per-user rate limiting (P0-5: durable, mirrors coach) ----------
+// Postgres-backed sliding window (consume_rate_limit RPC, migration
+// 0013). Same 20 / 5 min budget; fails open if the DB is unreachable.
 
-const RATE_LIMIT = 20;
-const RATE_WINDOW_MS = 5 * 60_000;
-const rateHits = new Map<string, number[]>();
-
-function rateLimited(userId: string): boolean {
-  const now = Date.now();
-  const window = (rateHits.get(userId) ?? []).filter(
-    (t) => now - t < RATE_WINDOW_MS
-  );
-  if (window.length >= RATE_LIMIT) {
-    rateHits.set(userId, window);
-    return true;
-  }
-  window.push(now);
-  rateHits.set(userId, window);
-  if (rateHits.size > 500) {
-    for (const [k, v] of rateHits) {
-      if (v.every((t) => now - t >= RATE_WINDOW_MS)) rateHits.delete(k);
-    }
-  }
-  return false;
-}
+const RATE_RULE = { bucket: "food", limit: 20, windowSeconds: 300 };
 
 // ---------- JSON contract (shared by every hop) ----------
 
@@ -421,7 +403,7 @@ export async function POST(req: Request) {
     );
   }
 
-  if (rateLimited(userId)) {
+  if (!(await allowRequest(RATE_RULE, authHeader))) {
     return Response.json(
       {
         code: "RATE_LIMITED",

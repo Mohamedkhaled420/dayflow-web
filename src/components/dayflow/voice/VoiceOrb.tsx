@@ -95,29 +95,24 @@ export function VoiceOrb({
 
   // Level loop (reference vLoop/cWave): writes --lv on the orb and
   // redraws the three waveform paths from the live levels.
+  //
+  // IDLE keeps a gentle RESTING wave (~0.16 amplitude, the mockup's
+  // flat 0.05 left a ~66px dead band under the orb — the "big blank
+  // space" on the Coach page). The loop also stops drawing while
+  // this pane is off-stage or the tab is hidden (reference cBallRun
+  // battery rule), and prefers-reduced-motion gets ONE static
+  // resting frame instead of a live loop.
   useEffect(() => {
-    if (reducedMotion) return;
-    let raf = 0;
-    const P = [
-      [1, 1.9, 0, 1],
-      [1.6, 2.7, 2.1, 0.7],
-      [2.3, 3.4, 4.2, 0.5],
-    ];
-    const tick = (t: number) => {
-      raf = requestAnimationFrame(tick);
-      const lv = levelsRef.current ?? { input: 0, output: 0 };
-      const level =
-        state === "listen"
-          ? Math.min(1, lv.input * 1.6 + 0.08)
-          : state === "speak"
-            ? Math.min(1, lv.output * 1.6 + 0.08)
-            : state === "think"
-              ? 0.12 + 0.06 * Math.sin(t / 300)
-              : 0.05;
+    const draw = (t: number, level: number) => {
       const orb = orbRef.current;
       if (orb) orb.style.setProperty("--lv", level.toFixed(3));
       ballRef.current?.level(level);
-      const L = state === "idle" ? 0.05 : Math.min(1, level + 0.06);
+      const L = state === "idle" ? 0.16 : Math.min(1, level + 0.06);
+      const P = [
+        [1, 1.9, 0, 1],
+        [1.6, 2.7, 2.1, 0.7],
+        [2.3, 3.4, 4.2, 0.5],
+      ];
       for (let i = 0; i < 3; i++) {
         const p = pathsRef.current[i];
         if (!p) continue;
@@ -130,9 +125,33 @@ export function VoiceOrb({
         p.setAttribute("d", d);
       }
     };
+
+    const currentLevel = () => {
+      const lv = levelsRef.current ?? { input: 0, output: 0 };
+      if (state === "listen") return Math.min(1, lv.input * 1.6 + 0.08);
+      if (state === "speak") return Math.min(1, lv.output * 1.6 + 0.08);
+      if (state === "think") return 0.12 + 0.06 * Math.sin(performance.now() / 300);
+      return 0.05;
+    };
+
+    if (reducedMotion) {
+      // One static resting frame — the wave is still VISIBLE (the
+      // mockup's strokes), it just never animates.
+      draw(0, 0.05);
+      return;
+    }
+
+    let raf = 0;
+    const tick = (t: number) => {
+      raf = requestAnimationFrame(tick);
+      // Off-stage (keep-alive pane not on the Coach tab) or hidden
+      // tab: skip the work entirely, resume on the next frame.
+      if (!active || document.hidden) return;
+      draw(t, currentLevel());
+    };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [state, levelsRef, reducedMotion]);
+  }, [state, levelsRef, reducedMotion, active]);
 
   // The flowing-light ball (reference cBallInit): dynamically
   // imported so the ~54KB shader bundle never touches the server

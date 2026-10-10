@@ -1,0 +1,103 @@
+/* ============================================================
+   Dayflow AI — legal pages (audit P0-2)
+   Plain, readable, app-styled prose. No dark patterns: the
+   pages are static, cookieless, and indexed by link crawlers.
+   ============================================================ */
+
+.legal {
+  min-height: 100dvh;
+  background: var(--df-window-bg);
+  color: var(--df-text-primary);
+  font-family: var(--font-nunito), ui-sans-serif, system-ui, sans-serif;
+  padding: calc(20px + var(--safe-area-top, 0px)) 20px
+    calc(48px + var(--safe-area-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.legal-inner {
+  width: 100%;
+  max-width: 640px;
+}
+.legal-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+.legal-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 800;
+  font-size: 15px;
+  letter-spacing: -0.01em;
+  color: var(--df-text-primary);
+  text-decoration: none;
+}
+.legal-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 14px;
+  border-radius: 99px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--df-text-primary);
+  background: var(--df-card-fill);
+  box-shadow: inset 0 0 0 1px var(--df-card-border);
+  text-decoration: none;
+}
+.legal h1 {
+  font-size: 30px;
+  letter-spacing: -0.035em;
+  line-height: 1.12;
+  margin: 0 0 6px;
+  color: var(--df-text-primary);
+}
+.legal .legal-updated {
+  font-size: 13px;
+  color: var(--df-text-muted);
+  margin: 0 0 26px;
+}
+.legal h2 {
+  font-size: 17px;
+  letter-spacing: -0.015em;
+  margin: 30px 0 10px;
+  color: var(--df-text-primary);
+}
+.legal p {
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--df-text-secondary);
+  margin: 0 0 12px;
+}
+.legal ul {
+  margin: 0 0 14px;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.legal li {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--df-text-secondary);
+}
+.legal a {
+  color: var(--df-link, var(--df-p-blue));
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.legal .legal-note {
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--df-text-muted);
+  background: var(--df-card-fill);
+  box-shadow: inset 0 0 0 1px var(--df-card-border);
+  border-radius: 16px;
+  padding: 14px 16px;
+  margin: 18px 0;
+}

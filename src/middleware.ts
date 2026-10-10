@@ -48,6 +48,10 @@ export async function middleware(request: NextRequest) {
   const isAuthRoute = pathname === "/auth" || pathname.startsWith("/auth/");
   const isOnboardingRoute =
     pathname === "/onboarding" || pathname.startsWith("/onboarding/");
+  // Public legal pages (audit P0-2): reachable signed-out (app
+  // store review, link previews) and signed-in alike.
+  const isPublicLegal = pathname === "/privacy" || pathname === "/terms";
+  if (isPublicLegal) return response;
 
   if (!user) {
     if (!isAuthRoute) {

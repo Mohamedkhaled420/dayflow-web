@@ -5,10 +5,11 @@
   "description": "Dayflow web — a private, customizable life tracker for fitness, work, sleep, water, and food. Timeline, daily recap, weekly review, habit streaks, and journal chat.",
   "scripts": {
     "dev": "next dev",
-    "build": "node scripts/check-raw-colors.mjs && eslint . && next build && node scripts/patch-error-html.mjs",
+    "build": "node scripts/check-raw-colors.mjs && eslint . && next build && node scripts/patch-error-html.mjs && node scripts/check-bundle-size.mjs",
     "start": "next start",
     "lint": "eslint .",
     "check:colors": "node scripts/check-raw-colors.mjs",
+    "check:bundle": "node scripts/check-bundle-size.mjs",
     "test:coach": "node scripts/test-coach-protocol.mjs"
   },
   "dependencies": {

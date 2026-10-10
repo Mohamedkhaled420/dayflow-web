@@ -53,6 +53,8 @@ import {
   parseCoachProtocol,
   type CoachProtocolEvent,
 } from "@/lib/coach-protocol";
+import { RATE_RULES, allowRequest } from "@/lib/rate-limit";
+import { captureServerError } from "@/lib/server-errors";
 
 export const runtime = "nodejs";
 
@@ -137,33 +139,13 @@ function capMessages(messages: GroqMessage[]): GroqMessage[] {
   return kept;
 }
 
-// ---------- per-user rate limiting (v0 audit #4) ----------
-// In-memory sliding window. Best-effort on serverless (instances
-// don't share memory), still meaningfully protects the shared Groq
-// quota from a single hot user; a durable limiter is a follow-up.
+// ---------- per-user rate limiting (v0 audit #4 → P0-5) ----------
+// Durable Postgres-backed sliding window (consume_rate_limit RPC,
+// migration 0013) — the in-memory Map reset on every serverless
+// cold start. Same 12 / 5 min budget as before; fails open if
+// the DB is unreachable (availability over strictness).
 
-const RATE_LIMIT = 12;
-const RATE_WINDOW_MS = 5 * 60_000;
-const rateHits = new Map<string, number[]>();
-
-function rateLimited(userId: string): boolean {
-  const now = Date.now();
-  const window = (rateHits.get(userId) ?? []).filter(
-    (t) => now - t < RATE_WINDOW_MS
-  );
-  if (window.length >= RATE_LIMIT) {
-    rateHits.set(userId, window);
-    return true;
-  }
-  window.push(now);
-  rateHits.set(userId, window);
-  if (rateHits.size > 500) {
-    for (const [k, v] of rateHits) {
-      if (v.every((t) => now - t >= RATE_WINDOW_MS)) rateHits.delete(k);
-    }
-  }
-  return false;
-}
+const RATE_RULE = RATE_RULES.coach;
 
 // ---------- hop resilience ----------
 // Retry-class: transient overload (429/503) AND model-lifecycle
@@ -397,6 +379,7 @@ function streamCoachAnswer(
         controller.close();
       } catch (e) {
         console.error("[coach] stream failed:", e);
+        void captureServerError("api/ai/coach#stream", e, { mode });
         safeEnqueue(sseEvent({ type: "error", code: "COACH_UNAVAILABLE" }));
         try {
           controller.close();
@@ -478,7 +461,7 @@ export async function POST(req: Request) {
   }
 
   // 3. Per-user rate limit before spending any Groq request.
-  if (rateLimited(userId)) {
+  if (!(await allowRequest(RATE_RULE, authHeader))) {
     return Response.json(
       {
         code: "RATE_LIMITED",
@@ -516,6 +499,7 @@ export async function POST(req: Request) {
     // Full detail server-side only — the client gets a stable code
     // with short human copy (v0 audit #3: never leak Groq bodies).
     console.error("[coach] generation failed:", e);
+    void captureServerError("api/ai/coach", e, { mode });
     return Response.json(
       {
         code: "COACH_UNAVAILABLE",

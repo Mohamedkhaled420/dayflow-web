@@ -439,7 +439,16 @@ export function LandingView() {
           </Link>
         </div>
 
-        <p className="dfl-fn">Dayflow · Private by design</p>
+        <p className="dfl-fn">
+          Dayflow · Private by design ·{" "}
+          <Link href="/privacy" style={{ textDecoration: "underline" }}>
+            Privacy
+          </Link>{" "}
+          ·{" "}
+          <Link href="/terms" style={{ textDecoration: "underline" }}>
+            Terms
+          </Link>
+        </p>
       </div>
 
       {/* ------- the landing dock (slides up after half a viewport) ------- */}

@@ -42,6 +42,12 @@ import {
   SKY_OFF_KEY,
   SKY_PREVIEW_KEY,
 } from "@/components/dayflow/SkySync";
+import {
+  isDarkHour,
+  readThemePref,
+  writeThemePref,
+  type ThemePref,
+} from "@/components/dayflow/CircadianThemeSync";
 import { HAPTICS_OFF_KEY } from "@/lib/haptics";
 import type { Json } from "@/types/supabase";
 
@@ -252,6 +258,14 @@ export function SettingsView({ onNavigate }: { onNavigate: (t: TabId) => void })
   const [hapOff, setHapOff] = useState(false);
   const [stampNonce, setStampNonce] = useState(0);
 
+  // ---- account deletion (GDPR, audit P0-1) ----
+  const [deleteArmed, setDeleteArmed] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  // ---- plan (audit P0-6: billing status row) ----
+  const [plan, setPlan] = useState<"free" | "plus" | null>(null);
+  const [upgradeBusy, setUpgradeBusy] = useState(false);
+
   // ---- guest → account upgrade ("Try it first" users) ----
   const [isGuest, setIsGuest] = useState(false);
   const [guestEmail, setGuestEmail] = useState("");
@@ -408,6 +422,92 @@ export function SettingsView({ onNavigate }: { onNavigate: (t: TabId) => void })
       router.refresh();
     } finally {
       setSigningOut(false);
+    }
+  };
+
+  // ---- plan status (audit P0-6) ----
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/billing/status");
+        if (!res.ok) return;
+        const body = (await res.json()) as { plan?: "free" | "plus" };
+        if (!cancelled && body.plan) setPlan(body.plan);
+      } catch {
+        /* offline — the row just stays neutral */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const upgrade = async () => {
+    if (upgradeBusy) return;
+    setUpgradeBusy(true);
+    try {
+      const res = await fetch("/api/billing/checkout", { method: "POST" });
+      const body = (await res.json().catch(() => ({}))) as {
+        invoiceUrl?: string;
+        configured?: boolean;
+        error?: string;
+      };
+      if (body.invoiceUrl) {
+        window.location.href = body.invoiceUrl;
+        return; // leaving for the hosted checkout
+      }
+      toast({
+        title: "Not available yet",
+        description:
+          body.configured === false
+            ? "Billing isn't configured on this deployment — coming soon."
+            : (body.error ?? "Couldn't start the upgrade — try again in a moment."),
+      });
+    } catch {
+      toast({ title: "Couldn't reach billing — check your connection." });
+    } finally {
+      setUpgradeBusy(false);
+    }
+  };
+
+  // ---- delete account (GDPR erasure, audit P0-1) ----
+  const deleteAccount = async () => {
+    if (deleting) return;
+    if (!deleteArmed) {
+      // Same double-tap pattern as Reset settings — 3s to confirm.
+      setDeleteArmed(true);
+      haptic(30);
+      setTimeout(() => setDeleteArmed(false), 3000);
+      return;
+    }
+    setDeleting(true);
+    try {
+      const { createClient } = await import("@/utils/supabase/client");
+      const supabase = createClient();
+      const { error } = await supabase.rpc("delete_user_account", {});
+      if (error) throw error;
+      // The identity is gone server-side; wipe every local trace
+      // and land on the welcome screen.
+      await useDayflowStore.persist.clearStorage();
+      try {
+        window.localStorage.clear();
+      } catch {
+        /* private mode */
+      }
+      toast({ title: "Account deleted", description: "All of your data has been erased." });
+      router.replace("/auth");
+      router.refresh();
+    } catch (e) {
+      setDeleting(false);
+      haptic(30);
+      toast({
+        title: "Couldn't delete the account",
+        description:
+          e instanceof Error && /insufficient/i.test(e.message)
+            ? "Please sign out and back in, then try again."
+            : "Check your connection and try again — nothing was erased yet.",
+      });
     }
   };
 
@@ -773,6 +873,7 @@ export function SettingsView({ onNavigate }: { onNavigate: (t: TabId) => void })
             <RowIcon name="sun" tint="var(--df-p-mauve)" />
             <div>
               <b>Appearance</b>
+              <small>Time of day follows your clock</small>
             </div>
             <ThemeSegment />
           </div>
@@ -827,6 +928,44 @@ export function SettingsView({ onNavigate }: { onNavigate: (t: TabId) => void })
         {/* ---------- connect ---------- */}
         <Label>Connect</Label>
         <section className="dfset-card dfset-st" aria-label="Connect">
+          <div className="dfset-row">
+            <RowIcon name="bolt" tint="var(--df-p-lemon)" />
+            <div>
+              <b>Dayflow Plus</b>
+              <small>
+                {plan === "plus"
+                  ? "Thanks for supporting Dayflow"
+                  : plan === "free"
+                    ? "You're on the free plan — everything included"
+                    : "Support the app, keep it independent"}
+              </small>
+            </div>
+            {plan === "plus" ? (
+              <span
+                style={{
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: "var(--df-p-marine)",
+                }}
+              >
+                Plus
+              </span>
+            ) : (
+              <button
+                type="button"
+                className="dfset-cp df-press"
+                onClick={() => {
+                  hapticSelect();
+                  void upgrade();
+                }}
+                disabled={upgradeBusy}
+                aria-busy={upgradeBusy}
+              >
+                {upgradeBusy ? "Opening…" : "Upgrade"}
+              </button>
+            )}
+          </div>
+
           <Link href="/team" className="dfset-row df-press" style={{ textDecoration: "none" }}>
             <RowIcon name="team" tint="var(--df-p-rose)" />
             <div>
@@ -988,9 +1127,42 @@ export function SettingsView({ onNavigate }: { onNavigate: (t: TabId) => void })
               <small>Keeps your name, seal and logs</small>
             </div>
           </button>
+
+          {/* GDPR erasure — the real exit (audit P0-1) */}
+          <button
+            type="button"
+            className="dfset-row df-press"
+            onClick={() => void deleteAccount()}
+            disabled={deleting}
+            aria-busy={deleting}
+          >
+            <div>
+              <b className="dfset-dng">
+                {deleting
+                  ? "Erasing everything…"
+                  : deleteArmed
+                    ? "Tap again — this permanently deletes everything"
+                    : "Delete my account"}
+              </b>
+              <small>
+                {deleteArmed
+                  ? "Logs, profile and sign-in — gone for good"
+                  : "Erase all data and close the account (GDPR)"}
+              </small>
+            </div>
+          </button>
         </section>
 
-        <p className="dfset-foot">Your data stays yours — synced privately to your account.</p>
+        <p className="dfset-foot">
+          Your data stays yours — synced privately to your account. ·{" "}
+          <Link href="/privacy" style={{ textDecoration: "underline" }}>
+            Privacy
+          </Link>{" "}
+          ·{" "}
+          <Link href="/terms" style={{ textDecoration: "underline" }}>
+            Terms
+          </Link>
+        </p>
       </div>
     </div>
   );
@@ -1058,16 +1230,50 @@ function Stepper({
 }
 
 /* ============================================================
-   Appearance segment (next-themes: auto = system)
+   Appearance segment — Time of day | System | Light | Dark
    ============================================================ */
 
 function ThemeSegment() {
   const { theme, setTheme } = useTheme();
-  const options: { id: string; label: string }[] = [
-    { id: "system", label: "Auto" },
+  const [pref, setPref] = useState<ThemePref>("auto");
+
+  // The preference lives under its own key (see CircadianThemeSync);
+  // read once on mount — deferred to a microtask so the effect body
+  // performs no synchronous setState (hydration's first paint stays
+  // deterministic, matching the sheet's other mount reads).
+  useEffect(() => {
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) setPref(readThemePref());
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const options: { id: ThemePref; label: string }[] = [
+    { id: "auto", label: "Time of day" },
+    { id: "system", label: "System" },
     { id: "light", label: "Light" },
     { id: "dark", label: "Dark" },
   ];
+
+  const pick = (next: ThemePref) => {
+    setPref(next);
+    writeThemePref(next);
+    if (next === "auto") {
+      // Apply the clock's answer immediately (no fade for a manual
+      // pick — matches the instant Light/Dark behavior).
+      const h = new Date().getHours() + new Date().getMinutes() / 60;
+      setTheme(isDarkHour(h) ? "dark" : "light");
+      // Let the controller re-evaluate right now (it may be
+      // mid-preview from the sky slider).
+      window.dispatchEvent(new CustomEvent(SKY_CHANGE_EVENT));
+    } else {
+      setTheme(next);
+    }
+  };
+
   return (
     <div className="dfset-seg" role="radiogroup" aria-label="Appearance">
       {options.map((o) => (
@@ -1075,11 +1281,11 @@ function ThemeSegment() {
           key={o.id}
           type="button"
           role="radio"
-          aria-checked={(theme ?? "system") === o.id}
-          className={(theme ?? "system") === o.id ? "on" : ""}
+          aria-checked={pref === o.id}
+          className={pref === o.id ? "on" : ""}
           onClick={() => {
             hapticSelect();
-            setTheme(o.id);
+            pick(o.id);
           }}
         >
           {o.label}

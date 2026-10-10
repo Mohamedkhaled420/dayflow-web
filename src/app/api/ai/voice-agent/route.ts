@@ -39,6 +39,7 @@
 import WebSocket from "ws";
 import { createClient } from "@/utils/supabase/server";
 import { experimental_upgradeWebSocket } from "@vercel/functions";
+import { RATE_RULES, allowRequest } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -190,6 +191,16 @@ export async function GET(req: Request) {
     return Response.json(
       { code: "INVALID_SESSION", error: "Sign in again — your session expired." },
       { status: 401 }
+    );
+  }
+
+  // 1b. Per-user session budget (P0-5): a voice call is the most
+  // expensive thing a user can start (live STT+LLM+TTS minutes);
+  // 6 sessions / 5 min, durable, cookie-session authorized.
+  if (!(await allowRequest(RATE_RULES.voice, null))) {
+    return Response.json(
+      { code: "RATE_LIMITED", error: "That's a lot of calls in a short time — take a short break." },
+      { status: 429 }
     );
   }
 

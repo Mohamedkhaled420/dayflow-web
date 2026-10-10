@@ -418,9 +418,21 @@ function AuthView() {
               </button>
             </div>
             <p className="dfl-tos">
-              {up
-                ? "By continuing you agree to the Terms and Privacy Policy."
-                : "Your data is private to your account."}
+              {up ? (
+                <>
+                  By continuing you agree to the{" "}
+                  <Link href="/terms" style={{ textDecoration: "underline" }}>
+                    Terms
+                  </Link>{" "}
+                  and{" "}
+                  <Link href="/privacy" style={{ textDecoration: "underline" }}>
+                    Privacy Policy
+                  </Link>
+                  .
+                </>
+              ) : (
+                "Your data is private to your account."
+              )}
             </p>
           </div>
         </div>

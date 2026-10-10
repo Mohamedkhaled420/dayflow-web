@@ -19,6 +19,33 @@ body {
 }
 
 /* ============================================================
+   Circadian theme crossfade (CircadianThemeSync)
+   While the class is on <html>, color surfaces ease between the
+   light and dark palettes (~0.95s) instead of snapping, so the
+   day → evening → night → morning transitions read as dusk and
+   dawn rather than a switch. Added/removed around the flip only
+   — normal interaction transitions are untouched — and disabled
+   entirely under prefers-reduced-motion.
+   ============================================================ */
+@media (prefers-reduced-motion: no-preference) {
+  html.df-theme-anim,
+  html.df-theme-anim *,
+  html.df-theme-anim *::before,
+  html.df-theme-anim *::after {
+    transition:
+      background-color 0.95s ease,
+      background 0.95s ease,
+      color 0.95s ease,
+      border-color 0.95s ease,
+      box-shadow 0.95s ease,
+      fill 0.95s ease,
+      stroke 0.95s ease,
+      opacity 0.95s ease;
+  }
+}
+
+
+/* ============================================================
    Phase 5 tokens — keyboard clearance (T2b) + Liquid Glass T1
    (T3, PRD §6.2). The displacement scale is baked per-variant in
    src/components/ui/LiquidGlass.tsx (precomputed maps); the rim
@@ -7698,11 +7725,22 @@ select {
   vector-effect: non-scaling-stroke;
   transition: stroke 0.6s;
 }
+/* the mockup's #wb / #wc — the trailing echoes of the wave,
+   quieter and thinner so the trio reads as one living signal
+   (without these the three paths stack into one flat line). */
+.dfc-wv2 .wb {
+  opacity: 0.55;
+  stroke-width: 2;
+}
+.dfc-wv2 .wc {
+  opacity: 0.3;
+  stroke-width: 1.6;
+}
 
 /* ---------- voice label (reference .vl) ---------- */
 .dfc-vl {
   flex: none;
-  margin: 2px 0 0;
+  margin: 4px 0 0;
   font-size: 12.5px;
   font-weight: 700;
   text-transform: uppercase;

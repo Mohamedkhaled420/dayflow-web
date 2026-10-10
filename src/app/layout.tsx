@@ -5,6 +5,8 @@ import { DeferredToaster } from "@/components/ui/deferred-toaster";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ServiceWorkerRegistrar } from "@/components/dayflow/ServiceWorkerRegistrar";
 import { ChromeThemeSync } from "@/components/dayflow/ChromeThemeSync";
+import { CircadianThemeSync } from "@/components/dayflow/CircadianThemeSync";
+import { ErrorReporter } from "@/components/dayflow/ErrorReporter";
 import { THEME_META_COLORS } from "@/styles/palette";
 
 const nunito = Nunito({
@@ -85,11 +87,21 @@ export default function RootLayout({
       <body
         className={`${nunito.variable} ${geistMono.variable} font-sans antialiased`}
       >
+        {/* Circadian pre-paint: runs BEFORE next-themes' bootstrap
+            script (document order), so a "time of day" user's very
+            first frame is already the right theme — no flash. It
+            aligns next-themes' stored value with the clock AND
+            stamps the preference as "auto" so the controller knows
+            it owns the theme. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(()=>{try{var p=localStorage.getItem("dayflow-theme-pref");var s=localStorage.getItem("theme");if(p==="auto"||(!p&&!s)){var d=new Date();var h=d.getHours()+d.getMinutes()/60;var k=(h>=17||h<5)?"dark":"light";try{localStorage.setItem("theme",k);localStorage.setItem("dayflow-theme-pref","auto")}catch(e){}}}catch(e){}})();`,
+          }}
+        />
         <ThemeProvider
           attribute="class"
           defaultTheme="light"
           enableSystem
-          disableTransitionOnChange
         >
           {children}
           {/* Deferred until the first toast (Phase 4 bundle diet) — the
@@ -98,6 +110,12 @@ export default function RootLayout({
           {/* Keeps the browser chrome + iOS status bar in lock-step with
               the ACTIVE theme (manual toggles included). */}
           <ChromeThemeSync />
+          {/* The time-of-day app theme: light by day, dark by evening /
+              night — only while the preference is "time of day". */}
+          <CircadianThemeSync />
+          {/* In-house error monitoring (audit P0-4): global JS errors
+              and rejections → /api/client-errors → error_events. */}
+          <ErrorReporter />
           <ServiceWorkerRegistrar />
         </ThemeProvider>
       </body>

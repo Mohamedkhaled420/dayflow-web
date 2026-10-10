@@ -116,7 +116,11 @@ export const SEALS: SealDef[] = [
     color: "var(--df-p-mauve)",
     body: (
       <>
-        <path d="M32 38A16 16 0 0 1 17 10a16 16 0 1 0 15 28z" style={{ fill: "var(--df-p-mauve)" }} />
+        {/* A real crescent: outer arc bulges deep, the inner arc
+            (bigger radius) carves shallow — the reference's equal-
+            radius pair degenerated into a 3.7px sliver because the
+            tips sat almost exactly 2r apart (see Night Owl below). */}
+        <path d="M32 38A16 16 0 0 1 17 10a26 26 0 0 0 15 28z" style={{ fill: "var(--df-p-mauve)" }} />
         <path
           d="M36 10l1 2.6 2.6 1-2.6 1L36 17l-1-2.4-2.6-1 2.6-1z"
           style={{ fill: "var(--df-p-powder)" }}
@@ -399,7 +403,13 @@ export const RHYTHMS: RhythmDef[] = [
     color: "var(--df-p-mauve)",
     body: (
       <>
-        <path d="M31 37A15 15 0 0 1 17 9a15 15 0 1 0 14 28z" fill="currentColor" />
+        {/* The reference's path was degenerate — its two arcs had
+            the same radius with tips 31.3px apart (2r = 30), so both
+            scaled into the SAME semicircle traced twice: zero area,
+            nothing painted. Recreated as a true crescent: a deep
+            outer arc + a shallow wide inner arc, horns opening
+            toward the twinkles. Browser-verified: ~185px² of fill. */}
+        <path d="M31 37A16 16 0 0 1 17 9a26 26 0 0 0 14 28z" fill="currentColor" />
         <path
           className="pe-tw"
           d="M36 8l1.2 3.2 3.2 1.2-3.2 1.2L36 17l-1.2-3.4-3.2-1.2 3.2-1.2z"

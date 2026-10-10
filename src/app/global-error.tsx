@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect } from "react";
+
 /**
  * Custom global-error boundary.
  *
@@ -7,6 +9,10 @@
  * the Lighthouse accessibility audit (no `lang`, no document title, no
  * heading). This page renders when the root layout itself throws, so it must
  * be fully self-contained: inline styles only, no CSS imports, no providers.
+ *
+ * The crash is also reported to /api/client-errors (in-house monitor, audit
+ * P0-4) via a one-shot keepalive fetch — the ErrorReporter component is NOT
+ * mounted in this shell (the root layout just died), so it reports directly.
  */
 
 export default function GlobalError({
@@ -16,6 +22,29 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  useEffect(() => {
+    try {
+      void fetch("/api/client-errors", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        keepalive: true,
+        body: JSON.stringify({
+          kind: "client",
+          events: [
+            {
+              message: `global-error: ${error.message || "unknown"}`.slice(0, 2000),
+              stack: error.stack?.slice(0, 8000),
+              url: window.location.pathname,
+              context: { digest: error.digest },
+            },
+          ],
+        }),
+      }).catch(() => {});
+    } catch {
+      /* the monitor must never break the crash page */
+    }
+  }, [error]);
+
   return (
     <html lang="en">
       <head>
