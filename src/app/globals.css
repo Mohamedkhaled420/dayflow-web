@@ -7444,7 +7444,14 @@ select {
   width: auto;
   max-width: 230px;
   aspect-ratio: 1;
-  margin-top: 4px;
+  /* Headroom for the ball canvas: it bleeds 10% of the orb size
+     past this wrapper on every side (.dfc-bw inset -10%) and the
+     dfc-oflo float lifts it another 6px — at the 230px cap that
+     is 23 + 6 = 29px. A 32px top margin keeps the whole sphere
+     AND its glow inside .dfc-vs's scroll clip (the straight cut
+     across the top of the sphere on mobile), while the flex
+     sizing below simply shrinks the orb a touch to pay for it. */
+  margin-top: 32px;
   animation: dfc-oflo 6s ease-in-out infinite;
   cursor: pointer;
   -webkit-user-select: none;
@@ -8663,6 +8670,30 @@ select {
   background: var(--df-control-fill);
   color: var(--df-text-primary);
   box-shadow: 0 2px 8px var(--df-panel-shadow), inset 0 0 0 1px var(--df-card-border);
+}
+/* Rows whose control is a MULTI-OPTION SEGMENT (the Appearance
+   picker). Four options ≈ 300px of nowrap buttons — beside the
+   32px icon + title that is wider than a phone's content column
+   (358px on a 390px screen), which crushed the title to 0px and
+   pushed "Dark" 22px off-screen. Under 480px the segment moves
+   to its own full-width line as a 2×2 grid — every option stays
+   tappable even on a 320px SE. */
+@media (max-width: 480px) {
+  .dfset-row.dfset-segwrap {
+    flex-wrap: wrap;
+    row-gap: 10px;
+  }
+  .dfset-row.dfset-segwrap .dfset-seg {
+    flex: 1 1 100%;
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border-radius: 16px;
+  }
+  .dfset-row.dfset-segwrap .dfset-seg button {
+    height: 34px;
+    padding: 0 10px;
+  }
 }
 .dfset-sw {
   width: 51px;

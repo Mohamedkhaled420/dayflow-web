@@ -855,7 +855,10 @@ export function SettingsView({ onNavigate }: { onNavigate: (t: TabId) => void })
         {/* ---------- app ---------- */}
         <Label>App</Label>
         <section className="dfset-card dfset-st" aria-label="App">
-          <div className="dfset-row">
+          {/* dfset-segwrap: on phones the 4-option segment drops to
+              its own full-width 2×2 line (see globals.css) — it
+              cannot share a row with the icon + title. */}
+          <div className="dfset-row dfset-segwrap">
             <RowIcon name="sun" tint="var(--df-p-mauve)" />
             <div>
               <b>Appearance</b>

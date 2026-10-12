@@ -28,12 +28,25 @@
 // Cost note (researched 2026-10, deepgram.com/pricing):
 //   Standard tier = $0.075/min of CONNECTION time, all-inclusive
 //   (Flux STT + a managed Standard-tier LLM + Flux TTS). Every
-//   Standard think model costs the same — gpt-4o-mini (default
-//   here, the most battle-tested for voice latency) and
-//   gemini-3.1-flash-lite cost IDENTICALLY, so the model is a
-//   pure env swap with zero cost delta. Advanced-tier LLMs
-//   (gpt-5, claude-sonnet, gemini-pro) triple the per-minute
-//   rate and are deliberately not used.
+//   Standard think model costs the same, so the model is a pure
+//   env swap with zero cost delta. Advanced-tier LLMs (gpt-5,
+//   claude-sonnet, gemini-pro) triple the per-minute rate and
+//   are deliberately not used.
+//
+// VOICE + LATENCY TUNING (live-probed 2026-10-13,
+// scripts/probe-dia-voice.mjs + probe-dia-functions.mjs):
+//   - flux-kit-en (the old default) is "Kit" — a BRITISH MALE
+//     voice; that was the man's voice users heard. Hannah
+//     (flux-hannah-en) is Deepgram's #1 featured feminine voice
+//     for casual chat. Sienna/Alexis verified as alternates.
+//   - gemini-3.1-flash-lite is NOT available on this API key
+//     ("model not available"); gpt-5.4-nano IS, handles the
+//     tool calls correctly (log_water 500ml, log_sleep
+//     bedtime/wake/duration all exact), and answers faster.
+//   - Eager end-of-turn (eager_eot_threshold) lets the LLM start
+//     BEFORE the user's turn is formally closed — the single
+//     biggest perceived-latency win; eot_threshold 0.6 + a 3.5s
+//     backstop keep Dia from cutting you off mid-pause.
 // ============================================================
 
 import WebSocket from "ws";
@@ -54,8 +67,19 @@ const DG_AGENT_URL = "wss://agent.deepgram.com/v1/agent/converse";
 const MAX_CTX_CHARS = 4_000;
 
 const LISTEN_MODEL = process.env.DEEPGRAM_LISTEN_MODEL ?? "flux-general-en";
-const THINK_MODEL = process.env.DEEPGRAM_THINK_MODEL ?? "gpt-4o-mini";
-const SPEAK_MODEL = process.env.DEEPGRAM_SPEAK_MODEL ?? "flux-kit-en";
+const THINK_MODEL = process.env.DEEPGRAM_THINK_MODEL ?? "gpt-5.4-nano";
+const SPEAK_MODEL = process.env.DEEPGRAM_SPEAK_MODEL ?? "flux-hannah-en";
+/** Slightly brisker delivery (Flux accepts 0.5–1.5 in 0.05 steps)
+ * — part of the "why is she a little slow" fix. */
+const SPEAK_SPEED = 1.05;
+
+/** Turn-taking latency knobs (Flux listen models only; verified
+ * accepted by v1/converse 2026-10-13). Eager mode starts the LLM
+ * before the turn formally ends; 0.6 final threshold + 3.5s
+ * silence backstop balance speed against interruptions. */
+const EAGER_EOT_THRESHOLD = 0.5;
+const EOT_THRESHOLD = 0.6;
+const EOT_TIMEOUT_MS = 3_500;
 
 /** Tools Dia may invoke mid-conversation (client-side — the
  * browser executes them; see sendSettings for the protocol). */
@@ -303,7 +327,15 @@ export async function GET(req: Request) {
             agent: {
               language: "en",
               listen: {
-                provider: { type: "deepgram", version: "v2", model: LISTEN_MODEL },
+                provider: {
+                  type: "deepgram",
+                  version: "v2",
+                  model: LISTEN_MODEL,
+                  // responsiveness (see constants above)
+                  eager_eot_threshold: EAGER_EOT_THRESHOLD,
+                  eot_threshold: EOT_THRESHOLD,
+                  eot_timeout_ms: EOT_TIMEOUT_MS,
+                },
               },
               think: {
                 provider: { type: "open_ai", model: THINK_MODEL, temperature: 0.6 },
@@ -317,7 +349,12 @@ export async function GET(req: Request) {
                 })),
               },
               speak: {
-                provider: { type: "deepgram", version: "v2", model: SPEAK_MODEL },
+                provider: {
+                  type: "deepgram",
+                  version: "v2",
+                  model: SPEAK_MODEL,
+                  speed: SPEAK_SPEED,
+                },
               },
               // Spoken the moment the session is configured —
               // unless this is a resume (see above): a mid-call
