@@ -690,6 +690,12 @@
     var(--df-sky-g3) 70%,
     var(--df-sky-g4) 100%
   );
+  /* The sky's bottom edge as a SOLID — html/body wear this
+     (globals.css html[data-sky] rules) so any strip exposed below
+     the 100dvh app box (URL-bar collapse, keyboard close, residual
+     bounce) blends into the sky instead of flashing the warm-white
+     window color. Inner fallback covers sky-off (no data-sky). */
+  --df-sky-fallback: var(--df-sky-g4, var(--df-window-bg));
   /* Phase 14: fixed dark ink for glyphs/text sitting ON pastel
      DATA fills (habit checks, seals, chips, activity tiles) — the
      reference hard-codes #2B2940 here in BOTH modes because the
@@ -1277,6 +1283,11 @@
     color-mix(in srgb, var(--df-sky-g3) 20%, var(--df-window-bg)) 70%,
     color-mix(in srgb, var(--df-sky-g4) 20%, var(--df-window-bg)) 100%
   );
+  /* Dark sky fallback (see the light :root twin): the flat window
+     color first, refined to the 20% g4 mix only where color-mix
+     exists — pre-16.2 WebKit keeps a seamless dark band instead
+     of an invalid-at-computed-value transparent. */
+  --df-sky-fallback: var(--df-window-bg);
   --df-on-pastel-ink: #2b2940;
   /* Phase 15 pastel DATA accents — identical in dark (fixed). */
   --df-p-lemon: #fbf8cc;
@@ -1331,6 +1342,24 @@
   --df-card-shadow: 0 16px 40px -22px rgba(0, 0, 0, 0.55);
   --df-scene-shadow: 0 14px 36px -22px rgba(0, 0, 0, 0.6);
   --df-orb-mid: #7c86c9;
+}
+
+/* Dark sky-fallback refinement — only where color-mix is parsed
+   (Safari 16.2+ / all current Chrome+Firefox): the exposed-strip
+   color becomes the same 20% g4 mix the dark sky itself uses, so
+   the band is indistinguishable from the gradient above it.
+   Pre-16.2 WebKit keeps the flat --df-window-bg declared inside
+   .dark above (custom-property values can't fall back on their
+   own — an unparsed color-mix would compute to transparent and
+   re-introduce the white band, so the gate lives here). */
+@supports (color: color-mix(in srgb, red 20%, blue)) {
+  .dark {
+    --df-sky-fallback: color-mix(
+      in srgb,
+      var(--df-sky-g4, var(--df-window-bg)) 20%,
+      var(--df-window-bg)
+    );
+  }
 }
 
 /* ============================================================

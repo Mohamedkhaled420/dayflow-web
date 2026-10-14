@@ -76,8 +76,12 @@ body {
 }
 
 body {
+  /* No background-attachment here — iOS Safari mangles fixed
+     attachments (the background lags viewport resizes, leaving
+     unpainted strips). The body never scrolls behind the app
+     (fixed-height .df-app shell), and the welcome pages paint
+     their own backdrops (.dfl), so attachment buys nothing. */
   background: var(--df-window-bg);
-  background-attachment: fixed;
   color: var(--df-text-primary);
   font-family: var(--font-nunito), var(--font-geist-sans), system-ui,
     sans-serif;
@@ -214,6 +218,10 @@ h4 {
    container, so position:sticky keeps working at every level. */
 .df-app {
   height: 100dvh;
+  /* min-height keeps the shell covering the viewport even in the
+     frames where the flex track is still catching up to a dvh
+     change (URL-bar collapse / keyboard close on real phones). */
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   overflow-x: clip;
@@ -827,12 +835,36 @@ h4 {
 html {
   overflow-x: clip;
   background: var(--background);
+  /* The document never needs to bounce: the app is a fixed-height
+     shell and every list scrolls in its own container. Killing the
+     root overscroll is what stops iOS Safari's rubber-band (and
+     Android's glow) from revealing the void below the 100dvh app
+     box — the recurring "white area at the bottom of the screen".
+     Inner .df-scroll containers keep their own `contain`. */
+  overscroll-behavior-y: none;
 }
 
 body {
   min-width: 300px;
   min-height: 100dvh;
   overflow-x: clip;
+  overscroll-behavior-y: none;
+}
+
+/* Living-sky fallback — the OTHER half of the bottom-band fix.
+   While the app (or landing) is mounted, SkySync keeps
+   <html data-sky> set. If ANY strip below the 100dvh app box is
+   still exposed — dynamic-viewport growth while the URL bar
+   collapses, keyboard-close repaint gaps, pre-16 iOS bounce —
+   html + body must already wear the sky's bottom color, or the
+   reveal reads as a white band on the pastel surface.
+   (--df-sky-fallback: light = the g4 stop; dark = the same 20%
+   mix as the dark sky; no data-sky → the selector doesn't match
+   and the flat window color stays, which is correct when the
+   living sky is toggled off.) */
+html[data-sky],
+html[data-sky] body {
+  background-color: var(--df-sky-fallback, var(--df-window-bg));
 }
 
 button,
