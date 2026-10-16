@@ -23,7 +23,7 @@ export const metadata: Metadata = {
 export default async function Home({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; upgraded?: string; canceled?: string }>;
 }) {
   const supabase = await createClient();
   const {
@@ -34,8 +34,14 @@ export default async function Home({
     // Home-screen app shortcuts deep-link with ?tab=coach etc. —
     // resolved on the SERVER so the first paint already shows the
     // right pane (no hydration flash, no effect-setState).
-    const { tab } = await searchParams;
-    return <AppShell initialTab={tab} />;
+    // The payment return (?upgraded=1 / ?canceled=1) rides the
+    // same server-resolved path: NOWPayments redirects here after
+    // the hosted checkout, and the AppShell turns it into a
+    // confirmation + plan poll instead of a silent dead landing.
+    const { tab, upgraded, canceled } = await searchParams;
+    const billingReturn =
+      upgraded === "1" ? "upgraded" : canceled === "1" ? "canceled" : undefined;
+    return <AppShell initialTab={tab} billingReturn={billingReturn} />;
   }
   return <LandingLazy />;
 }
