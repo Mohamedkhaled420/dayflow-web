@@ -57,6 +57,8 @@ import { VoiceOrb, type VoiceLevels } from "@/components/focus-triad/voice/Voice
 import { useDockHidden } from "@/hooks/use-dock-visibility";
 import {
   VoiceSession,
+  hasLiveVoiceSession,
+  stopLiveVoiceSession,
   type VoiceHistoryItem,
   type VoiceState,
 } from "@/lib/voice-agent";
@@ -933,6 +935,12 @@ export function ChatView({ active = true }: { active?: boolean }) {
         });
       },
       onClose: (unexpected) => {
+        // A close from an EVICTED predecessor must not tear down
+        // the session that replaced it — eviction stops the old
+        // socket, and its close event can land seconds later
+        // (long close handshakes on the relay), after the new
+        // session is already live.
+        if (sessionRef.current && sessionRef.current !== session) return;
         setVoiceLive(false);
         setVoiceState("idle");
         sessionRef.current = null;
@@ -1042,6 +1050,10 @@ export function ChatView({ active = true }: { active?: boolean }) {
       voiceResumeTimer.current = null;
     }
     sessionRef.current?.stop();
+    // Belt and braces: if a ghost session survived somewhere in
+    // the React tree (a lost sessionRef — remounts, keep-alive
+    // pane races), it dies with this tap too. One tab, one Dia.
+    stopLiveVoiceSession();
     sessionRef.current = null;
     setVoiceLive(false);
     setVoiceState("idle");
@@ -1082,6 +1094,17 @@ export function ChatView({ active = true }: { active?: boolean }) {
   const toggleMic = async () => {
     hapticSelect();
     if (!sessionRef.current) {
+      // A ghost the UI lost track of (remount / pane races):
+      // this tap means STOP — kill it, don't stack a second
+      // session on top of a still-listening one.
+      if (hasLiveVoiceSession()) {
+        endVoice();
+        toast({
+          title: "Stopped listening",
+          description: "Any stray voice session was cleaned up.",
+        });
+        return;
+      }
       await startVoice();
       return;
     }

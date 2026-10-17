@@ -134,6 +134,30 @@ registerProcessor("df-capture", DFCapture);
 const IN_RATE = 16_000;
 const OUT_RATE = 24_000;
 
+// ------------------------------------------------------------
+// ONE live voice session per tab — a module-level registry.
+// The React tree can race itself (keep-alive panes, remounts,
+// stale closures): a session can end up live while the UI's
+// sessionRef points elsewhere or at nothing. Without a global
+// arbiter those orphans stack — two mics, two greetings, double
+// metering, and a stop that only kills the tracked one. Every
+// new session EVICTS the previous one, and the UI can ask for
+// any ghost to be killed outright.
+// ------------------------------------------------------------
+let liveVoiceSession: VoiceSession | null = null;
+
+/** Is any voice session alive in this tab (even one the UI
+ *  lost track of)? */
+export function hasLiveVoiceSession(): boolean {
+  return liveVoiceSession !== null;
+}
+
+/** Kill whatever voice session is alive in this tab — tracked
+ *  or ghost. Safe when nothing is live. */
+export function stopLiveVoiceSession(): void {
+  liveVoiceSession?.stop();
+}
+
 export class VoiceSession {
   private ev: VoiceSessionEvents;
   private ws: WebSocket | null = null;
@@ -193,6 +217,18 @@ export class VoiceSession {
   }): Promise<void> {
     if (this.ws) return;
     this.ended = false;
+
+    // Register + evict: at most ONE live voice session per tab.
+    // If a previous session somehow survived (component races,
+    // remounts, a lost sessionRef), it dies NOW — its socket,
+    // its mic, its metering. This is the anti-ghost guarantee.
+    if (liveVoiceSession && liveVoiceSession !== this) {
+      liveVoiceSession.stop();
+    }
+    // Deliberate "alias" of this into the module registry — the
+    // registry is BY DESIGN the session's global handle.
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    liveVoiceSession = this;
 
     // iOS/Safari gesture rule: AudioContexts created OUTSIDE the
     // tap's task can come up suspended and STAY that way — the
@@ -310,6 +346,7 @@ export class VoiceSession {
   /** Graceful end of the whole session. */
   stop() {
     this.ended = true;
+    if (liveVoiceSession === this) liveVoiceSession = null;
     // Kill scheduled audio BEFORE tearing the contexts down so
     // nothing plays past the tap, and no post-stop frame can
     // resurrect playback (onFrame ignores frames once ended).
@@ -580,6 +617,7 @@ export class VoiceSession {
     const wasLive = this.ws !== null;
     const unexpected = wasLive && !this.ended;
     this.ws = null;
+    if (liveVoiceSession === this) liveVoiceSession = null;
     if (!wasLive) return;
     this.teardownAudio();
     this.flushPlayback();
