@@ -174,6 +174,12 @@ export class VoiceSession {
   private state: VoiceState = "idle";
   private ended = false;
   private agentDone = false;
+  /** True once the relay accepted us and applied Settings —
+   *  i.e. the session can actually LISTEN. Before this, taps
+   *  must neither claim "listening" nor interrupt/stop: the
+   *  socket is still handshaking and killing it would fail the
+   *  whole start (and flip the UI into voice-failed mode). */
+  private configured = false;
   /** While set, incoming agent audio must NOT flip the UI to
    *  "speak" — covers the brief tail of her previous turn that
    *  is still in flight right after a barge-in. */
@@ -190,6 +196,13 @@ export class VoiceSession {
 
   get currentState(): VoiceState {
     return this.state;
+  }
+
+  /** Has the relay configured this session (SettingsApplied)?
+   *  Until then the socket is still handshaking — there is
+   *  nothing to interrupt and nothing listening yet. */
+  get isLive(): boolean {
+    return this.configured;
   }
 
   private setState(s: VoiceState) {
@@ -286,7 +299,10 @@ export class VoiceSession {
       await opened;
     } catch (e) {
       // The socket never opened (or the relay refused the
-      // upgrade): make sure nothing dangles in CONNECTING.
+      // upgrade): make sure nothing dangles in CONNECTING, and
+      // that the registry doesn't keep a dead session wedged
+      // (that would make every later mic tap a ghost-kill).
+      if (liveVoiceSession === this) liveVoiceSession = null;
       try { ws.close(); } catch { /* already gone */ }
       throw e;
     }
@@ -346,6 +362,7 @@ export class VoiceSession {
   /** Graceful end of the whole session. */
   stop() {
     this.ended = true;
+    this.configured = false;
     if (liveVoiceSession === this) liveVoiceSession = null;
     // Kill scheduled audio BEFORE tearing the contexts down so
     // nothing plays past the tap, and no post-stop frame can
@@ -371,6 +388,7 @@ export class VoiceSession {
       switch (msg.type) {
         case "SettingsApplied":
           this.nextPlayAt = this.outCtx ? this.outCtx.currentTime : 0;
+          this.configured = true;
           this.setState("listen");
           this.ev.onReady();
           break;

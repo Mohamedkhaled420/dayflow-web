@@ -1115,7 +1115,12 @@ export function ChatView({ active = true }: { active?: boolean }) {
       endVoice();
       return;
     }
-    // speak / think → barge: kill her audio, keep listening
+    // speak / think → barge: kill her audio, keep listening.
+    // A session still CONNECTING (SettingsApplied not yet in) is
+    // neither speaking nor listening — a tap here used to flip
+    // the UI to "listen" (a lie), and the NEXT tap then killed
+    // the mid-handshake socket, failing the whole start. Ignore.
+    if (!sessionRef.current.isLive) return;
     sessionRef.current.interrupt();
     setVoiceState("listen");
   };
