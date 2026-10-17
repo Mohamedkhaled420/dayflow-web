@@ -30,7 +30,7 @@
 // jumps to Talk and speaks the entry to Dia).
 // ============================================================
 
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "motion/react";
 import { StickyNote } from "lucide-react";
 import { useFocusTriadStore } from "@/store/useFocusTriadStore";
@@ -60,6 +60,7 @@ import {
   type VoiceHistoryItem,
   type VoiceState,
 } from "@/lib/voice-agent";
+import { formatVoiceClock } from "@/lib/voice-quota";
 
 /** The five mood faces — reference mouth paths + pastel tokens.
  *  Score 1..5 → index 0..4 (Rough, Low, Okay, Good, Great). */
@@ -339,6 +340,71 @@ export function ChatView({ active = true }: { active?: boolean }) {
   const voiceDropsRef = useRef<number[]>([]);
   const voiceResumeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const voiceFailedRef = useRef(false);
+
+  // ---------- voice quota (Plus monetization) ----------
+  /** Today's plan + usage, from /api/billing/status. Null = not
+   *  fetched / signed out / migration not applied — the quota UI
+   *  then simply stays quiet instead of guessing. */
+  const [quotaInfo, setQuotaInfo] = useState<{
+    plan: "free" | "plus";
+    used: number;
+    quota: number;
+  } | null>(null);
+  /** True once the relay refused a session with VOICE_QUOTA —
+   *  the paywall strip replaces the mic until tomorrow (UTC) or
+   *  an upgrade lands. Typed mode is unaffected: free forever. */
+  const [quotaWall, setQuotaWall] = useState(false);
+  const [upgrading, setUpgrading] = useState(false);
+
+  /** Pull plan + today's voice usage from /api/billing/status.
+   *  Returns null when unknown (signed out / offline / migration
+   *  not applied) — callers must treat that as "no information",
+   *  never as "blocked". */
+  const fetchQuotaState = useCallback(async (): Promise<{
+    plan: "free" | "plus";
+    used: number;
+    quota: number;
+  } | null> => {
+    try {
+      const res = await fetch("/api/billing/status");
+      if (!res.ok) return null;
+      const body = (await res.json()) as {
+        plan?: "free" | "plus";
+        voice?: { usedSeconds?: number; quotaSeconds?: number };
+      } | null;
+      if (!body?.voice) return null;
+      return {
+        plan: body.plan === "plus" ? "plus" : "free",
+        used: Math.max(0, Number(body.voice.usedSeconds) || 0),
+        quota: Math.max(1, Number(body.voice.quotaSeconds) || 1),
+      };
+    } catch {
+      return null;
+    }
+  }, []);
+
+  /** Best-effort chip refresh — fire-and-forget. */
+  const refreshQuota = useCallback(() => {
+    void fetchQuotaState().then((state) => {
+      if (state) setQuotaInfo(state);
+    });
+  }, [fetchQuotaState]);
+
+  useEffect(() => {
+    refreshQuota();
+    // The AppShell emits this when a crypto payment settles and
+    // the plan flips to plus — clear the wall the same second.
+    const onFlip = (e: Event) => {
+      const detail = (e as CustomEvent<{ plan?: string }>).detail;
+      if (detail?.plan === "plus") {
+        setQuotaWall(false);
+        setVoiceFailed(false);
+        setQuotaInfo((q) => (q ? { ...q, plan: "plus" } : q));
+      }
+    };
+    addEventListener("ft-billing-plan", onFlip);
+    return () => removeEventListener("ft-billing-plan", onFlip);
+  }, [refreshQuota]);
 
   useEffect(() => {
     const mq = matchMedia("(prefers-reduced-motion: reduce)");
@@ -654,6 +720,30 @@ export function ChatView({ active = true }: { active?: boolean }) {
     if (sessionRef.current || connecting) return sessionRef.current;
     setConnecting(true);
     setCoachError(null);
+    // Pre-flight the daily quota BEFORE opening the socket. The
+    // relay enforces it authoritatively afterwards (402
+    // VOICE_QUOTA), but the WS error-frame path is host-dependent
+    // — one cheap status fetch makes the wall deterministic on
+    // every host, and mic taps are rare enough to afford it.
+    // Unknown state (null) never blocks: the relay is the backstop.
+    {
+      const state = await fetchQuotaState();
+      if (state) {
+        setQuotaInfo(state);
+        if (state.plan !== "plus" && state.used >= state.quota) {
+          setVoiceFailed(true);
+          setDock("type");
+          setQuotaWall(true);
+          setConnecting(false);
+          toast({
+            title: "Daily voice limit reached",
+            description:
+              "Plus ($14.99/yr) unlocks unlimited voice — typing stays free.",
+          });
+          return null;
+        }
+      }
+    }
     const session = new VoiceSession({
       onState: (s) => setVoiceState(s),
       onUserText: (text) => {
@@ -843,6 +933,8 @@ export function ChatView({ active = true }: { active?: boolean }) {
         // just stopped listening mid-call with zero feedback.
         // Now: one seamless resume attempt, then honest toast.
         if (unexpected && !voiceFailedRef.current) scheduleVoiceResume();
+        // Metering flushed on the server — sync the quota chip.
+        refreshQuota();
       },
     });
     sessionRef.current = session;
@@ -861,12 +953,26 @@ export function ChatView({ active = true }: { active?: boolean }) {
         });
       }
       return session;
-    } catch {
+    } catch (err) {
       sessionRef.current = null;
       setVoiceFailed(true);
       setDock("type");
       setVoiceState("idle");
       setVoiceLive(false);
+      // The relay refused us because today's free voice time is
+      // spent — show the paywall, not a misleading mic error.
+      if ((err as { code?: string } | null)?.code === "VOICE_QUOTA") {
+        setQuotaWall(true);
+        setQuotaInfo((q) =>
+          q ? { ...q, used: Math.max(q.used, q.quota) } : q
+        );
+        toast({
+          title: "Daily voice limit reached",
+          description:
+            "Plus ($14.99/yr) unlocks unlimited voice — typing stays free.",
+        });
+        return null;
+      }
       toast(
         opts?.resume
           ? {
@@ -932,6 +1038,33 @@ export function ChatView({ active = true }: { active?: boolean }) {
     setCapUser("");
     setCapAgent("");
     levelsRef.current = { input: 0, output: 0 };
+    // Keep "X left today" honest after every call.
+    refreshQuota();
+  };
+
+  /** The paywall's Upgrade button — same POST /api/billing/
+   *  checkout the Settings pane uses, straight to the hosted
+   *  crypto invoice. On return, AppShell's return-handler +
+   *  flip event clear the wall automatically. */
+  const upgradeFromPaywall = async () => {
+    if (upgrading) return;
+    setUpgrading(true);
+    try {
+      const res = await fetch("/api/billing/checkout", { method: "POST" });
+      const body = (await res
+        .json()
+        .catch(() => null)) as { invoiceUrl?: string; error?: string } | null;
+      if (res.ok && body?.invoiceUrl) {
+        location.href = body.invoiceUrl; // leaving for the hosted checkout
+        return;
+      }
+      toast({
+        title: "Couldn't start the upgrade",
+        description: body?.error ?? "Try again in a moment.",
+      });
+    } finally {
+      setUpgrading(false);
+    }
   };
 
   /** The big mic button (reference mic handler): idle → open a
@@ -1300,6 +1433,39 @@ export function ChatView({ active = true }: { active?: boolean }) {
                     : `Hey${firstName ? ` ${firstName}` : ""} — tap the mic and tell me about your day.`}
                 </p>
               ) : null}
+              {/* free-plan voice meter — appears once usage starts,
+                  stays out of the pristine first-open greeting */}
+              {!quotaWall &&
+                !voiceLive &&
+                quotaInfo &&
+                quotaInfo.plan === "free" &&
+                quotaInfo.used > 0 && (
+                  <p className="dfc-quota">
+                    {formatVoiceClock(Math.max(0, quotaInfo.quota - quotaInfo.used))}{" "}
+                    of free voice left today
+                  </p>
+                )}
+              {/* the wall: today's free minutes are spent */}
+              {quotaWall && quotaInfo?.plan !== "plus" && (
+                <div className="dfc-wall" role="note">
+                  <p>
+                    That&apos;s the 5 free voice minutes for today.
+                    <span> Plus unlocks unlimited voice — everything else stays free.</span>
+                  </p>
+                  <button
+                    type="button"
+                    className="df-press"
+                    onClick={() => {
+                      hapticSelect();
+                      void upgradeFromPaywall();
+                    }}
+                    disabled={upgrading}
+                    aria-busy={upgrading}
+                  >
+                    {upgrading ? "Opening…" : "Upgrade — $14.99/yr"}
+                  </button>
+                </div>
+              )}
               {coachError && (
                 <p className="dfc-err" role="alert">
                   {coachError}

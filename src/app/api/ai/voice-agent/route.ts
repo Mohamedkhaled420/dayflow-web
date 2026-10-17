@@ -33,6 +33,14 @@
 //   claude-sonnet, gemini-pro) triple the per-minute rate and
 //   are deliberately not used.
 //
+// DAILY VOICE QUOTA (Plus monetization, 2026-10-17): free plan
+// gets 5 min/day, Plus ($14.99/yr) is unlimited modulo a 2 h
+// abuse guard. The gate runs HERE before the upgrade; the meter
+// (record_voice_seconds RPC, migration 0016) flushes connected
+// seconds every 60 s + on close, so a killed instance loses at
+// most 59 s (in the USER's favor). Until the migration is
+// applied the usage reads fail soft to 0 — voice stays on.
+//
 // VOICE + LATENCY TUNING (live-probed 2026-10-13,
 // scripts/probe-dia-voice.mjs + probe-dia-functions.mjs):
 //   - flux-kit-en (the old default) is "Kit" — a BRITISH MALE
@@ -53,6 +61,7 @@ import WebSocket from "ws";
 import { createClient } from "@/utils/supabase/server";
 import { experimental_upgradeWebSocket } from "@vercel/functions";
 import { RATE_RULES, allowRequest } from "@/lib/rate-limit";
+import { voiceQuotaSeconds, voiceUsageDayKey } from "@/lib/voice-quota";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -187,14 +196,21 @@ const FUNCTION_NAMES = new Set<string>(AGENT_FUNCTIONS.map((f) => f.name));
  * Same auth gate as /api/ai/coach (Amendment #12): the canonical
  * cookie-session client first. A browser WebSocket handshake
  * cannot carry a Bearer header, so unlike the coach route there
- * is no Bearer leg — cookie only.
+ * is no Bearer leg — cookie only. Returns the LIVE client too:
+ * the quota gate below and the usage meter inside the socket
+ * both need it (plan + voice_usage reads go through the user's
+ * own RLS; the meter RPC runs as the user via SECURITY DEFINER).
  */
-async function verifyRequester(): Promise<string | null> {
+async function verifyRequester(): Promise<{
+  userId: string;
+  client: Awaited<ReturnType<typeof createClient>>;
+} | null> {
   const cookieClient = await createClient();
   const {
     data: { user },
   } = await cookieClient.auth.getUser();
-  return user?.id ?? null;
+  if (!user) return null;
+  return { userId: user.id, client: cookieClient };
 }
 
 function diaPrompt(name: string, ctx: string): string {
@@ -233,13 +249,14 @@ function diaPrompt(name: string, ctx: string): string {
 
 export async function GET(req: Request) {
   // 1. Auth — cookies ride the same-origin WS upgrade.
-  const userId = await verifyRequester();
-  if (!userId) {
+  const requester = await verifyRequester();
+  if (!requester) {
     return Response.json(
       { code: "INVALID_SESSION", error: "Sign in again — your session expired." },
       { status: 401 }
     );
   }
+  const { userId, client: supabase } = requester;
 
   // 1b. Per-user session budget (P0-5): a voice call is the most
   // expensive thing a user can start (live STT+LLM+TTS minutes);
@@ -257,6 +274,54 @@ export async function GET(req: Request) {
     return Response.json(
       { code: "VOICE_UNAVAILABLE", error: "Voice is not configured on this deployment." },
       { status: 503 }
+    );
+  }
+
+  // 2b. Daily voice quota (Plus monetization). Reads ride the
+  // caller's own RLS: subscriptions select-own (0014) and
+  // voice_usage select-own (0016). Missing table / missing row
+  // → 0 used, voice stays available (availability-first, same
+  // policy as the rate limiter; enforcement flips on the moment
+  // migration 0016 lands). The 402 body carries the numbers so
+  // the client's paywall can be exact, not vague.
+  let plan: "free" | "plus" = "free";
+  {
+    const { data: sub, error: subError } = await supabase
+      .from("subscriptions")
+      .select("plan")
+      .maybeSingle();
+    if (!subError && sub?.plan === "plus") plan = "plus";
+    else if (subError && !/does not exist|not found/i.test(subError.message)) {
+      console.warn("[voice-agent] plan read failed:", subError.message);
+    }
+  }
+  const quotaSeconds = voiceQuotaSeconds(plan);
+  let usedSeconds = 0;
+  {
+    const { data: usage, error: usageError } = await supabase
+      .from("voice_usage")
+      .select("seconds")
+      .eq("user_id", userId)
+      .eq("day", voiceUsageDayKey())
+      .maybeSingle();
+    if (!usageError && usage) usedSeconds = Math.max(0, Number(usage.seconds) || 0);
+    else if (usageError && !/does not exist|not found/i.test(usageError.message)) {
+      console.warn("[voice-agent] usage read failed:", usageError.message);
+    }
+  }
+  if (usedSeconds >= quotaSeconds) {
+    return Response.json(
+      {
+        code: "VOICE_QUOTA",
+        error:
+          plan === "plus"
+            ? "That's a lot of voice for one day — pick this up tomorrow."
+            : "That's your free voice time for today — Plus unlocks unlimited.",
+        plan,
+        usedSeconds,
+        quotaSeconds,
+      },
+      { status: 402 }
     );
   }
 
@@ -283,6 +348,32 @@ export async function GET(req: Request) {
       let settingsSent = false;
       let keepAlive: ReturnType<typeof setInterval> | null = null;
 
+      // ---- daily voice metering (quota source of truth) ----
+      // Flush CONNECTED seconds every 60 s and once more at
+      // close. A hard instance kill (maxDuration) loses at most
+      // 59 s — in the user's favor, never against them. The RPC
+      // increments atomically (migration 0016); errors are
+      // logged and swallowed — metering must never kill a call.
+      let meterLast = Date.now();
+      const flushVoiceUsage = () => {
+        const now = Date.now();
+        const secs = Math.min(600, Math.round((now - meterLast) / 1000));
+        meterLast = now;
+        if (secs <= 0) return;
+        void supabase
+          .rpc("record_voice_seconds", { p_seconds: secs })
+          .then(({ error }) => {
+            if (error && !/does not exist|not found/i.test(error.message)) {
+              console.warn("[voice-agent] usage meter failed:", error.message);
+            }
+          });
+      };
+      const meterTimer = setInterval(flushVoiceUsage, 60_000);
+      const stopMetering = () => {
+        clearInterval(meterTimer);
+        flushVoiceUsage(); // the partial interval since the last flush
+      };
+
       const stopKeepAlive = () => {
         if (keepAlive !== null) {
           clearInterval(keepAlive);
@@ -292,6 +383,7 @@ export async function GET(req: Request) {
 
       const closeBoth = (code = 1000) => {
         stopKeepAlive();
+        stopMetering();
         try {
           if (dg.readyState <= WebSocket.OPEN) dg.close(code);
         } catch { /* already closing */ }

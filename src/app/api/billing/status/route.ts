@@ -15,10 +15,18 @@
 // with the service client (billing_events has no user-facing
 // RLS by design); any lookup error fails CLOSED to false — the
 // row is cosmetic, the subscription is the truth.
+//
+// `voice` (Plus monetization): today's Dia-voice usage vs the
+// plan quota, so the coach pane can show "2:14 left today" and
+// the paywall can be honest. Read through the caller's own RLS
+// (voice_usage owner-select, migration 0016); if the table
+// doesn't exist yet (migration not applied), it degrades to
+// 0 used — quota display simply stays quiet until then.
 // ============================================================
 
 import { createClient } from "@/utils/supabase/server";
 import { createServiceClient } from "@/utils/supabase/service";
+import { voiceQuotaSeconds, voiceUsageDayKey } from "@/lib/voice-quota";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -48,6 +56,25 @@ export async function GET() {
 
   const plan = data?.plan ?? "free";
 
+  // Today's voice usage (own row through RLS). Missing table or
+  // missing row → 0 used, silently — the quota chip stays quiet
+  // rather than lying about enforcement that isn't live yet.
+  let usedSeconds = 0;
+  {
+    const { data: usage, error: usageError } = await supabase
+      .from("voice_usage")
+      .select("seconds")
+      .eq("user_id", user.id)
+      .eq("day", voiceUsageDayKey())
+      .maybeSingle();
+    if (!usageError && usage) {
+      usedSeconds = Math.max(0, Number(usage.seconds) || 0);
+    } else if (usageError && !/does not exist|not found/i.test(usageError.message)) {
+      console.warn("[billing/status] usage read failed:", usageError.message);
+    }
+  }
+  const quotaSeconds = voiceQuotaSeconds(plan);
+
   // Already plus → nothing can be pending that matters.
   let pendingCheckout = false;
   if (plan !== "plus") {
@@ -72,6 +99,11 @@ export async function GET() {
     status: data?.status ?? "active",
     currentPeriodEnd: data?.current_period_end ?? null,
     pendingCheckout,
+    voice: {
+      usedSeconds,
+      quotaSeconds,
+      remainingSeconds: Math.max(0, quotaSeconds - usedSeconds),
+    },
   });
 }
 

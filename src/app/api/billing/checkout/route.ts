@@ -29,7 +29,11 @@ import { createServiceClient } from "@/utils/supabase/service";
 
 export const runtime = "nodejs";
 
-const DEFAULT_PRICE_USD = 4.99;
+// Approved model (2026-10-17): Plus = $14.99/yr, crypto via
+// NOWPayments. Free plan keeps 5 min/day of Dia voice — see
+// src/lib/voice-quota.ts. NOWPAYMENTS_PRICE_USD still overrides
+// for ops experiments; unset it in production or it wins.
+const DEFAULT_PRICE_USD = 14.99;
 
 export async function POST(req: Request) {
   const apiKey = process.env.NOWPAYMENTS_API_KEY;
@@ -98,7 +102,7 @@ export async function POST(req: Request) {
         price_currency: "usd",
         pay_currency: "usdttrc20", // USDT on Tron — cheapest stable rail; the invoice page lists every supported crypto
         order_id: orderId,
-        order_description: "Focus Triad Plus subscription",
+        order_description: "Focus Triad Plus — 1 year of unlimited voice",
         ipn_callback_url: `${origin}/api/billing/ipn`,
         // Return the payer to the Settings pane — the Plus row is
         // right there, so "did it work?" answers itself the moment
