@@ -11,7 +11,8 @@ import {
   MorningTriadGate,
   readMorningTriad,
 } from "@/components/focus-triad/MorningTriadGate";
-import { hapticSelect, haptic } from "@/lib/haptics";
+import { haptic, hapticSelect, hapticSuccess } from "@/lib/haptics";
+import { toast } from "@/hooks/use-toast";
 import { useDockHidden, watchDockKeyboard } from "@/hooks/use-dock-visibility";
 import { useKeyboardTracking } from "@/components/ui/Sheet";
 import { DiaEngine } from "@/components/companion/DiaEngine";
@@ -170,7 +171,19 @@ function ProfileSeal({ row }: { row: unknown }) {
   return <SealGlyph seal={sealFromValue(identity?.emoji)} />;
 }
 
-export function AppShell({ initialTab }: { initialTab?: string } = {}) {
+/** Event fired on window when a billing poll observes the
+ *  subscription flip ("ft-billing-plan", detail.plan). Keep-alive
+ *  views (Settings) listen so the Plus row updates without a
+ *  remount. */
+const BILLING_PLAN_EVENT = "ft-billing-plan";
+
+export function AppShell({
+  initialTab,
+  billingReturn,
+}: {
+  initialTab?: string;
+  billingReturn?: "upgraded" | "canceled";
+} = {}) {
   // Home-screen app shortcuts deep-link with ?tab=coach etc.; the
   // server page resolves the param so the first paint is already
   // the right pane. Anything unknown falls back to the Focus tab.
@@ -191,6 +204,9 @@ export function AppShell({ initialTab }: { initialTab?: string } = {}) {
   } | null>(null);
   const longPress = useRef(false);
   const lpTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Cancels the armed billing-return poll (see the billingReturn
+  // effect) on unmount so no orphaned poll keeps firing.
+  const cancelArm = useRef<(() => void) | null>(null);
   const reducedMotion = useReducedMotion();
   void reducedMotion;
 
@@ -232,6 +248,98 @@ export function AppShell({ initialTab }: { initialTab?: string } = {}) {
       cancelled = true;
     };
   }, []);
+
+  // ---- payment return (NOWPayments redirect loop) ----
+  // The hosted checkout sends the user back to
+  // /?upgraded=1&tab=settings (or ?canceled=1). The server page
+  // resolves it into `billingReturn`; here we (1) strip the params
+  // so a refresh/share never re-fires them, (2) tell the user
+  // their payment is confirming — crypto settlement can take
+  // minutes, LONG after the redirect — and (3) poll
+  // /api/billing/status until the IPN flips the plan, then
+  // celebrate once. Views hear the flip via BILLING_PLAN_EVENT.
+  useEffect(() => {
+    if (!billingReturn) return;
+
+    // (1) Clean the URL — keep nothing of the payment params.
+    try {
+      window.history.replaceState(null, "", window.location.pathname);
+    } catch {
+      /* older browsers — the param just stays, harmless */
+    }
+
+    if (billingReturn === "canceled") {
+      setTimeout(() => {
+        toast({
+          title: "Checkout closed — nothing was charged",
+          description: "Plus is here whenever you want it.",
+        });
+      }, 0);
+      return;
+    }
+
+    // Mount-time toasts race the DeferredToaster's listener
+    // registration (a later sibling in the root layout): dispatch
+    // from the next macrotask so every useToast subscriber is
+    // already attached when the toast lands.
+    const arm = setTimeout(() => {
+      let stop = false;
+      const started = Date.now();
+      const MAX_MS = 15 * 60 * 1000; // crypto settlement can be slow
+      const INTERVAL = 5000;
+
+      const confirm = toast({
+        title: "Thanks for supporting Focus Triad!",
+        description: "Confirming your payment — Plus unlocks the moment it settles.",
+      });
+
+      const poll = async () => {
+        if (stop) return;
+        try {
+          const res = await fetch("/api/billing/status");
+          if (res.ok) {
+            const body = (await res.json()) as { plan?: string };
+            if (body.plan === "plus") {
+              stop = true;
+              confirm.update({
+                id: confirm.id,
+                title: "Plus is active",
+                description: "Thanks for keeping Focus Triad independent.",
+              });
+              hapticSuccess();
+              window.dispatchEvent(
+                new CustomEvent(BILLING_PLAN_EVENT, { detail: { plan: "plus" } })
+              );
+              return;
+            }
+          }
+        } catch {
+          /* transient network error — the next tick retries */
+        }
+        if (Date.now() - started < MAX_MS) {
+          setTimeout(poll, INTERVAL);
+        } else {
+          stop = true;
+          confirm.update({
+            id: confirm.id,
+            title: "Payment still confirming",
+            description: "Crypto settlement is slow — reopen Settings in a bit; Plus unlocks automatically.",
+          });
+        }
+      };
+
+      void poll();
+      cancelArm.current = () => {
+        stop = true;
+      };
+    }, 0);
+
+    return () => {
+      clearTimeout(arm);
+      cancelArm.current?.();
+      cancelArm.current = null;
+    };
+  }, [billingReturn]);
 
   const triadOpen =
     triadRequired &&

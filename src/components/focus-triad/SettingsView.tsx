@@ -263,6 +263,7 @@ export function SettingsView({ onNavigate }: { onNavigate: (t: TabId) => void })
 
   // ---- plan (audit P0-6: billing status row) ----
   const [plan, setPlan] = useState<"free" | "plus" | null>(null);
+  const [pendingCheckout, setPendingCheckout] = useState(false);
   const [upgradeBusy, setUpgradeBusy] = useState(false);
 
   // ---- guest → account upgrade ("Try it first" users) ----
@@ -412,20 +413,52 @@ export function SettingsView({ onNavigate }: { onNavigate: (t: TabId) => void })
   };
 
   // ---- plan status (audit P0-6) ----
+  // Fetch once on mount; the read re-arms itself every 5s while a
+  // checkout is pending (paid-but-confirming) — that covers the
+  // user who closed the hosted checkout tab and never hit the
+  // return redirect. Also listens for the AppShell flip event (the
+  // payment-return poll saw the subscription flip while this
+  // keep-alive pane stayed mounted).
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    let pollTimer: ReturnType<typeof setTimeout> | null = null;
+    const MAX_MS = 15 * 60 * 1000;
+    const started = Date.now();
+
+    const readStatus = async (reschedule: boolean) => {
       try {
         const res = await fetch("/api/billing/status");
         if (!res.ok) return;
-        const body = (await res.json()) as { plan?: "free" | "plus" };
-        if (!cancelled && body.plan) setPlan(body.plan);
+        const body = (await res.json()) as {
+          plan?: "free" | "plus";
+          pendingCheckout?: boolean;
+        };
+        if (cancelled) return;
+        if (body.plan) setPlan(body.plan);
+        const pending = body.pendingCheckout === true && body.plan !== "plus";
+        setPendingCheckout(pending);
+        if (pending && reschedule && Date.now() - started < MAX_MS) {
+          pollTimer = setTimeout(() => void readStatus(true), 5000);
+        }
       } catch {
         /* offline — the row just stays neutral */
       }
-    })();
+    };
+    void readStatus(true);
+
+    const onFlip = (e: Event) => {
+      const detail = (e as CustomEvent<{ plan?: string }>).detail;
+      if (detail?.plan === "plus") {
+        setPlan("plus");
+        setPendingCheckout(false);
+      }
+    };
+    addEventListener("ft-billing-plan", onFlip);
+
     return () => {
       cancelled = true;
+      removeEventListener("ft-billing-plan", onFlip);
+      if (pollTimer) clearTimeout(pollTimer);
     };
   }, []);
 
@@ -896,9 +929,11 @@ export function SettingsView({ onNavigate }: { onNavigate: (t: TabId) => void })
               <small>
                 {plan === "plus"
                   ? "Thanks for supporting Focus Triad"
-                  : plan === "free"
-                    ? "Everything's included for free — Plus ($4.99/yr, crypto) keeps Focus Triad independent"
-                    : "Support the app, keep it independent"}
+                  : pendingCheckout
+                    ? "Confirming your payment — this can take a few minutes. If you closed the checkout page, just start another."
+                    : plan === "free"
+                      ? "Everything's included for free — Plus ($4.99/yr, crypto) keeps Focus Triad independent"
+                      : "Support the app, keep it independent"}
               </small>
             </div>
             {plan === "plus" ? (

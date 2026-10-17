@@ -100,8 +100,11 @@ export async function POST(req: Request) {
         order_id: orderId,
         order_description: "Focus Triad Plus subscription",
         ipn_callback_url: `${origin}/api/billing/ipn`,
-        success_url: `${origin}/?upgraded=1`,
-        cancel_url: `${origin}/?canceled=1`,
+        // Return the payer to the Settings pane — the Plus row is
+        // right there, so "did it work?" answers itself the moment
+        // the redirect lands (AppShell toasts + polls the flip).
+        success_url: `${origin}/?upgraded=1&tab=settings`,
+        cancel_url: `${origin}/?canceled=1&tab=settings`,
       }),
       signal: AbortSignal.timeout(15_000),
     });
