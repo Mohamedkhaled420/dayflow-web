@@ -150,6 +150,15 @@ export class VoiceSession {
   private state: VoiceState = "idle";
   private ended = false;
   private agentDone = false;
+  /** While set, incoming agent audio must NOT flip the UI to
+   *  "speak" — covers the brief tail of her previous turn that
+   *  is still in flight right after a barge-in. */
+  private suppressSpeakUntil = 0;
+  /** The user interrupted the CURRENT turn — drop her remaining
+   *  audio chunks until the turn formally ends (AgentAudioDone)
+   *  or a new one begins. Without this, "Interrupt" only muted
+   *  the beat between two chunks and she resumed mid-sentence. */
+  private mutedTurn = false;
 
   constructor(events: VoiceSessionEvents) {
     this.ev = events;
@@ -237,9 +246,28 @@ export class VoiceSession {
       );
       ws.addEventListener("close", () => { clearTimeout(t); reject(new Error("closed")); }, { once: true });
     });
-    await opened;
+    try {
+      await opened;
+    } catch (e) {
+      // The socket never opened (or the relay refused the
+      // upgrade): make sure nothing dangles in CONNECTING.
+      try { ws.close(); } catch { /* already gone */ }
+      throw e;
+    }
 
-    if (opts.mic) await this.openMic();
+    if (opts.mic) {
+      try {
+        await this.openMic();
+      } catch (e) {
+        // The socket is open but the mic is not: WITHOUT this
+        // the session would leak — an orphan relay socket that
+        // keeps metering quota (and a live Deepgram leg) until
+        // the platform cap kills it, with zero handlers attached
+        // (they are only wired after openMic below). End it now.
+        this.stop();
+        throw e;
+      }
+    }
 
     ws.addEventListener("message", (e) => this.onFrame(e.data));
     ws.addEventListener("close", () => this.handleClose());
@@ -270,15 +298,23 @@ export class VoiceSession {
     }
   }
 
-  /** Stop agent audio locally (barge / tap-to-interrupt). */
+  /** Stop agent audio locally (barge / tap-to-interrupt). The
+   *  remainder of the CURRENT turn is dropped, not just muted:
+   *  the upstream keeps streaming for a beat after the tap. */
   interrupt() {
     this.flushPlayback();
     this.agentDone = false;
+    this.mutedTurn = true;
   }
 
   /** Graceful end of the whole session. */
   stop() {
     this.ended = true;
+    // Kill scheduled audio BEFORE tearing the contexts down so
+    // nothing plays past the tap, and no post-stop frame can
+    // resurrect playback (onFrame ignores frames once ended).
+    this.flushPlayback();
+    this.agentDone = false;
     try { this.ws?.close(1000); } catch { /* noop */ }
     this.teardownAudio();
     this.setState("idle");
@@ -287,6 +323,11 @@ export class VoiceSession {
   // ---------------- inbound protocol ----------------
 
   private onFrame(data: unknown) {
+    // The session was stopped — ignore stragglers. Without this,
+    // a frame landing after stop() could schedule audio on a
+    // FRESH AudioContext (playChunk creates one when missing)
+    // and Dia would keep talking past her own funeral.
+    if (this.ended) return;
     if (typeof data === "string") {
       let msg: Record<string, unknown>;
       try { msg = JSON.parse(data) as Record<string, unknown>; } catch { return; }
@@ -300,16 +341,34 @@ export class VoiceSession {
           // Barge-in: kill scheduled audio + buffered frames NOW.
           this.flushPlayback();
           this.agentDone = false;
+          // Her interrupted turn's audio can keep arriving for a
+          // beat — that tail must not flip the UI back to
+          // "speak" while the user is talking. (Audio-wise a
+          // sub-second tail after a barge is normal voice UX;
+          // muting the whole NEXT reply would be worse — the
+          // upstream does not always emit AgentThinking, so
+          // mutedTurn is reserved for the explicit tap.)
+          this.suppressSpeakUntil = Date.now() + 800;
           this.setState("listen");
           break;
         case "ConversationText": {
           const role = msg.role as string;
           const content = (msg.content as string) ?? "";
           if (role === "user") this.ev.onUserText(content, false);
-          else this.ev.onAgentText(content);
+          else {
+            // A fresh assistant reply is streaming — whatever was
+            // interrupted before it is over. (AgentThinking is not
+            // guaranteed upstream, so this is the reliable unmute.)
+            this.mutedTurn = false;
+            this.ev.onAgentText(content);
+          }
           break;
         }
         case "AgentThinking":
+          // A new agent turn genuinely began — any barge
+          // suppression or turn mute is over.
+          this.suppressSpeakUntil = 0;
+          this.mutedTurn = false;
           this.setState("think");
           break;
         case "FunctionCallRequest": {
@@ -325,6 +384,8 @@ export class VoiceSession {
             try {
               args = JSON.parse(typeof f.arguments === "string" ? f.arguments : "{}") as Record<string, unknown>;
             } catch { /* model sent bad JSON — empty args */ }
+            this.suppressSpeakUntil = 0;
+            this.mutedTurn = false;
             this.setState("think");
             this.ev.onFunctionCall({ id, name, args });
           }
@@ -332,6 +393,7 @@ export class VoiceSession {
         }
         case "AgentAudioDone":
           this.agentDone = true;
+          this.mutedTurn = false; // the turn is over — unmute
           this.watchDrain();
           break;
         case "History":
@@ -366,6 +428,17 @@ export class VoiceSession {
       },
     });
     this.micStream = stream;
+    // Abort-safe: if the session was ended while getUserMedia
+    // was pending, the stream just resolved onto a DEAD session
+    // — release it HERE or the track (and the browser's mic
+    // indicator) leaks forever. This was the "Dia is still
+    // listening" ghost: stop raced the mic open, the track
+    // landed after teardown, and nothing ever stopped it.
+    if (this.ended) {
+      try { stream.getTracks().forEach((t) => t.stop()); } catch { /* noop */ }
+      this.micStream = null;
+      throw new Error("session ended while opening the mic");
+    }
     const ctx = this.micCtx ?? new AudioContext({ sampleRate: 48_000 });
     this.micCtx = ctx;
     if (ctx.state === "suspended") void ctx.resume();
@@ -417,6 +490,9 @@ export class VoiceSession {
   // ---------------- playback ----------------
 
   private playChunk(buf: ArrayBuffer) {
+    // Interrupted turn — the user asked for quiet; drop the
+    // rest of this turn's audio instead of scheduling it.
+    if (this.mutedTurn) return;
     if (!this.outCtx) this.outCtx = new AudioContext({ sampleRate: OUT_RATE });
     const ctx = this.outCtx;
     if (ctx.state === "suspended") void ctx.resume();
@@ -449,7 +525,18 @@ export class VoiceSession {
 
     // Output level decays as the scheduled audio plays out.
     this.outLevel = Math.min(1, rms * 2.5);
-    if (this.state !== "listen") this.setState("speak");
+    // New audio invalidates any earlier AgentAudioDone — the
+    // upstream streams sentence-by-sentence, and a done event
+    // from a PREVIOUS turn must not drain this one mid-reply
+    // (that race stranded the orb on "listen" while she was
+    // still talking).
+    this.agentDone = false;
+    // The old `state !== "listen"` guard kept the GREETING on
+    // "listen" forever (SettingsApplied sets listen before the
+    // first chunk lands). Barge-in tails are now covered by the
+    // suppression window instead, so genuinely audible agent
+    // audio always shows "speak".
+    if (Date.now() >= this.suppressSpeakUntil) this.setState("speak");
   }
 
   private watchDrain() {

@@ -433,9 +433,15 @@ export function TodayView({ blockNonce = 0 }: { blockNonce?: number }) {
       if (key === "w") {
         setDragRing({ key, value: Math.min(waterGoalMl, Math.round((f * waterGoalMl) / 50) * 50) });
       } else {
+        // The drag spans the model's own 14 h cap — the SAME
+        // ceiling tap and keyboard use — not just the goal. A
+        // 9 h night against an 8 h goal is a normal thing to
+        // log by touch; the ring fill simply stays pinned at
+        // 100% past the goal, and the live bubble keeps the
+        // exact value + range honest.
         setDragRing({
           key,
-          value: Math.min(sleepGoalMin, Math.round((f * sleepGoalMin) / 15) * 15),
+          value: Math.min(840, Math.round((f * 840) / 15) * 15),
         });
       }
       // quarter ticks — a tiny pulse as the liquid passes 25 / 50 / 75 / 100 %

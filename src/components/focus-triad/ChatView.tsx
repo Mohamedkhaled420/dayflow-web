@@ -340,6 +340,14 @@ export function ChatView({ active = true }: { active?: boolean }) {
   const voiceDropsRef = useRef<number[]>([]);
   const voiceResumeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const voiceFailedRef = useRef(false);
+  // --- single-flight lock for startVoice ---
+  // `connecting` is React state — STALE inside the closures of
+  // rapid taps (the pre-flight quota fetch leaves a real window
+  // where sessionRef is still null), so a double-tap could mint
+  // TWO live sessions: double greeting, double metering, and a
+  // stop that only kills the second one. A ref is checked and
+  // set SYNCHRONOUSLY, so the second tap is always a no-op.
+  const connectingRef = useRef(false);
 
   // ---------- voice quota (Plus monetization) ----------
   /** Today's plan + usage, from /api/billing/status. Null = not
@@ -717,7 +725,8 @@ export function ChatView({ active = true }: { active?: boolean }) {
   const startVoice = async (opts?: {
     resume?: boolean;
   }): Promise<VoiceSession | null> => {
-    if (sessionRef.current || connecting) return sessionRef.current;
+    if (sessionRef.current || connectingRef.current) return sessionRef.current;
+    connectingRef.current = true;
     setConnecting(true);
     setCoachError(null);
     // Pre-flight the daily quota BEFORE opening the socket. The
@@ -986,6 +995,7 @@ export function ChatView({ active = true }: { active?: boolean }) {
       );
       return null;
     } finally {
+      connectingRef.current = false;
       setConnecting(false);
     }
   };
