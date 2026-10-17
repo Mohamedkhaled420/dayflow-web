@@ -1094,6 +1094,9 @@ export function ChatView({ active = true }: { active?: boolean }) {
   const toggleMic = async () => {
     hapticSelect();
     if (!sessionRef.current) {
+      // A start is already in flight: this tap is a no-op (it is
+      // NOT a stop — the user just double-tapped the mic).
+      if (connectingRef.current) return;
       // A ghost the UI lost track of (remount / pane races):
       // this tap means STOP — kill it, don't stack a second
       // session on top of a still-listening one.
