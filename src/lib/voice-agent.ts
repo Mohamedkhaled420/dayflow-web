@@ -214,14 +214,21 @@ export class VoiceSession {
       ws.addEventListener(
         "message",
         (e) => {
-          // A JSON error body (401/503) arrives as the first frame
-          // when the relay refused the upgrade.
+          // A JSON error body (401/402/503) arrives as the first
+          // frame when the relay refused the upgrade. The `code`
+          // rides along on the rejected Error so callers can tell
+          // a quota wall (VOICE_QUOTA) from a mic/permission
+          // failure and show the right UI for each.
           if (typeof e.data === "string") {
             try {
-              const m = JSON.parse(e.data) as { type?: string; error?: string };
+              const m = JSON.parse(e.data) as { type?: string; error?: string; code?: string };
               if (m?.type === "Error" || m?.error) {
                 clearTimeout(t);
-                reject(new Error(m.error ?? "voice unavailable"));
+                const err = new Error(m.error ?? "voice unavailable") as Error & {
+                  code?: string;
+                };
+                if (m.code) err.code = m.code;
+                reject(err);
               }
             } catch { /* normal events flow below */ }
           }

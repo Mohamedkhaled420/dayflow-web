@@ -49,6 +49,7 @@ import {
   type ThemePref,
 } from "@/components/focus-triad/CircadianThemeSync";
 import { HAPTICS_OFF_KEY } from "@/lib/haptics";
+import { formatVoiceClock } from "@/lib/voice-quota";
 import type { Json } from "@/types/supabase";
 
 /* ---------------- the seal system (reference SIG) ---------------- */
@@ -265,6 +266,10 @@ export function SettingsView({ onNavigate }: { onNavigate: (t: TabId) => void })
   const [plan, setPlan] = useState<"free" | "plus" | null>(null);
   const [pendingCheckout, setPendingCheckout] = useState(false);
   const [upgradeBusy, setUpgradeBusy] = useState(false);
+  /** Today's Dia-voice usage vs quota (Plus monetization) — null
+   *  when unknown (signed out / migration not applied yet), and
+   *  the usage line then simply doesn't render. */
+  const [voiceToday, setVoiceToday] = useState<{ used: number; quota: number } | null>(null);
 
   // ---- guest → account upgrade ("Try it first" users) ----
   const [isGuest, setIsGuest] = useState(false);
@@ -432,9 +437,16 @@ export function SettingsView({ onNavigate }: { onNavigate: (t: TabId) => void })
         const body = (await res.json()) as {
           plan?: "free" | "plus";
           pendingCheckout?: boolean;
+          voice?: { usedSeconds?: number; quotaSeconds?: number };
         };
         if (cancelled) return;
         if (body.plan) setPlan(body.plan);
+        if (body.voice) {
+          setVoiceToday({
+            used: Math.max(0, Number(body.voice.usedSeconds) || 0),
+            quota: Math.max(1, Number(body.voice.quotaSeconds) || 1),
+          });
+        }
         const pending = body.pendingCheckout === true && body.plan !== "plus";
         setPendingCheckout(pending);
         if (pending && reschedule && Date.now() - started < MAX_MS) {
@@ -928,13 +940,21 @@ export function SettingsView({ onNavigate }: { onNavigate: (t: TabId) => void })
               <b>Focus Triad Plus</b>
               <small>
                 {plan === "plus"
-                  ? "Thanks for supporting Focus Triad"
+                  ? "Thanks for supporting Focus Triad — unlimited voice for a year."
                   : pendingCheckout
                     ? "Confirming your payment — this can take a few minutes. If you closed the checkout page, just start another."
                     : plan === "free"
-                      ? "Everything's included for free — Plus ($4.99/yr, crypto) keeps Focus Triad independent"
-                      : "Support the app, keep it independent"}
+                      ? "Free plan: 5 min of Dia voice a day, everything else included. Plus ($14.99/yr, crypto) unlocks unlimited voice."
+                      : "Plus ($14.99/yr, crypto) unlocks unlimited Dia voice — and keeps Focus Triad independent."}
               </small>
+              {plan !== "plus" &&
+                voiceToday &&
+                voiceToday.used > 0 && (
+                  <small>
+                    Voice today: {formatVoiceClock(voiceToday.used)} of{" "}
+                    {formatVoiceClock(voiceToday.quota)} — resets overnight
+                  </small>
+                )}
             </div>
             {plan === "plus" ? (
               <span

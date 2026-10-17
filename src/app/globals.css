@@ -7889,6 +7889,63 @@ select {
   color: var(--df-text-muted);
   font-weight: 500;
 }
+/* ---------- voice quota (Plus monetization) ---------- */
+.dfc-quota {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--df-text-muted);
+}
+/* The captions column shrinks by default (flex: 0 1 auto) — with
+   the wall card in it, that made the card overflow ON TOP of the
+   prompt chips. When the wall is up, the column must NOT shrink:
+   it takes its real height and pushes the chips down instead. */
+.dfc-cap:has(.dfc-wall) {
+  flex: none;
+}
+.dfc-wall {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 36ch;
+  margin: 2px 0;
+  padding: 14px 16px 16px;
+  border-radius: 20px;
+  background: var(--df-card-fill);
+  box-shadow: inset 0 0 0 1px var(--df-card-border);
+}
+.dfc-wall p {
+  font-size: 13.5px;
+  line-height: 1.5;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--df-text-primary);
+  max-width: 30ch;
+}
+.dfc-wall p span {
+  color: var(--df-text-muted);
+  font-weight: 500;
+}
+.dfc-wall button {
+  min-height: 42px;
+  padding: 0 20px;
+  border-radius: 99px;
+  background: linear-gradient(140deg, var(--df-p-marine), var(--df-p-frost));
+  color: var(--df-on-pastel-ink);
+  box-shadow: inset 0 1px 0 var(--df-hairline-light);
+  font-weight: 700;
+  font-size: 13.5px;
+  white-space: nowrap;
+  transition: transform 0.3s var(--dfx-ease-spring);
+}
+.dfc-wall button:disabled {
+  opacity: 0.55;
+}
+.dfc-wall button:not(:disabled):active {
+  transform: scale(0.94);
+}
 .dfc-cap .w {
   opacity: 0.3;
   transition: opacity 0.25s;
