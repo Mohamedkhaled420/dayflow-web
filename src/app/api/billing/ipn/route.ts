@@ -211,6 +211,24 @@ export async function POST(req: Request) {
     return Response.json({ error: "write failed" }, { status: 500 });
   }
 
+  // Terminal-negative (failed/expired/refunded): retire the
+  // checkout_created mapping rows for this order so /billing/status
+  // stops reporting "Confirming your payment…" — a refunded order
+  // is not confirming anything. 'finished' deliberately does NOT
+  // touch them: the mapping row must stay resolvable for IPN
+  // retries and a possible later refund of the same order.
+  if (!plus) {
+    void service
+      .from("billing_events")
+      .update({ payment_status: status })
+      .eq("order_id", orderId)
+      .eq("payment_status", "checkout_created")
+      .then(({ error: retireError }) => {
+        if (retireError)
+          console.warn("[billing/ipn] mapping retire failed:", retireError.message);
+      });
+  }
+
   console.log(`[billing/ipn] user ${userId.slice(0, 8)}… → ${plus ? "plus" : "free"} (${status})`);
   return Response.json({ received: true, acted: true });
 }

@@ -90,6 +90,43 @@ estimates. To light them up, add either key as a Vercel environment variable
 `ZAI_API_KEY` from either Z.ai or BigModel works — the vision client auto-routes
 to the right platform and model.
 
+### Plus plan & payments (optional)
+
+Focus Triad ships with a two-tier model: **Free** (everything in the app, plus
+5 min/day of Dia voice) and **Plus** ($14.99/yr, crypto via NOWPayments —
+unlimited voice). Unconfigured deployments degrade honestly: the Settings row
+says "coming soon" and no money can be taken.
+
+To turn billing on, three things must line up:
+
+1. **Supabase migrations** — apply `0014_billing.sql`, `0015_billing_order_index.sql`
+   and `0016_voice_quota.sql` (the `subscriptions`, `billing_events` and
+   `voice_usage` tables + the `record_voice_seconds()` metering RPC).
+2. **NOWPayments account** — create an API key and copy the IPN secret from the
+   dashboard (Settings → IPN callback). No dashboard webhook URL is needed: each
+   invoice carries its own `ipn_callback_url` pointing at your deployment.
+3. **Environment variables** (then redeploy):
+
+| Variable | Purpose |
+| --- | --- |
+| `NOWPAYMENTS_API_KEY` | Mints the hosted invoice at checkout |
+| `NOWPAYMENTS_IPN_SECRET` | Verifies the `x-nowpayments-sig` webhook (HMAC-SHA512) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Lets the webhook flip the subscription past RLS |
+| `NOWPAYMENTS_BASE_URL` | *(optional)* point at `https://api-sandbox.nowpayments.io` to rehearse the whole loop with no real money |
+
+The loop: tap **Upgrade** in Settings → we mint an invoice and record the
+order→payer mapping → the user pays in any listed crypto → NOWPayments POSTs
+`/api/billing/ipn` (signature-verified, three documented algorithms) → the
+subscription flips to `plus` for 365 days → the app polls and confirms with a
+toast. Refunds/failed payments flip back to `free` and clear the pending state.
+
+Free-tier voice quota is enforced server-side in the voice relay (`402` with
+exact seconds used/quota), metered atomically per UTC day — clients can't reset
+their own counter.
+
+To rehearse payments locally, `scripts/billing-e2e-ipn.mjs` crafts
+properly-signed IPN payloads (see the sandbox `mini-services/` mocks).
+
 ## Architecture
 
 ```

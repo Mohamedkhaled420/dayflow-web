@@ -35,6 +35,12 @@ export const runtime = "nodejs";
 // for ops experiments; unset it in production or it wins.
 const DEFAULT_PRICE_USD = 14.99;
 
+// NOWPayments base URL. Default = production; point
+// NOWPAYMENTS_BASE_URL at https://api-sandbox.nowpayments.io to
+// rehearse the whole payment loop with their sandbox before
+// going live (same API shape, no real money).
+const NP_BASE = (process.env.NOWPAYMENTS_BASE_URL ?? "https://api.nowpayments.io").replace(/\/+$/, "");
+
 export async function POST(req: Request) {
   const apiKey = process.env.NOWPAYMENTS_API_KEY;
   const ipnSecret = process.env.NOWPAYMENTS_IPN_SECRET;
@@ -91,7 +97,7 @@ export async function POST(req: Request) {
 
   let payload: Record<string, unknown>;
   try {
-    const res = await fetch("https://api.nowpayments.io/v1/invoice", {
+    const res = await fetch(`${NP_BASE}/v1/invoice`, {
       method: "POST",
       headers: {
         "x-api-key": apiKey,
