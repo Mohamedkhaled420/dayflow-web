@@ -21,10 +21,19 @@
 // Perf notes:
 //   - dpr is capped at 2 AND by a 4.5M-pixel budget, so phones
 //     render at ~1.2-1.5x instead of 3x.
-//   - The render loop fully STOPS when the tab is hidden, the
-//     container is off-screen (IntersectionObserver), or nothing
-//     is animating (paused + settled + intro done) — it wakes on
-//     settings changes, pointer moves and visibility.
+//   - The render loop STOPS when the tab is hidden, the container
+//     is off-screen (IntersectionObserver), or the ball is paused
+//     and fully settled — it wakes on settings changes, pointer
+//     moves, intersection and visibility.
+//   - While on duty but NOT engaged (no pointer over the ball, no
+//     live audio, intro done, energies settled) the loop runs a
+//     duty cycle: the cheap sim ticks every frame, but the heavy
+//     WebGL render fires once per adaptive idle gap (at least
+//     AMBIENT_IDLE_SECONDS apart, widened to ~4x the measured
+//     frame cost). The old loop rendered every vsync no matter
+//     what — on phones one frame cost more than the entire 16ms
+//     budget, the rAF queue saturated the main thread, and the
+//     whole app stopped responding to taps.
 //   - prefers-reduced-motion renders ONE static settled frame.
 // ============================================================
 
@@ -186,6 +195,14 @@ const STATE_WIDTH = 256;
 const PIXEL_BUDGET = 4.5e6;
 const INTRO_SECONDS = 2.2;
 const SETTLE_SECONDS = 7;
+/** Idle ambient duty cycle: the floor cadence (seconds) between
+ * heavy renders when nothing is engaged. Full display rate returns
+ * the instant engagement does (pointer, live audio, intro, stir). */
+const AMBIENT_IDLE_SECONDS = 0.25;
+/** surge/level floors ABOVE the VoiceOrb resting feed (~0.025)
+ * that still count as genuine live engagement. */
+const ENGAGE_SURGE = 0.04;
+const ENGAGE_LEVEL = 0.05;
 const WHITE = [1, 1, 1];
 const BLACK = [0, 0, 0];
 
@@ -1270,6 +1287,13 @@ const CrystalizedBall = ({
     const heat = { angle: 0, velocity: 0, power: 0, near: 0 };
     const brush = { x: 0, y: 0, vx: 0, vy: 0 };
     const look = { x: 0, y: 0, vx: 0, vy: 0 };
+    // Duty-cycle state: time waited toward the next idle render,
+    // the current idle gap, an EMA of the heavy render cost, and a
+    // one-shot flag forcing the frame after every wake to render.
+    let idleWait = 0;
+    let idleGap = AMBIENT_IDLE_SECONDS;
+    let frameCostEma = 0;
+    let forceRender = true;
 
     const resize = () => {
       width = Math.max(1, container.clientWidth);
@@ -1295,13 +1319,17 @@ const CrystalizedBall = ({
 
     const frame = (now: number) => {
       raf = 0;
-      if (!alive) return;
+      if (!alive || !visible) return;
       const s = settingsRef.current;
       const dt = Math.min(0.05, Math.max(1 / 240, (now - last) / 1000));
       last = now;
       if (!s) return;
 
-      const moving = !s.paused && !reducedMotion;
+      // On duty: unpaused, motion allowed, page visible. `moving`
+      // (the sim may advance) matches this; the heavy RENDER is
+      // duty-cycled separately below.
+      const ambient = !s.paused && !reducedMotion && !document.hidden;
+      const moving = ambient;
       introClock = s.intro && !reducedMotion ? Math.min(1, introClock + dt / INTRO_SECONDS) : 1;
       const presence = easeOut(smooth(0, 0.42, introClock));
       const unfold = easeOut(smooth(0, 0.32, introClock));
@@ -1324,8 +1352,10 @@ const CrystalizedBall = ({
       const nearTarget = Math.exp(-Math.pow((reach - radius) / (radius * 0.45), 2));
       heat.near += (nearTarget - heat.near) * (1 - Math.exp(-dt / 0.15));
       surge *= Math.exp(-dt / 0.7);
-      // Live audio level → energy envelope (attack follows, release decays).
-      const level = clamp(levelRef?.current ?? 0, 0, 1);
+      // Live audio level → energy envelope (attack follows, release
+      // decays). Fed ONLY while the ball is on duty — a stale ref
+      // value must never pin the loop open off-stage.
+      const level = ambient ? clamp(levelRef?.current ?? 0, 0, 1) : 0;
       if (level > surge) surge = level;
 
       const bx = px / radius;
@@ -1379,6 +1409,57 @@ const CrystalizedBall = ({
       } else {
         arcs.length = 0;
       }
+
+      // Look spring (cheap sim — feeds settling and uTurn below).
+      const gaze = pointer.inside ? strength * presence : 0;
+      const lookX = clamp(bx, -1.6, 1.6) * gaze;
+      const lookY = clamp(by, -1.6, 1.6) * gaze;
+      look.vx += (40 * (lookX - look.x) - 11 * look.vx) * dt;
+      look.vy += (40 * (lookY - look.y) - 11 * look.vy) * dt;
+      look.x += look.vx * dt;
+      look.y += look.vy * dt;
+
+      const settling =
+        Math.abs(target - heat.power) > 0.002 ||
+        surge > 0.002 ||
+        stirring > 0 ||
+        Math.abs(heat.velocity) > 0.01 ||
+        Math.hypot(look.vx, look.vy, look.x - lookX, look.y - lookY) > 0.001;
+
+      // Genuine engagement — the moments that deserve full display
+      // rate: a pointer over the ball, the intro unfold, live audio,
+      // an active stir, or heat still swinging. Ambient spark arcs
+      // are deliberately NOT engagement — they render at the idle
+      // cadence like the rest of the resting drift.
+      const engaged =
+        pointer.inside ||
+        introClock < 1 ||
+        surge > ENGAGE_SURGE ||
+        level > ENGAGE_LEVEL ||
+        stirring > 0 ||
+        Math.abs(heat.velocity) > 0.02;
+
+      // ---- the duty cycle ----
+      // The cheap sim above ticks every frame; the heavy WebGL
+      // render below runs at full rate ONLY while engaged, and
+      // otherwise once per idle gap. The gap is adaptive: at least
+      // AMBIENT_IDLE_SECONDS apart, widened to ~4x the measured
+      // frame cost, so even a phone that needs 300ms a frame keeps
+      // a bounded duty cycle instead of saturating the main thread.
+      idleWait += dt;
+      const renderNow =
+        (forceRender && !s.paused) ||
+        (ambient && (engaged || idleWait >= idleGap));
+      if (!renderNow) {
+        if (visible && !document.hidden && (ambient || settling || introClock < 1)) {
+          raf = requestAnimationFrame(frame);
+        }
+        return;
+      }
+      forceRender = false;
+      idleWait = 0;
+      const heavyStart = performance.now();
+
       for (let i = 0; i < MAX_ARCS; i++) {
         const arc = arcs[i];
         arcData[i * 4] = arc ? arc.start : 0;
@@ -1418,13 +1499,6 @@ const CrystalizedBall = ({
       fieldUniforms.uHeat.value = [heat.angle, heat.near, heat.power * presence, 0];
 
       dustShared.uDustTime.value = dustTime;
-      const gaze = pointer.inside ? strength * presence : 0;
-      const lookX = clamp(bx, -1.6, 1.6) * gaze;
-      const lookY = clamp(by, -1.6, 1.6) * gaze;
-      look.vx += (40 * (lookX - look.x) - 11 * look.vx) * dt;
-      look.vy += (40 * (lookY - look.y) - 11 * look.vy) * dt;
-      look.x += look.vx * dt;
-      look.y += look.vy * dt;
       const swing = clamp(s.sway, 0, 1);
       dustShared.uTurn.value = [
         swing * 0.42 * Math.sin(swayClock * 0.23) + look.x * 0.3,
@@ -1472,18 +1546,24 @@ const CrystalizedBall = ({
       compositeUniforms.uLight.value = s.light ? 1 : 0;
       renderer.render({ scene: compositeMesh, clear: false });
 
-      const settling =
-        Math.abs(target - heat.power) > 0.002 ||
-        surge > 0.002 ||
-        stirring > 0 ||
-        Math.abs(heat.velocity) > 0.01 ||
-        Math.hypot(look.vx, look.vy, look.x - lookX, look.y - lookY) > 0.001;
-      if (visible && (moving || introClock < 1 || settling)) raf = requestAnimationFrame(frame);
+      // Feed the measured cost back into the idle gap (EMA, then
+      // ~4x cost, floored at the ambient cadence).
+      const heavyCost = performance.now() - heavyStart;
+      frameCostEma = frameCostEma > 0 ? frameCostEma * 0.75 + heavyCost * 0.25 : heavyCost;
+      idleGap = Math.max(AMBIENT_IDLE_SECONDS, (frameCostEma * 4) / 1000);
+
+      if (visible && !document.hidden && (ambient || settling || introClock < 1)) {
+        raf = requestAnimationFrame(frame);
+      }
     };
 
     const start = () => {
       if (raf || !visible || !alive) return;
       last = performance.now();
+      // The waker's first frame always renders (settings change,
+      // pointer entry, visibility, resize, reduced-motion's single
+      // static frame) — the duty cycle takes over from there.
+      forceRender = true;
       raf = requestAnimationFrame(frame);
     };
 
