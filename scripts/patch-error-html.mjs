@@ -10,20 +10,43 @@
  * language on the deployed crash page.
  *
  * Idempotent: skips if a lang attribute is already present.
- * Self-verifying: if Next changes the markup so the patch no longer
- * matches, the script exits non-zero and fails the build loudly instead of
+ * Self-verifying: if a file EXISTS but the patch no longer matches,
+ * the script exits non-zero and fails the build loudly instead of
  * silently regressing.
+ *
+ * Build-environment tolerance (observed with next 16.4.x on Vercel):
+ * some build environments do not emit the prerendered
+ * `_global-error.html` at all (Vercel serves the crash page from our
+ * global-error.tsx, which already renders <html lang="en">). When no
+ * candidate artifact exists we log a notice and exit 0 — the a11y
+ * guarantee is still enforced by Lighthouse CI in GitHub Actions,
+ * where the artifact IS emitted and patched.
  */
 import { readFileSync, writeFileSync } from "node:fs";
 
-const FILE = new URL("../.next/server/app/_global-error.html", import.meta.url);
+const CANDIDATES = [
+  ".next/server/app/_global-error.html",
+  ".next/standalone/.next/server/app/_global-error.html",
+];
 
-let html;
-try {
-  html = readFileSync(FILE, "utf8");
-} catch {
-  console.error("patch-error-html: .next/server/app/_global-error.html not found — was `next build` run?");
-  process.exit(1);
+let FILE = null;
+let html = null;
+for (const rel of CANDIDATES) {
+  const url = new URL(`../${rel}`, import.meta.url);
+  try {
+    html = readFileSync(url, "utf8");
+    FILE = url;
+    break;
+  } catch {
+    // try next candidate
+  }
+}
+
+if (html === null) {
+  console.log(
+    "patch-error-html: no prerendered _global-error.html emitted in this build environment — nothing to patch (runtime crash page renders from global-error.tsx, which has lang=\"en\")"
+  );
+  process.exit(0);
 }
 
 if (/<html[^>]*\slang=/.test(html)) {
